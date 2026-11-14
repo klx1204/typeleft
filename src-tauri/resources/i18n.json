@@ -614,5 +614,45 @@
   "Component Stack": {
     "en": "Component Stack",
     "zh": "组件堆栈"
+  },
+  "Saving": {
+    "en": "Saving",
+    "zh": "保存中"
+  },
+  "Save failed": {
+    "en": "Save failed",
+    "zh": "保存失败"
+  },
+  "File changed on disk": {
+    "en": "File changed on disk",
+    "zh": "文件已被外部修改"
+  },
+  "The file has been modified by another program. Choose what to do.": {
+    "en": "The file has been modified by another program. Choose what to do.",
+    "zh": "文件已被其他程序修改，请选择处理方式。"
+  },
+  "Reload": {
+    "en": "Reload",
+    "zh": "重新加载"
+  },
+  "Overwrite": {
+    "en": "Overwrite",
+    "zh": "覆盖"
+  },
+  "Restore backup": {
+    "en": "Restore backup",
+    "zh": "恢复备份"
+  },
+  "A newer backup was found for this file. Do you want to restore it?": {
+    "en": "A newer backup was found for this file. Do you want to restore it?",
+    "zh": "发现该文件有较新的备份，是否恢复？"
+  },
+  "Discard": {
+    "en": "Discard",
+    "zh": "丢弃"
+  },
+  "Restore": {
+    "en": "Restore",
+    "zh": "恢复"
   }
 }

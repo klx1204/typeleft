@@ -11,8 +11,31 @@ import ExportHtml from "services/exportHtml";
 import { htmlToMarkdown } from "services/importHtml";
 import { DEFAULT_TURNDOWN_CONFIG } from "components/Muya/lib/config";
 import { getHtmlToc, getTOC } from "services/common";
+import { useI18n } from "services/i18n";
+
+const modalOverlayStyle: React.CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 10002, display: 'flex',
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)',
+};
+const modalCardStyle: React.CSSProperties = {
+    width: 420, padding: 22, borderRadius: 8,
+    backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+};
+const modalTitleStyle: React.CSSProperties = { fontSize: 16, fontWeight: 600, marginBottom: 10 };
+const modalTextStyle: React.CSSProperties = { fontSize: 13, lineHeight: 1.6, marginBottom: 18, color: 'var(--editorColor60)' };
+const modalActionsStyle: React.CSSProperties = { display: 'flex', justifyContent: 'flex-end', gap: 8 };
+const dialogBtnStyle: React.CSSProperties = {
+    padding: '6px 14px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+    border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+    backgroundColor: 'var(--editorColor04)',
+};
+const dialogPrimaryBtnStyle: React.CSSProperties = {
+    ...dialogBtnStyle, backgroundColor: 'var(--themeColor)', borderColor: 'var(--themeColor)', color: '#fff',
+};
 
 const Editor: React.FC = () => {
+    const { t } = useI18n();
     const [markdown, setMarkdown] = useState<string>();
     const markdownRef = useRef<string>();
     const [cursor, setCursor] = useState<any>();
@@ -26,8 +49,26 @@ const Editor: React.FC = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarSection, setSidebarSection] = useState<'filetree' | 'toc'>('filetree');
     const [sidePaneWidth, setSidePaneWidth] = useState(240);
+    const lastSavedContentRef = useRef('');
+    const lastBackupRef = useRef('');
+    const lastMtimeRef = useRef<number | null>(null);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [conflict, setConflict] = useState<{ content: string } | null>(null);
+    const [backupPrompt, setBackupPrompt] = useState<{ id: string; created: number; content: string } | null>(null);
 
     const OnFileLoaded = useCallback(() => setTimeout(() => transport.postMessage('FileLoaded', { text: markdownRef.current }), 100), [])
+
+    // Track what is on disk so we never rewrite unchanged content and can detect
+    // concurrent external edits.
+    const adoptLoadedFile = useCallback((text: string, path?: string) => {
+        lastSavedContentRef.current = text;
+        lastBackupRef.current = text;
+        lastMtimeRef.current = null;
+        setSaveStatus('idle');
+        if (path) {
+            remoteCommon.getFileMtime({ path }).then(m => { lastMtimeRef.current = m }).catch(() => {});
+        }
+    }, []);
 
     useEffect(() => {
         Promise.all([
@@ -51,6 +92,7 @@ const Editor: React.FC = () => {
             setOptions(opt)
             setMarkdown(text)
             markdownRef.current = text
+            adoptLoadedFile(text, fp)
             OnFileLoaded();
         })
     }, [OnFileLoaded]);
@@ -110,6 +152,7 @@ const Editor: React.FC = () => {
         setCursor(undefined)
         setMarkdown(text)
         markdownRef.current = text
+        adoptLoadedFile(text, filePath)
         if (filePath) {
             const name = filePath.split('/').pop() || filePath.split('\\').pop() || 'Typeleft';
             document.title = `${name} - Typeleft`;
@@ -123,7 +166,8 @@ const Editor: React.FC = () => {
         setCursor(cursor)
         setTimeout(() => setMarkdown(text))
         markdownRef.current = text
-    }), []);
+        adoptLoadedFile(text)
+    }), [adoptLoadedFile]);
 
     useEffect(() => transport.addListener<Record<string, unknown>>('SettingsChanged', (newOptions) => {
         for (const name in newOptions) {
@@ -163,52 +207,89 @@ const Editor: React.FC = () => {
         setCursor(undefined)
         setMarkdown('')
         markdownRef.current = ''
+        adoptLoadedFile('')
         document.title = 'Typeleft'
         getCurrentWebviewWindow().setTitle('Typeleft').catch(() => {});
     }), []);
 
-    const saveContent = useCallback((content: string) => {
-        if (filePath) {
-            remote.saveFile({ filePath, content })
-            transport.postMessage('SaveState', { status: 'Saved' })
-        } else {
+    const saveNow = useCallback(async (opts?: { skipIfUnchanged?: boolean; force?: boolean }) => {
+        const content = markdownRef.current ?? ''
+        if (!filePath) {
             remote.saveFileAs({ content })
+            return false
+        }
+        if (opts?.skipIfUnchanged && content === lastSavedContentRef.current) {
+            return true
+        }
+        setSaveStatus('saving')
+        try {
+            const mtime = await remoteCommon.saveFile({
+                filePath,
+                content,
+                expectedMtime: opts?.force ? null : lastMtimeRef.current,
+                force: opts?.force,
+            })
+            lastSavedContentRef.current = content
+            lastMtimeRef.current = mtime
+            setSaveStatus('saved')
+            transport.postMessage('SaveState', { status: 'Saved' })
+            return true
+        } catch (e: any) {
+            const msg = String(e ?? '')
+            if (msg.includes('conflict')) {
+                setConflict({ content })
+            } else {
+                setSaveStatus('error')
+                transport.postMessage('SaveState', { status: 'Save failed' })
+            }
+            return false
         }
     }, [filePath])
 
-    // Auto-save every 5s (if enabled) + backup every 30s
+    // Auto-save: only when content actually changed since the last successful write.
     useEffect(() => {
-        let saveCount = 0;
-        const interval = setInterval(() => {
+        if (!filePath) return
+        const timer = setInterval(() => {
+            if (optionsRef.current?.autoSave === false) return
             const content = markdownRef.current ?? ''
-            if (content && filePath) {
-                const autoSave = optionsRef.current?.autoSave !== false;
-                if (autoSave) {
-                    remote.saveFile({ filePath, content })
-                }
-                saveCount++;
-                if (saveCount % 6 === 0) {
-                    remoteCommon.saveBackup({ path: filePath, content })
-                }
-            }
-        }, 5000)
-        return () => clearInterval(interval)
+            if (!content || content === lastSavedContentRef.current) return
+            saveNow({ skipIfUnchanged: true })
+        }, 2000)
+        return () => clearInterval(timer)
+    }, [filePath, saveNow])
+
+    // Rolling backups: at most one every 30s, only when the content changed.
+    useEffect(() => {
+        if (!filePath) return
+        const timer = setInterval(() => {
+            const content = markdownRef.current ?? ''
+            if (!content || content === lastBackupRef.current) return
+            remoteCommon.saveBackup({ path: filePath, content })
+                .then(() => { lastBackupRef.current = content })
+                .catch(() => {})
+        }, 30000)
+        return () => clearInterval(timer)
     }, [filePath])
 
-    // Check for backup on load
+    // Offer to restore a newer backup when a file is opened.
     useEffect(() => {
-        if (filePath) {
-            remoteCommon.checkBackup({ path: filePath }).then((backup: string | null) => {
-                if (backup) {
+        if (!filePath) return
+        let cancelled = false
+        remoteCommon.latestBackup({ path: filePath }).then((meta) => {
+            if (cancelled || !meta || !meta.isNewer) return
+            remoteCommon.readBackup({ path: filePath, id: meta.id }).then((content) => {
+                if (!cancelled) {
+                    setBackupPrompt({ id: meta.id, created: meta.created, content })
                     transport.postMessage('SaveState', { status: 'Backup found' })
                 }
             }).catch(() => {})
-        }
+        }).catch(() => {})
+        return () => { cancelled = true }
     }, [filePath])
 
     useEffect(() => transport.addListener('MenuSave', () => {
-        saveContent(markdownRef.current ?? '')
-    }), [saveContent]);
+        saveNow()
+    }), [saveNow]);
 
     useEffect(() => transport.addListener('MenuSaveAs', () => {
         const content = markdownRef.current ?? ''
@@ -314,6 +395,68 @@ const Editor: React.FC = () => {
     return (
         <>
             <Sidebar open={sidebarOpen} section={sidebarSection} onClose={() => setSidebarOpen(false)} />
+
+            {conflict && (
+                <div style={modalOverlayStyle} onClick={() => setConflict(null)}>
+                    <div style={modalCardStyle} onClick={e => e.stopPropagation()}>
+                        <div style={modalTitleStyle}>{t('File changed on disk')}</div>
+                        <div style={modalTextStyle}>{t('The file has been modified by another program. Choose what to do.')}</div>
+                        <div style={modalActionsStyle}>
+                            <button style={dialogBtnStyle} onClick={() => {
+                                const content = conflict.content;
+                                setConflict(null);
+                                remote.saveFileAs({ content });
+                            }}>{t('Save As...')}</button>
+                            <button style={dialogBtnStyle} onClick={async () => {
+                                setConflict(null);
+                                if (!filePath) return;
+                                try {
+                                    const text = await remoteCommon.readTextFile({ path: filePath });
+                                    setMarkdown(text);
+                                    markdownRef.current = text;
+                                    adoptLoadedFile(text, filePath);
+                                    setSaveStatus('idle');
+                                } catch { /* ignore */ }
+                            }}>{t('Reload')}</button>
+                            <button style={dialogPrimaryBtnStyle} onClick={() => {
+                                setConflict(null);
+                                saveNow({ force: true });
+                            }}>{t('Overwrite')}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {backupPrompt && (
+                <div style={modalOverlayStyle} onClick={() => setBackupPrompt(null)}>
+                    <div style={modalCardStyle} onClick={e => e.stopPropagation()}>
+                        <div style={modalTitleStyle}>{t('Restore backup')}</div>
+                        <div style={modalTextStyle}>
+                            {t('A newer backup was found for this file. Do you want to restore it?')}
+                            <br />
+                            {new Date(backupPrompt.created).toLocaleString()}
+                        </div>
+                        <div style={modalActionsStyle}>
+                            <button style={dialogBtnStyle} onClick={async () => {
+                                if (filePath) {
+                                    await remoteCommon.deleteBackup({ path: filePath, id: backupPrompt.id }).catch(() => {});
+                                }
+                                setBackupPrompt(null);
+                            }}>{t('Discard')}</button>
+                            <button style={dialogPrimaryBtnStyle} onClick={async () => {
+                                const content = backupPrompt.content;
+                                setBackupPrompt(null);
+                                setMarkdown(content);
+                                markdownRef.current = content;
+                                if (filePath) {
+                                    await remoteCommon.deleteBackup({ path: filePath, id: backupPrompt.id }).catch(() => {});
+                                }
+                                saveNow({ force: true });
+                            }}>{t('Restore')}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div style={{ marginLeft: sidebarOpen ? sidePaneWidth : 0, transition: 'margin-left .2s' }}>
                 {options.sourceCode ? (
                     <CodeMirror

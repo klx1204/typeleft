@@ -54,7 +54,12 @@ const StatusBar: React.FC = () => {
 
   if (!visible) return null;
 
-  const saveLabel = saveState === 'Saved' ? t('Saved') : saveState === 'Backup found' ? t('Backup found') : saveState;
+  const saveLabel =
+    saveState === 'Saved' ? t('Saved')
+      : saveState === 'Backup found' ? t('Backup found')
+        : saveState === 'Save failed' ? t('Save failed')
+          : saveState === 'Saving' ? t('Saving')
+            : saveState;
 
   return (
     <div className="StatusBar" style={{

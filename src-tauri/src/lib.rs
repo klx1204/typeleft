@@ -541,12 +541,57 @@ fn open_file_dialog(app: tauri::AppHandle) {
         });
 }
 
+fn file_mtime_ms(path: &std::path::Path) -> Result<i64, String> {
+    let modified = std::fs::metadata(path)
+        .map_err(|e| e.to_string())?
+        .modified()
+        .map_err(|e| e.to_string())?;
+    modified
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .map_err(|e| e.to_string())
+}
+
+fn atomic_write(path: &std::path::Path, content: &str) -> Result<(), String> {
+    let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| std::path::Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "file".to_string());
+    let tmp = parent.join(format!(".{}.tmp.{}", name, std::process::id()));
+    std::fs::write(&tmp, content).map_err(|e| e.to_string())?;
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e.to_string());
+    }
+    Ok(())
+}
+
 #[tauri::command]
-fn save_file(app: tauri::AppHandle, file_path: String, content: String) -> Result<(), String> {
-    std::fs::write(&file_path, &content).map_err(|e| e.to_string())?;
-    app.emit("FileSaved", serde_json::json!({
-        "filePath": file_path,
-    })).map_err(|e| e.to_string())
+fn save_file(
+    app: tauri::AppHandle,
+    file_path: String,
+    content: String,
+    expected_mtime: Option<i64>,
+    force: Option<bool>,
+) -> Result<i64, String> {
+    let path = expand_tilde(&file_path);
+    let p = std::path::Path::new(&path);
+
+    if let Some(expected) = expected_mtime {
+        if !force.unwrap_or(false) && p.exists() {
+            let actual = file_mtime_ms(p)?;
+            if actual != expected {
+                return Err(format!("conflict:{}", actual));
+            }
+        }
+    }
+
+    atomic_write(p, &content)?;
+    let mtime = file_mtime_ms(p)?;
+    let _ = app.emit("FileSaved", serde_json::json!({ "filePath": file_path }));
+    Ok(mtime)
 }
 
 #[tauri::command]
@@ -663,39 +708,115 @@ fn is_filename_valid(name: String) -> bool {
     !name.is_empty() && !name.contains(invalid_chars) && name != "." && name != ".."
 }
 
-fn backup_path(file_path: &str) -> std::path::PathBuf {
-    let mut p = std::path::PathBuf::from(file_path);
-    if let Some(name) = p.file_name() {
-        let backup_name = format!(".{}.backup", name.to_string_lossy());
-        p.set_file_name(backup_name);
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupMeta {
+    id: String,
+    created: i64,
+    size: u64,
+    is_newer: bool,
+}
+
+fn backup_dir(app: &tauri::AppHandle, path: &str) -> std::path::PathBuf {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    path.hash(&mut hasher);
+    let key = format!("{:016x}", hasher.finish());
+    let base = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("typeleft"));
+    base.join("backups").join(key)
+}
+
+fn backup_entries(dir: &std::path::Path) -> Vec<(String, i64, u64)> {
+    let mut entries: Vec<(String, i64, u64)> = std::fs::read_dir(dir)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("bak") {
+                return None;
+            }
+            let id = path.file_stem()?.to_string_lossy().to_string();
+            let created = id.parse::<i64>().ok()?;
+            let size = entry.metadata().ok()?.len();
+            Some((id, created, size))
+        })
+        .collect();
+    entries.sort_by(|a, b| b.1.cmp(&a.1));
+    entries
+}
+
+fn prune_backups(dir: &std::path::Path, keep: usize) {
+    let entries = backup_entries(dir);
+    for (id, _, _) in entries.into_iter().skip(keep) {
+        let _ = std::fs::remove_file(dir.join(format!("{}.bak", id)));
     }
-    p
 }
 
 #[tauri::command]
-fn save_backup(path: String, content: String) -> Result<(), String> {
-    let backup = backup_path(&path);
-    std::fs::write(&backup, &content).map_err(|e| e.to_string())
+fn save_backup(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
+    let dir = backup_dir(&app, &path);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    std::fs::write(dir.join(format!("{}.bak", now)), &content).map_err(|e| e.to_string())?;
+    prune_backups(&dir, 20);
+    Ok(())
 }
 
 #[tauri::command]
-fn check_backup(path: String) -> Option<String> {
-    let backup = backup_path(&path);
-    if backup.exists() {
-        std::fs::read_to_string(&backup).ok()
-    } else {
-        None
-    }
+fn list_backups(app: tauri::AppHandle, path: String) -> Vec<BackupMeta> {
+    let dir = backup_dir(&app, &path);
+    let file_mtime = file_mtime_ms(std::path::Path::new(&path)).unwrap_or(0);
+    backup_entries(&dir)
+        .into_iter()
+        .map(|(id, created, size)| BackupMeta {
+            id,
+            created,
+            size,
+            is_newer: created > file_mtime,
+        })
+        .collect()
 }
 
 #[tauri::command]
-fn delete_backup(path: String) -> Result<(), String> {
-    let backup = backup_path(&path);
-    if backup.exists() {
-        std::fs::remove_file(&backup).map_err(|e| e.to_string())
-    } else {
-        Ok(())
+fn latest_backup(app: tauri::AppHandle, path: String) -> Option<BackupMeta> {
+    list_backups(app, path).into_iter().next()
+}
+
+#[tauri::command]
+fn get_file_mtime(path: String) -> Option<i64> {
+    file_mtime_ms(std::path::Path::new(&expand_tilde(&path))).ok()
+}
+
+#[tauri::command]
+fn read_backup(app: tauri::AppHandle, path: String, id: String) -> Result<String, String> {
+    let file = backup_dir(&app, &path).join(format!("{}.bak", id));
+    std::fs::read_to_string(&file).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_backup(app: tauri::AppHandle, path: String, id: String) -> Result<(), String> {
+    let file = backup_dir(&app, &path).join(format!("{}.bak", id));
+    if file.exists() {
+        std::fs::remove_file(&file).map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_backups(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    let dir = backup_dir(&app, &path);
+    for (id, _, _) in backup_entries(&dir) {
+        let _ = std::fs::remove_file(dir.join(format!("{}.bak", id)));
+    }
+    Ok(())
 }
 
 fn load_list<T: for<'de> serde::Deserialize<'de>>(app: &tauri::AppHandle, key: &str) -> Vec<T> {
@@ -1265,8 +1386,12 @@ pub fn run() {
             create_dir,
             is_filename_valid,
             save_backup,
-            check_backup,
+            list_backups,
+            latest_backup,
+            read_backup,
+            get_file_mtime,
             delete_backup,
+            clear_backups,
             get_export_configs,
             save_export_config,
             delete_export_config,

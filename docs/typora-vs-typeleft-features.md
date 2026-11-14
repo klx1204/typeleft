@@ -338,6 +338,124 @@
 
 10. 图床生态（PicGo/uPic/自定义命令）、文件链接、版本历史/草稿恢复 UI、CLI/启动参数、自动更新、跨平台系统集成（Quick Look/Share/JumpList/右键新建）。
 
+## 14. Tauri 2 + Rust 实现路径评估
+
+> 这一节回答一个落地问题：在**不更换 WebView、不更换编辑器引擎、不重写 React UI**的前提下，上面列出的缺口里哪些能靠 Tauri 2 + Rust 原生能力补齐，哪些需要平台代码，哪些属于伤筋动骨。
+>
+> 粗略估计：78 项未支持功能中，约 55–60 项可由“官方插件 + Rust crate + 前端小改”完成；真正伤筋动骨的约 6–8 项，且大多不是核心写作功能。
+
+### 14.1 判断口径
+
+| 分类 | 含义 | 代价 |
+|---|---|---|
+| **A 原生直接** | Tauri 2 官方插件、内置 API 或成熟 Rust crate 即可完成系统层；前端补 UI | 低 |
+| **B 平台 API** | 需要 macOS/Windows/Linux 的平台 WebView 或系统 API，Tauri 不直接暴露 | 中 |
+| **C 伤筋动骨** | 换引擎、换 UI 结构、引入服务端或写系统级插件 | 高 |
+
+“原生可实现”只表示系统层可由 Rust/Tauri 完成，不代表不需要写前端界面。
+
+### 14.2 A 类：原生直接可做
+
+#### 文件与工作区
+
+| 功能（对应编号） | 实现路径 | 难度 |
+|---|---|---|
+| 跨文件搜索 #16/#105 | `ignore` 遍历 + `grep-searcher`/`regex`，结果返回前端面板 | 低 |
+| Open Quickly 模糊找文件 #17/#106 | `walkdir` + `nucleo`/`fuzzy-matcher`；或复用前端 `fuzzaldrin-plus` | 低 |
+| 文件变更监听 #94 | `notify` crate（FSEvents / inotify / ReadDirectoryChangesW） | 低 |
+| 文件列表、排序、分组 #81/#85–87 | Rust 返回 metadata，前端排序/分组/过滤 | 低 |
+| 最近/固定文件夹 #92 | `tauri-plugin-store` 或现有设置 JSON | 低 |
+| 拖拽移动、插入文件链接 #89/#90 | Tauri drag-drop 事件 + `fs::rename` | 低 |
+| 本地文件链接解析/创建 #68 | Rust 解析路径、判断存在、创建文件 | 低 |
+| 标签搜索 #95 | 跨文件搜索的扩展 | 低 |
+| 草稿恢复 #19 | 现有 `.backup` 文件 + 恢复 UI | 低 |
+| 文件操作撤销 #91 | 操作日志 + 逆操作；删除建议做“应用内回收站” | 中 |
+
+#### 导出与导入
+
+| 功能 | 实现路径 | 难度 |
+|---|---|---|
+| Word/ePub/LaTeX/RTF/ODT/OPML/RevealJS #144–147 | 调用 Pandoc 外部进程（Typora 同样依赖 Pandoc） | 低 |
+| 导入 docx/rtf 等 #155 | Pandoc | 低 |
+| Markdown 转换/重排 #156 | Pandoc | 低 |
+| 自定义导出命令 #149 | `std::process::Command` | 低 |
+| 导出后置动作 #151 | `open` crate（项目已用） | 低 |
+| 每文档 YAML 导出配置 #152 | `serde_yaml` | 低 |
+
+> Pandoc 不是 Rust 原生，但作为外部进程调用是成本最低的方案；路径检测、配置、错误处理约 1–2 天。
+
+#### 应用与系统
+
+| 功能 | 实现路径 | 难度 |
+|---|---|---|
+| 自动更新 #167 | `tauri-plugin-updater`（代码容易，签名与发布流程另算） | 低 |
+| 单实例 + CLI 打开文件 #169/#170 | `tauri-plugin-single-instance` + `std::env::args` | 低 |
+| 全屏 #24 | `window.setFullscreen()` | 低 |
+| 视图缩放 #23 | Tauri 2 自带 `webview.setZoom()` | 低 |
+| 日志 #166 | `tauri-plugin-log` | 低 |
+| 多语言 #168 | 翻译资源（en/zh 已有） | 低 |
+| 深链接/文件关联 | `tauri-plugin-deep-link` + 现有 `fileAssociations` | 低 |
+
+#### 图片与主题
+
+| 功能 | 实现路径 | 难度 |
+|---|---|---|
+| 批量移动/复制/重命名/删除图片 #117–120 | `std::fs` + `image` crate | 低 |
+| 图床 HTTP 上传 #115 | `reqwest`（现有 HTTP 上传可复用） | 低 |
+| 第三方上传器 #116 | `std::process` 调 PicGo-Core / uPic / Upgit | 低 |
+| 图片缩放 #122 | 前端写 `width`/`height` + Rust 读尺寸 | 低 |
+| 主题目录、加载、监听 #126–138 | `fs` + `notify` + 前端 CSS 注入 | 低 |
+
+#### 前端为主、Rust 不参与（容易）
+
+TOC 块 #52、`==高亮==` #72、GitHub Alerts #53、智能标点 #9/#10、删除范围 #13、严格模式 #11、行尾/空白 #12、代码块行号/默认语言 #33–35、表格工具条 #45–48、自动编号/列表/任务样式 #18–23、RTL/竖排 #22/#31、复制为 Markdown/HTML/纯文本 #76–78。
+
+Mermaid 8→11 升级 #55 也属于这一类，但 API 有 breaking change，需要 1–2 天适配。
+
+### 14.3 B 类：需要平台 API
+
+| 功能 | 为什么不是纯 Tauri | 难度 |
+|---|---|---|
+| 一键程序化导出 PDF #142 | Tauri 只有 `webview.print()`，没有 `printToPdf`；macOS 需 `WKWebView.createPDF`，Windows 需 `ICoreWebView2.PrintToPdf`，Linux 需 WebKitGTK | 中高 |
+| 导出图片 #143 | 无原生截图 API；需平台截图或前端 `html2canvas` | 中 |
+| 拼写词典管理/学习单词 #21 | WebView 只提供基础拼写；词典下载与学习需 `hunspell` + 自维护词库 | 中 |
+| 公式自动编号/交叉引用 #42/#43 | KaTeX 支持 `\tag`，但 `\ref` 需自己扫描 `\label` 做预处理 | 中 |
+| physics 包 #41 | KaTeX 不支持；只能预展开宏或换 MathJax | 中高 |
+| 文件删除撤销 #91 | 系统回收站没有公开恢复 API；建议应用内回收站 | 中 |
+| Windows JumpList #98 | COM `ICustomDestinationList` | 中 |
+| Windows 右键新建 #97 | 注册表，安装器写入 | 低 |
+| macOS Share #99 | `NSSharingServicePicker`（objc） | 中 |
+| 自定义快捷键 #163 | 前端配置系统；现有快捷键分散在 Rust/前端 | 中 |
+
+> PDF 是最容易被低估的一项：现在的“打印 → 另存为 PDF”已经可用；要做到 Typora 式一键静默导出，必须写三套平台代码。
+
+### 14.4 C 类：真正伤筋动骨
+
+| 功能 | 原因 |
+|---|---|
+| MathJax 替换 KaTeX #41/#43 | 换公式引擎，渲染、导出、主题全部受影响 |
+| macOS Quick Look #99 | 需要写 `.appex` 插件，Tauri 打包不支持 |
+| macOS Services / 版本控制 #20/#99 | 需要 NSDocument / NSServices，Tauri 不是 document-based app |
+| 移动端 + 同步 #176 | Tauri 2 能上移动端，但 Muya 的键盘/选择/文件系统要重做；同步还要服务端 |
+| 协同编辑 | CRDT + 服务端，产品级重构 |
+| 主题 UI 版式兼容 | 需要重写 React DOM（已排除） |
+| 代码块换 CodeMirror | 已排除 |
+
+### 14.5 性价比最高的 8 件事
+
+1. **跨文件搜索 + Open Quickly**：Rust `ignore`/`nucleo`，一次解决 #16/#17/#105/#106。
+2. **文件监听 + 排序/过滤**：`notify`，解决文件树一半问题。
+3. **Pandoc 导出/导入**：一次拿下 Word/ePub/LaTeX/RTF/OPML/RevealJS/格式转换。
+4. **自动更新 + 单实例/CLI**：官方插件，各约 1 天。
+5. **图片批量管理**：移动/复制/重命名/删除。
+6. **主题系统**：纯前端 + `fs`，不碰编辑器引擎。
+7. **TOC / 高亮 / Alerts**：Muya 解析器小改。
+8. **视图缩放 / 全屏**：Tauri 2 一行 API。
+
+### 14.6 结论
+
+**核心写作与文件工作流几乎都能用 Tauri 2 + Rust 原生补齐；真正难的只有 PDF 程序化导出、macOS 深度集成、移动端/同步和 MathJax 替换。前三个属于“平台细节”，最后一个属于“换引擎”，其余都不需要伤筋动骨。**
+
 ## 附录：抓取页面清单
 
 ### Quick Start（21）

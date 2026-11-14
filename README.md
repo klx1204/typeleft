@@ -1,4 +1,5 @@
 <p align="center">
+  <img src="src-tauri/app-icon.svg" width="112" height="112" alt="Typeleft icon" />
   <h1 align="center">Typeleft</h1>
   <p align="center">A lightweight, cross-platform Markdown editor built with Rust + Tauri.</p>
 </p>

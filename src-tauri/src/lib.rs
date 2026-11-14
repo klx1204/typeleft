@@ -173,6 +173,12 @@ fn default_settings() -> HashMap<String, serde_json::Value> {
 #[tauri::command]
 fn get_settings(app: tauri::AppHandle) -> HashMap<String, serde_json::Value> {
     let mut s = load_settings_raw(&app);
+    // Migrate the legacy welcome document (from the pre-rename builds).
+    if let Some(serde_json::Value::String(md)) = s.get("markdown") {
+        if md == "# Hello Typedown\n\nStart typing..." {
+            s.insert("markdown".into(), serde_json::json!("# Hello Typeleft\n\nStart typing..."));
+        }
+    }
     for (k, v) in default_settings() {
         s.entry(k).or_insert(v);
     }

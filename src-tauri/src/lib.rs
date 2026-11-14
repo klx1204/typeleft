@@ -481,7 +481,7 @@ fn check_file_exists(path: String) -> bool {
 
 fn expand_tilde(path: &str) -> String {
     if path == "~" || path.starts_with("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
+        if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
             let mut buf = std::path::PathBuf::from(home);
             if path.len() > 2 {
                 buf.push(&path[2..]);
@@ -1275,12 +1275,20 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let RunEvent::Opened { urls } = event {
-                for url in urls {
-                    if let Ok(path) = url.to_file_path() {
-                        load_and_queue_file(app_handle, &path);
+            // `RunEvent::Opened` only exists on macOS (file association / open with).
+            #[cfg(target_os = "macos")]
+            {
+                if let RunEvent::Opened { urls } = event {
+                    for url in urls {
+                        if let Ok(path) = url.to_file_path() {
+                            load_and_queue_file(app_handle, &path);
+                        }
                     }
                 }
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = (app_handle, event);
             }
         });
 }

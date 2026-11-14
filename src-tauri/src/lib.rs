@@ -438,7 +438,7 @@ fn unhandled_exception(message: String) {
     eprintln!("[Typeleft] Unhandled exception from editor: {}", msg);
     let _ = std::fs::OpenOptions::new()
         .append(true).create(true)
-        .open("/tmp/typeleft_errors.log")
+        .open(std::env::temp_dir().join("typeleft_errors.log"))
         .and_then(|f| {
             use std::io::Write;
             writeln!(&f, "[Typeleft] {}", msg)
@@ -1048,7 +1048,7 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     eprintln!("[Typeleft] Rust main() started");
-    let _ = std::fs::write("/tmp/typeleft_errors.log", "[Typeleft] Rust main() started\n");
+    let _ = std::fs::write(std::env::temp_dir().join("typeleft_errors.log"), "[Typeleft] Rust main() started\n");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())

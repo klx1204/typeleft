@@ -1,0 +1,618 @@
+{
+  "InputFootnoteDefine": {
+    "en": "Input footnote definition",
+    "zh": "输入脚注定义"
+  },
+  "InputYAMLFrontMatter": {
+    "en": "Input YAML front matter",
+    "zh": "输入 YAML 头部信息"
+  },
+  "InputMathFormula": {
+    "en": "Input math formula",
+    "zh": "输入数学公式"
+  },
+  "InputLanguageIdentifier": {
+    "en": "Input language identifier",
+    "zh": "输入语言标识"
+  },
+  "ClickToAddAnImage": {
+    "en": "Click to add an image",
+    "zh": "点击添加图片"
+  },
+  "LoadImageFail": {
+    "en": "Failed to load image",
+    "zh": "图片加载失败"
+  },
+  "Footnote": {
+    "en": "Footnote",
+    "zh": "脚注"
+  },
+  "FootnoteNotFound": {
+    "en": "Footnote {identifier} not found",
+    "zh": "未找到脚注 {identifier}"
+  },
+  "Create": {
+    "en": "Create",
+    "zh": "创建"
+  },
+  "GoTo": {
+    "en": "Go to",
+    "zh": "跳转"
+  },
+  "File": {
+    "en": "File",
+    "zh": "文件"
+  },
+  "Edit": {
+    "en": "Edit",
+    "zh": "编辑"
+  },
+  "Format": {
+    "en": "Format",
+    "zh": "格式"
+  },
+  "Paragraph": {
+    "en": "Paragraph",
+    "zh": "段落"
+  },
+  "View": {
+    "en": "View",
+    "zh": "视图"
+  },
+  "Window": {
+    "en": "Window",
+    "zh": "窗口"
+  },
+  "New": {
+    "en": "New",
+    "zh": "新建"
+  },
+  "New File": {
+    "en": "New File",
+    "zh": "新建文件"
+  },
+  "Open...": {
+    "en": "Open...",
+    "zh": "打开..."
+  },
+  "Open File...": {
+    "en": "Open File...",
+    "zh": "打开文件..."
+  },
+  "Open Folder...": {
+    "en": "Open Folder...",
+    "zh": "打开文件夹..."
+  },
+  "Save": {
+    "en": "Save",
+    "zh": "保存"
+  },
+  "Saved": {
+    "en": "Saved",
+    "zh": "已保存"
+  },
+  "Backup found": {
+    "en": "Backup found",
+    "zh": "发现备份"
+  },
+  "Save As...": {
+    "en": "Save As...",
+    "zh": "另存为..."
+  },
+  "Import HTML...": {
+    "en": "Import HTML...",
+    "zh": "导入 HTML..."
+  },
+  "Export HTML...": {
+    "en": "Export HTML...",
+    "zh": "导出 HTML..."
+  },
+  "Print...": {
+    "en": "Print...",
+    "zh": "打印..."
+  },
+  "Close Window": {
+    "en": "Close Window",
+    "zh": "关闭窗口"
+  },
+  "New Window": {
+    "en": "New Window",
+    "zh": "新建窗口"
+  },
+  "Settings...": {
+    "en": "Settings...",
+    "zh": "设置..."
+  },
+  "Undo": {
+    "en": "Undo",
+    "zh": "撤销"
+  },
+  "Redo": {
+    "en": "Redo",
+    "zh": "重做"
+  },
+  "Cut": {
+    "en": "Cut",
+    "zh": "剪切"
+  },
+  "Copy": {
+    "en": "Copy",
+    "zh": "复制"
+  },
+  "Paste": {
+    "en": "Paste",
+    "zh": "粘贴"
+  },
+  "Select All": {
+    "en": "Select All",
+    "zh": "全选"
+  },
+  "Find...": {
+    "en": "Find...",
+    "zh": "查找..."
+  },
+  "Replace...": {
+    "en": "Replace...",
+    "zh": "替换..."
+  },
+  "Bold": {
+    "en": "Bold",
+    "zh": "加粗"
+  },
+  "Italic": {
+    "en": "Italic",
+    "zh": "斜体"
+  },
+  "Code": {
+    "en": "Code",
+    "zh": "行内代码"
+  },
+  "Inline Code": {
+    "en": "Inline Code",
+    "zh": "行内代码"
+  },
+  "Strikethrough": {
+    "en": "Strikethrough",
+    "zh": "删除线"
+  },
+  "Link": {
+    "en": "Link",
+    "zh": "链接"
+  },
+  "Insert Link": {
+    "en": "Insert Link",
+    "zh": "插入链接"
+  },
+  "Image": {
+    "en": "Image",
+    "zh": "图片"
+  },
+  "Insert Image": {
+    "en": "Insert Image",
+    "zh": "插入图片"
+  },
+  "Clear Format": {
+    "en": "Clear Format",
+    "zh": "清除格式"
+  },
+  "Heading 1": {
+    "en": "Heading 1",
+    "zh": "一级标题"
+  },
+  "Heading 2": {
+    "en": "Heading 2",
+    "zh": "二级标题"
+  },
+  "Heading 3": {
+    "en": "Heading 3",
+    "zh": "三级标题"
+  },
+  "Heading 4": {
+    "en": "Heading 4",
+    "zh": "四级标题"
+  },
+  "Heading 5": {
+    "en": "Heading 5",
+    "zh": "五级标题"
+  },
+  "Heading 6": {
+    "en": "Heading 6",
+    "zh": "六级标题"
+  },
+  "Quote Block": {
+    "en": "Quote Block",
+    "zh": "引用块"
+  },
+  "Code Block": {
+    "en": "Code Block",
+    "zh": "代码块"
+  },
+  "Ordered List": {
+    "en": "Ordered List",
+    "zh": "有序列表"
+  },
+  "Bullet List": {
+    "en": "Bullet List",
+    "zh": "无序列表"
+  },
+  "Task List": {
+    "en": "Task List",
+    "zh": "任务列表"
+  },
+  "Table": {
+    "en": "Table",
+    "zh": "表格"
+  },
+  "Insert Table": {
+    "en": "Insert Table",
+    "zh": "插入表格"
+  },
+  "Math Block": {
+    "en": "Math Block",
+    "zh": "数学块"
+  },
+  "Horizontal Rule": {
+    "en": "Horizontal Rule",
+    "zh": "分隔线"
+  },
+  "Horizontal Line": {
+    "en": "Horizontal Line",
+    "zh": "分隔线"
+  },
+  "Source Code": {
+    "en": "Source Code",
+    "zh": "源码模式"
+  },
+  "Toggle Source Code": {
+    "en": "Toggle Source Code",
+    "zh": "切换源码模式"
+  },
+  "Toggle Sidebar": {
+    "en": "Toggle Sidebar",
+    "zh": "切换侧边栏"
+  },
+  "Show Outline": {
+    "en": "Show Outline",
+    "zh": "显示大纲"
+  },
+  "Compact Mode": {
+    "en": "Compact Mode",
+    "zh": "紧凑模式"
+  },
+  "Toggle Compact Mode": {
+    "en": "Toggle Compact Mode",
+    "zh": "切换紧凑模式"
+  },
+  "Always on Top": {
+    "en": "Always on Top",
+    "zh": "窗口置顶"
+  },
+  "Toggle Always on Top": {
+    "en": "Toggle Always on Top",
+    "zh": "切换窗口置顶"
+  },
+  "words": {
+    "en": "words",
+    "zh": "词"
+  },
+  "chars": {
+    "en": "chars",
+    "zh": "字符"
+  },
+  "Files": {
+    "en": "Files",
+    "zh": "文件"
+  },
+  "Outline": {
+    "en": "Outline",
+    "zh": "大纲"
+  },
+  "Open Folder": {
+    "en": "Open Folder",
+    "zh": "打开文件夹"
+  },
+  "No headings": {
+    "en": "No headings",
+    "zh": "暂无标题"
+  },
+  "Type a command...": {
+    "en": "Type a command...",
+    "zh": "输入命令..."
+  },
+  "No commands found": {
+    "en": "No commands found",
+    "zh": "未找到命令"
+  },
+  "Search...": {
+    "en": "Search...",
+    "zh": "查找..."
+  },
+  "Previous": {
+    "en": "Previous",
+    "zh": "上一个"
+  },
+  "Next": {
+    "en": "Next",
+    "zh": "下一个"
+  },
+  "Replace": {
+    "en": "Replace",
+    "zh": "替换"
+  },
+  "Replace All": {
+    "en": "Replace All",
+    "zh": "全部替换"
+  },
+  "Close": {
+    "en": "Close",
+    "zh": "关闭"
+  },
+  "Search": {
+    "en": "Search",
+    "zh": "查找"
+  },
+  "Front Matter": {
+    "en": "Front Matter",
+    "zh": "头部信息"
+  },
+  "Header 1": {
+    "en": "Header 1",
+    "zh": "标题 1"
+  },
+  "Header 2": {
+    "en": "Header 2",
+    "zh": "标题 2"
+  },
+  "Header 3": {
+    "en": "Header 3",
+    "zh": "标题 3"
+  },
+  "Header 4": {
+    "en": "Header 4",
+    "zh": "标题 4"
+  },
+  "Header 5": {
+    "en": "Header 5",
+    "zh": "标题 5"
+  },
+  "Header 6": {
+    "en": "Header 6",
+    "zh": "标题 6"
+  },
+  "Table Block": {
+    "en": "Table Block",
+    "zh": "表格"
+  },
+  "Display Math": {
+    "en": "Display Math",
+    "zh": "数学公式"
+  },
+  "HTML Block": {
+    "en": "HTML Block",
+    "zh": "HTML 块"
+  },
+  "Order List": {
+    "en": "Order List",
+    "zh": "有序列表"
+  },
+  "To-do List": {
+    "en": "To-do List",
+    "zh": "待办列表"
+  },
+  "Vega Chart": {
+    "en": "Vega Chart",
+    "zh": "Vega 图表"
+  },
+  "Flow Chart": {
+    "en": "Flow Chart",
+    "zh": "流程图"
+  },
+  "Sequence Diagram": {
+    "en": "Sequence Diagram",
+    "zh": "时序图"
+  },
+  "PlantUML Diagram": {
+    "en": "PlantUML Diagram",
+    "zh": "PlantUML 图"
+  },
+  "Mermaid": {
+    "en": "Mermaid",
+    "zh": "Mermaid 图"
+  },
+  "No result": {
+    "en": "No result",
+    "zh": "无结果"
+  },
+  "Rename": {
+    "en": "Rename",
+    "zh": "重命名"
+  },
+  "Delete": {
+    "en": "Delete",
+    "zh": "删除"
+  },
+  "Move": {
+    "en": "Move",
+    "zh": "移动"
+  },
+  "Refresh": {
+    "en": "Refresh",
+    "zh": "刷新"
+  },
+  "New Folder": {
+    "en": "New Folder",
+    "zh": "新建文件夹"
+  },
+  "Cancel": {
+    "en": "Cancel",
+    "zh": "取消"
+  },
+  "Confirm": {
+    "en": "Confirm",
+    "zh": "确定"
+  },
+  "File Name": {
+    "en": "File Name",
+    "zh": "文件名"
+  },
+  "Destination": {
+    "en": "Destination",
+    "zh": "目标路径"
+  },
+  "Delete File": {
+    "en": "Delete File",
+    "zh": "删除文件"
+  },
+  "Delete Folder": {
+    "en": "Delete Folder",
+    "zh": "删除文件夹"
+  },
+  "Are you sure you want to delete": {
+    "en": "Are you sure you want to delete",
+    "zh": "确定要删除吗"
+  },
+  "Invalid file name": {
+    "en": "Invalid file name",
+    "zh": "文件名无效"
+  },
+  "Target already exists": {
+    "en": "Target already exists",
+    "zh": "目标已存在"
+  },
+  "Operation failed": {
+    "en": "Operation failed",
+    "zh": "操作失败"
+  },
+  "Copy of": {
+    "en": "Copy of",
+    "zh": "副本"
+  },
+  "Rename failed": {
+    "en": "Rename failed",
+    "zh": "重命名失败"
+  },
+  "Delete failed": {
+    "en": "Delete failed",
+    "zh": "删除失败"
+  },
+  "Move failed": {
+    "en": "Move failed",
+    "zh": "移动失败"
+  },
+  "Copy failed": {
+    "en": "Copy failed",
+    "zh": "复制失败"
+  },
+  "Create failed": {
+    "en": "Create failed",
+    "zh": "创建失败"
+  },
+  "Export": {
+    "en": "Export",
+    "zh": "导出"
+  },
+  "Export Configurations": {
+    "en": "Export Configurations",
+    "zh": "导出配置"
+  },
+  "Name": {
+    "en": "Name",
+    "zh": "名称"
+  },
+  "Output Directory": {
+    "en": "Output Directory",
+    "zh": "输出目录"
+  },
+  "Include CSS": {
+    "en": "Include CSS",
+    "zh": "包含 CSS"
+  },
+  "Include Frontmatter": {
+    "en": "Include Frontmatter",
+    "zh": "包含头部信息"
+  },
+  "Export Now": {
+    "en": "Export Now",
+    "zh": "立即导出"
+  },
+  "Delete Configuration": {
+    "en": "Delete Configuration",
+    "zh": "删除配置"
+  },
+  "Select output directory": {
+    "en": "Select output directory",
+    "zh": "选择输出目录"
+  },
+  "Browse": {
+    "en": "Browse",
+    "zh": "浏览"
+  },
+  "Exported to": {
+    "en": "Exported to",
+    "zh": "已导出到"
+  },
+  "Export failed": {
+    "en": "Export failed",
+    "zh": "导出失败"
+  },
+  "New Configuration": {
+    "en": "New Configuration",
+    "zh": "新建配置"
+  },
+  "Configurations": {
+    "en": "Configurations",
+    "zh": "配置列表"
+  },
+  "Image Hosting": {
+    "en": "Image Hosting",
+    "zh": "图床配置"
+  },
+  "Upload URL": {
+    "en": "Upload URL",
+    "zh": "上传地址"
+  },
+  "Token": {
+    "en": "Token",
+    "zh": "令牌"
+  },
+  "Public Base URL": {
+    "en": "Public Base URL",
+    "zh": "公开访问前缀"
+  },
+  "Test Upload": {
+    "en": "Test Upload",
+    "zh": "测试上传"
+  },
+  "Upload URL is empty": {
+    "en": "Upload URL is empty",
+    "zh": "上传地址为空"
+  },
+  "No upload configuration": {
+    "en": "No upload configuration",
+    "zh": "没有图床配置"
+  },
+  "Test succeeded": {
+    "en": "Test succeeded",
+    "zh": "测试成功"
+  },
+  "Upload configuration": {
+    "en": "Upload configuration",
+    "zh": "图床配置"
+  },
+  "Invalid Mermaid Codes": {
+    "en": "Invalid Mermaid Codes",
+    "zh": "无效的 Mermaid 代码"
+  },
+  "Invalid Codes": {
+    "en": "Invalid Codes",
+    "zh": "无效的图表代码"
+  },
+  "Editor Error": {
+    "en": "Editor Error",
+    "zh": "编辑器错误"
+  },
+  "Component Stack": {
+    "en": "Component Stack",
+    "zh": "组件堆栈"
+  }
+}

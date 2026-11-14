@@ -1,0 +1,20 @@
+.react-codemirror2 {
+  height: 100%;
+}
+
+.CodeMirror {
+  height: auto !important;
+}
+
+.CodeMirror-scroll {
+  min-height: calc(100vh - 48px);
+  cursor: text;
+}
+
+body.compact-mode .StatusBar {
+  display: none;
+}
+
+body.compact-mode #editor {
+  padding-top: 0 !important;
+}

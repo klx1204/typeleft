@@ -19,6 +19,9 @@ jobs:
           - platform: ubuntu-22.04
             target: ''
             args: ''
+          - platform: ubuntu-24.04-arm
+            target: ''
+            args: ''
           - platform: windows-latest
             target: ''
             args: ''
@@ -44,7 +47,7 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: startsWith(matrix.platform, 'ubuntu')
         run: |
           sudo apt-get update
           sudo apt-get install -y \

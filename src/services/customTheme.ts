@@ -74,6 +74,34 @@ const mimeFor = (name: string): string => {
     }
 }
 
+// Resolve @import by inlining the imported CSS (relative to the theme folder).
+const inlineImports = async (css: string, base: string, depth = 0): Promise<string> => {
+    if (depth > 3) return css
+    const re = /@import\s+(?:url\()?\s*(['"]?)([^'")\s;]+)\1\s*\)?\s*;/gi
+    const matches = [...css.matchAll(re)]
+    let out = css
+    for (const match of matches) {
+        const raw = match[2]
+        if (/^(https?:|wss?:|ftp:|\/\/)/i.test(raw)) {
+            out = out.replace(match[0], '')
+            continue
+        }
+        const abs = normalizePath(`${base}/${raw}`)
+        if (!(abs === base || abs.startsWith(base + '/'))) {
+            out = out.replace(match[0], '')
+            continue
+        }
+        try {
+            const content = await remote.readThemeFile({ name: abs.slice(base.length + 1) })
+            const nested = await inlineImports(content, base, depth + 1)
+            out = out.replace(match[0], () => nested)
+        } catch {
+            out = out.replace(match[0], '')
+        }
+    }
+    return out
+}
+
 // Inline every relative url() (fonts, background images) as a data: URL.
 // WebKit is unreliable with custom-scheme subresources inside CSS, and this
 // also guarantees the theme is fully self-contained (no external requests).
@@ -172,7 +200,9 @@ export const applyCustomTheme = async (name: string): Promise<string | null> => 
         }
 
         const combined = `${themeCss}\n${baseUser}\n${themeUser}`
-        const { css, blocked } = await inlineThemeAssets(combined, themeDir)
+        const base = normalizePath(themeDir)
+        const imported = await inlineImports(combined, base)
+        const { css, blocked } = await inlineThemeAssets(imported, themeDir)
         const bridge = buildBridge(combined)
 
         const el = getStyleEl()

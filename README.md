@@ -30,7 +30,7 @@ Typeleft loads Typora `.css` themes directly.
 - Load order: theme CSS → `base.user.css` → `{theme}.user.css`.
 - Supported: typography, colours, headings, lists, tables, blockquotes, code blocks, task lists, background images, `@font-face` fonts, CSS counters (auto numbering), side bar colours.
 - Not supported: native menu styling (drawn by the OS), `#write > p` direct-child selectors, CodeMirror internals (line numbers, active line), TOC blocks.
-- Relative `url()` references are inlined as `data:` URLs and cannot escape the theme folder; external `http(s)` references are blocked.
+- Relative `url()` and `@import` references are inlined (assets as `data:` URLs, imported CSS as text) and cannot escape the theme folder; external `http(s)` references are blocked.
 
 ## Download
 

@@ -21,6 +21,17 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 - **Bilingual UI**: English and 简体中文, switchable at runtime
 - Native menus, keyboard shortcuts, auto-save and backups
 
+## Themes
+
+Typeleft loads Typora `.css` themes directly.
+
+- **Theme folder**: `~/Library/Application Support/com.typeleft.desktop/themes` on macOS, `%APPDATA%\com.typeleft.desktop\themes` on Windows, `~/.local/share/com.typeleft.desktop/themes` on Linux.
+- Open it from **View → Themes...** (or Settings → Theme & Diagrams), copy the theme `.css` files (plus any fonts/images), refresh and select.
+- Load order: theme CSS → `base.user.css` → `{theme}.user.css`.
+- Supported: typography, colours, headings, lists, tables, blockquotes, code blocks, task lists, background images, `@font-face` fonts, CSS counters (auto numbering), side bar colours.
+- Not supported: native menu styling (drawn by the OS), `#write > p` direct-child selectors, CodeMirror internals (line numbers, active line), TOC blocks.
+- Relative `url()` references are inlined as `data:` URLs and cannot escape the theme folder; external `http(s)` references are blocked.
+
 ## Download
 
 Grab the latest build for your platform from [Releases](../../releases).

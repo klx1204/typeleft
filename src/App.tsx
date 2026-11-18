@@ -8,7 +8,6 @@ import ExportDialog from 'components/ExportDialog';
 import ImageConfigDialog from 'components/ImageConfigDialog';
 import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
 import { remote } from 'services/remote';
-import remoteCommon from 'services/remote/common';
 import transport from 'services/transport';
 import 'services/theme'
 import 'services/scrollbar'

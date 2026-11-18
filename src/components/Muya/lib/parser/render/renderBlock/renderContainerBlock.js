@@ -171,11 +171,19 @@ export default function renderContainerBlock (parent, block, activeBlocks, match
     Object.assign(data.dataset, { marker: bulletMarkerOrDelimiter })
     selector += `.${CLASS_OR_ID.AG_LIST_ITEM}`
     selector += `.ag-${listItemType}-list-item`
+    if (listItemType === 'task') {
+      selector += '.task-list-item'
+      const checkbox = (block.children || []).find(child => child.type === 'input')
+      if (checkbox && checkbox.checked) {
+        selector += '.task-list-done'
+      }
+    }
     selector += isLooseListItem ? `.${CLASS_OR_ID.AG_LOOSE_LIST_ITEM}` : `.${CLASS_OR_ID.AG_TIGHT_LIST_ITEM}`
   } else if (type === 'pre') {
     Object.assign(data.attrs, { spellcheck: 'false' })
     Object.assign(data.dataset, { role: functionType })
     selector += PRE_BLOCK_HASH[block.functionType]
+    selector += '.md-fences'
 
     if (/html|multiplemath|mermaid|flowchart|vega-lite|sequence|plantuml/.test(functionType)) {
       const codeBlock = block.children[0]

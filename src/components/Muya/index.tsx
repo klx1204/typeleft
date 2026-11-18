@@ -566,7 +566,7 @@ const MuyaEditor: React.FC<IMuyaEditor> = (props) => {
             lineHeight: props.options?.lineHeight
         }}>
             {props.searchOpen > 0 && (
-                <div style={searchBarStyle}>
+                <div id="md-searchpanel" style={searchBarStyle}>
                     <input
                         autoFocus
                         type="text"
@@ -605,7 +605,9 @@ const MuyaEditor: React.FC<IMuyaEditor> = (props) => {
                     <button onClick={closeSearch} style={{ ...btnStyle, fontSize: 16 }} title={t('Close')}>&times;</button>
                 </div>
             )}
-            <div id="editor" />
+            <div id="write">
+                <div id="editor" />
+            </div>
         </div>
     )
 

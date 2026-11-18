@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import remote from 'services/remote/common';
 import transport from 'services/transport';
+import { applyCustomTheme } from 'services/customTheme';
 
 interface ISettingsPageProps {
   open: boolean;
   onClose: () => void;
+  initialSection?: string;
 }
 
 const defaultSettings = {
@@ -222,9 +224,25 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
   },
 ];
 
-const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose }) => {
+const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSection }) => {
   const [settings, setSettings] = useState<Settings>({});
   const [activeSection, setActiveSection] = useState('editor');
+  const [customThemes, setCustomThemes] = useState<string[]>([]);
+  const [themeDir, setThemeDir] = useState('');
+
+  const loadCustomThemes = async () => {
+    try {
+      const [list, dir]: any = await Promise.all([remote.listThemes(), remote.getThemeDir()]);
+      setCustomThemes(Array.isArray(list) ? list : []);
+      setThemeDir(typeof dir === 'string' ? dir : '');
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => {
+    if (open && initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [open, initialSection]);
 
   useEffect(() => {
     if (open) {
@@ -237,6 +255,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose }) => {
         }
         setSettings(merged);
       });
+      loadCustomThemes();
     }
   }, [open]);
 
@@ -355,6 +374,52 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose }) => {
               </div>
             );
           })}
+
+          {activeSection === 'theme' && (
+            <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--editorColor10)' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: 'var(--editorColor60)' }}>
+                {isZh ? '自定义主题' : 'Custom Theme'}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                <select
+                  value={String(settings.customTheme ?? '')}
+                  onChange={async e => {
+                    const name = e.target.value;
+                    const err = await applyCustomTheme(name);
+                    if (!err) {
+                      update('customTheme', name);
+                    }
+                  }}
+                  style={{
+                    padding: '4px 8px', fontSize: 13,
+                    border: '1px solid var(--editorColor10)', borderRadius: 4,
+                    backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)',
+                  }}
+                >
+                  <option value="">{isZh ? '无（内置）' : 'None (Built-in)'}</option>
+                  {customThemes.map(n => (
+                    <option key={n} value={n}>{n.replace(/\.css$/i, '')}</option>
+                  ))}
+                </select>
+                <button onClick={() => remote.openThemeDir()} style={{
+                  padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                  border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                  backgroundColor: 'var(--editorColor04)',
+                }}>{isZh ? '打开主题文件夹' : 'Open Theme Folder'}</button>
+                <button onClick={loadCustomThemes} style={{
+                  padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                  border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                  backgroundColor: 'var(--editorColor04)',
+                }}>{isZh ? '刷新' : 'Refresh'}</button>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--editorColor40)', wordBreak: 'break-all' }}>{themeDir}</div>
+              <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginTop: 8 }}>
+                {isZh
+                  ? '把 Typora 主题的 .css 文件（以及字体/图片）复制到主题文件夹，刷新后选择即可。'
+                  : 'Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.'}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

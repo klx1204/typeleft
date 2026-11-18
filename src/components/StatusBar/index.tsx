@@ -62,7 +62,7 @@ const StatusBar: React.FC = () => {
             : saveState;
 
   return (
-    <div className="StatusBar" style={{
+    <div className="StatusBar footer-item" style={{
       position: 'fixed', bottom: 0, left: 0, right: 0,
       height: 24, display: 'flex', alignItems: 'center',
       padding: '0 12px', fontSize: 12, userSelect: 'none',

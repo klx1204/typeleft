@@ -1,6 +1,6 @@
 [package]
 name = "typeleft"
-version = "0.1.4"
+version = "0.1.5"
 description = "Typeleft - A lightweight cross-platform Markdown editor"
 authors = ["Typeleft contributors"]
 edition = "2021"

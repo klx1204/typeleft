@@ -40,6 +40,8 @@ const KEYS = [
     'The file has been modified by another program. Choose what to do.',
     'Save As...', 'Reload', 'Overwrite', 'Restore backup',
     'A newer backup was found for this file. Do you want to restore it?', 'Discard', 'Restore',
+    'Themes', 'Custom Theme', 'None (Built-in)', 'No themes found', 'Applied', 'Theme Folder',
+    'Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.',
     'Image Hosting', 'Upload URL', 'Token', 'Public Base URL', 'Test Upload', 'Upload URL is empty',
     'No upload configuration', 'Test succeeded', 'Upload configuration',
     'Export', 'Export Configurations', 'Name', 'Output Directory', 'Include CSS', 'Include Frontmatter',

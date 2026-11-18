@@ -28,7 +28,8 @@ function applyTheme(theme: string) {
   const r = 68, g = 138, b = 255, a = 1;
   const bgR = isDark ? 30 : 255, bgG = isDark ? 30 : 255, bgB = isDark ? 30 : 255, bgA = 255;
 
-  document.body.style.backgroundColor = `rgba(${bgR}, ${bgG}, ${bgB}, ${bgA})`;
+  document.documentElement.style.setProperty('--app-bg-color-base', `rgba(${bgR}, ${bgG}, ${bgB}, ${bgA})`);
+  document.body.style.backgroundColor = 'var(--app-bg-color, var(--app-bg-color-base))';
   document.documentElement.style.setProperty('--actualTheme', t);
   document.documentElement.style.setProperty('--themeColor', `rgba(${r}, ${g}, ${b}, ${a})`);
   [10, 20, 30, 40, 50, 60, 70, 80, 90].forEach(e =>

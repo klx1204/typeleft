@@ -58,7 +58,7 @@ export default function image(h, cursor, block, token, outerClass) {
         dataset: { title }
       })
     }
-    return h(`span.${CLASS_OR_ID.AG_IMAGE_CONTAINER}`, data, args)
+    return h(`span.${CLASS_OR_ID.AG_IMAGE_CONTAINER}.md-image`, data, args)
   }
 
   if (typeof token.attrs['data-align'] === 'string') {

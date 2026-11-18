@@ -790,6 +790,89 @@ fn latest_backup(app: tauri::AppHandle, path: String) -> Option<BackupMeta> {
     list_backups(app, path).into_iter().next()
 }
 
+fn themes_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("typeleft"))
+        .join("themes");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+#[tauri::command]
+fn get_theme_dir(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(themes_dir(&app).to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn list_themes(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let dir = themes_dir(&app);
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.to_lowercase().ends_with(".css") && !name.to_lowercase().ends_with(".user.css") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect();
+    names.sort();
+    Ok(names)
+}
+
+#[tauri::command]
+fn read_theme_file(app: tauri::AppHandle, name: String) -> Result<String, String> {
+    let base = themes_dir(&app);
+    let canon_base = base.canonicalize().map_err(|e| e.to_string())?;
+    let target = base.join(&name);
+    let canon_target = target
+        .canonicalize()
+        .map_err(|_| "theme file not found".to_string())?;
+    if !canon_target.starts_with(&canon_base) {
+        return Err("theme path escapes theme directory".into());
+    }
+    std::fs::read_to_string(canon_target).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn read_theme_binary(app: tauri::AppHandle, name: String) -> Result<String, String> {
+    use base64::Engine as _;
+    let base = themes_dir(&app);
+    let canon_base = base.canonicalize().map_err(|e| e.to_string())?;
+    let canon_target = base
+        .join(&name)
+        .canonicalize()
+        .map_err(|_| "theme file not found".to_string())?;
+    if !canon_target.starts_with(&canon_base) {
+        return Err("theme path escapes theme directory".into());
+    }
+    let bytes = std::fs::read(canon_target).map_err(|e| e.to_string())?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
+}
+
+#[tauri::command]
+fn theme_file_exists(app: tauri::AppHandle, name: String) -> bool {
+    let base = themes_dir(&app);
+    let Ok(canon_base) = base.canonicalize() else {
+        return false;
+    };
+    let Ok(canon_target) = base.join(&name).canonicalize() else {
+        return false;
+    };
+    canon_target.starts_with(&canon_base) && canon_target.is_file()
+}
+
+#[tauri::command]
+fn open_theme_dir(app: tauri::AppHandle) -> Result<(), String> {
+    open::that(themes_dir(&app)).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_file_mtime(path: String) -> Option<i64> {
     file_mtime_ms(std::path::Path::new(&expand_tilde(&path))).ok()
@@ -1031,6 +1114,7 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Toggle Sidebar" => "切换侧边栏",
         "Show Outline" => "显示大纲",
         "Settings..." => "设置...",
+        "Themes..." => "主题...",
         "Window" => "窗口",
         "Compact Mode" => "紧凑模式",
         "Always on Top" => "窗口置顶",
@@ -1139,11 +1223,12 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let view_source = MenuItem::with_id(app, "view_source", tr("Source Code"), true, None::<&str>)?;
     let view_sidebar = MenuItem::with_id(app, "view_sidebar", tr("Toggle Sidebar"), true, None::<&str>)?;
     let view_outline = MenuItem::with_id(app, "view_outline", tr("Show Outline"), true, None::<&str>)?;
+    let view_themes = MenuItem::with_id(app, "view_themes", tr("Themes..."), true, None::<&str>)?;
     let sep_view = PredefinedMenuItem::separator(app)?;
     let view_settings = MenuItem::with_id(app, "view_settings", tr("Settings..."), true, Some("CmdOrCtrl+,"))?;
 
     let view_menu = Submenu::with_items(app, tr("View"), true, &[
-        &view_source, &view_sidebar, &view_outline, &sep_view, &view_settings,
+        &view_source, &view_sidebar, &view_outline, &view_themes, &sep_view, &view_settings,
     ])?;
 
     let compact_mode = MenuItem::with_id(app, "compact_mode", tr("Compact Mode"), true, None::<&str>)?;
@@ -1341,6 +1426,7 @@ pub fn run() {
                 "view_sidebar" => { let _ = app.emit("SidebarToggle", ()); }
                 "view_outline" => { let _ = app.emit("SidebarSection", serde_json::json!({"section": "toc"})); }
                 "view_settings" => { let _ = app.emit("OpenSettings", ()); }
+                "view_themes" => { let _ = app.emit("OpenThemeDialog", ()); }
                 "compact_mode" => { let _ = app.emit("ToggleCompactMode", ()); }
                 "always_on_top" => { let _ = app.emit("ToggleAlwaysOnTop", ()); }
                 "new_window" => { let _ = app.emit("NewWindow", ()); }
@@ -1389,6 +1475,12 @@ pub fn run() {
             list_backups,
             latest_backup,
             read_backup,
+            get_theme_dir,
+            list_themes,
+            read_theme_file,
+            read_theme_binary,
+            theme_file_exists,
+            open_theme_dir,
             get_file_mtime,
             delete_backup,
             clear_backups,

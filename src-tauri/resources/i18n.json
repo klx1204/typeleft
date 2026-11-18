@@ -654,5 +654,33 @@
   "Restore": {
     "en": "Restore",
     "zh": "恢复"
+  },
+  "Themes": {
+    "en": "Themes",
+    "zh": "主题"
+  },
+  "Custom Theme": {
+    "en": "Custom Theme",
+    "zh": "自定义主题"
+  },
+  "None (Built-in)": {
+    "en": "None (Built-in)",
+    "zh": "无（内置主题）"
+  },
+  "No themes found": {
+    "en": "No themes found",
+    "zh": "未找到主题"
+  },
+  "Applied": {
+    "en": "Applied",
+    "zh": "已应用"
+  },
+  "Theme Folder": {
+    "en": "Theme Folder",
+    "zh": "主题文件夹"
+  },
+  "Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.": {
+    "en": "Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.",
+    "zh": "把 Typora 主题的 .css 文件（以及字体/图片）复制到主题文件夹，刷新后选择即可。"
   }
 }

@@ -257,6 +257,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
       {entries.map(entry => (
         <React.Fragment key={entry.path}>
           <div
+            className="file-list-item"
             onClick={() => openFile(entry)}
             onContextMenu={e => openContextMenu(e, entry, entry.is_dir ? entry.path : parentOf(entry.path))}
             style={{
@@ -285,7 +286,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
   if (!open) return null;
 
   return (
-    <div style={{
+    <div id="typora-sidebar" style={{
       position: 'fixed', top: 0, left: 0, bottom: 24, width,
       borderRight: '1px solid var(--editorColor10)',
       backgroundColor: 'var(--editorColor04)',

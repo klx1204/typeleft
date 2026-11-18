@@ -6,7 +6,9 @@ import SettingsPage from 'components/SettingsPage';
 import CommandPalette from 'components/CommandPalette';
 import ExportDialog from 'components/ExportDialog';
 import ImageConfigDialog from 'components/ImageConfigDialog';
+import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
 import { remote } from 'services/remote';
+import remoteCommon from 'services/remote/common';
 import transport from 'services/transport';
 import 'services/theme'
 import 'services/scrollbar'
@@ -24,12 +26,13 @@ window.onunhandledrejection = (e) => {
 
 function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [imageConfigOpen, setImageConfigOpen] = useState(false);
 
   useEffect(() => {
-    const unsub = transport.addListener('OpenSettings', () => setSettingsOpen(true));
+    const unsub = transport.addListener('OpenSettings', () => { setSettingsSection(undefined); setSettingsOpen(true); });
     return () => unsub();
   }, []);
 
@@ -47,6 +50,21 @@ function App() {
     const unsub = transport.addListener('OpenImageConfigDialog', () => setImageConfigOpen(true));
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const unsub = transport.addListener('OpenThemeDialog', () => { setSettingsSection('theme'); setSettingsOpen(true); });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    getCustomTheme().then(name => { if (name) applyCustomTheme(name); });
+  }, []);
+
+  useEffect(() => transport.addListener<Record<string, unknown>>('SettingsChanged', (payload) => {
+    if ('customTheme' in payload) {
+      applyCustomTheme(typeof payload.customTheme === 'string' ? payload.customTheme : '');
+    }
+  }), []);
 
   useEffect(() => {
     const applyAnimation = (enabled: unknown) => {
@@ -79,7 +97,7 @@ function App() {
     <ErrorBoundary>
       <Editor />
       <StatusBar />
-      <SettingsPage open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <SettingsPage open={settingsOpen} onClose={() => setSettingsOpen(false)} initialSection={settingsSection} />
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <ImageConfigDialog open={imageConfigOpen} onClose={() => setImageConfigOpen(false)} />

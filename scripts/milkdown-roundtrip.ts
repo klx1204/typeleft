@@ -64,14 +64,15 @@ g.matchMedia = () => ({ matches: false, addListener() {}, removeListener() {}, a
 g.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 g.DOMRect = win.DOMRect ?? class { constructor(public x = 0, public y = 0, public width = 0, public height = 0) {} top = 0; left = 0; right = 0; bottom = 0; };
 
-const { Editor, rootCtx, defaultValueCtx, remarkStringifyOptionsCtx } = await import('@milkdown/kit/core');
+const { Editor, rootCtx, defaultValueCtx, remarkStringifyOptionsCtx, editorViewCtx } = await import('@milkdown/kit/core');
 const { commonmark } = await import('@milkdown/kit/preset/commonmark');
 const { gfm } = await import('@milkdown/kit/preset/gfm');
 const { history } = await import('@milkdown/kit/plugin/history');
 const { getMarkdown } = await import('@milkdown/kit/utils');
-const { frontmatterNode, frontmatterRemark } = await import('../src/components/MilkdownEditor/nodes/frontmatter');
+const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('../src/components/MilkdownEditor/nodes/frontmatter');
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
 const { createImageView } = await import('../src/components/MilkdownEditor/nodes/image');
+const { searchPlugin, setSearchQuery, findNextMatch, replaceAllMatches } = await import('../src/components/MilkdownEditor/search');
 
 const files = process.argv.slice(2);
 if (!files.length) {
@@ -105,19 +106,26 @@ for (const file of files) {
     .use(history)
     .use(frontmatterRemark)
     .use(frontmatterNode)
+    .use(frontmatterView)
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
     .use(inlineMathView)
     .use(blockMathView)
     .use(createImageView)
+    .use(searchPlugin)
     .create();
 
   const output = editor.action(getMarkdown());
 
   if (file === files[0]) {
     const html = root.innerHTML;
-    console.log(`dom: katex=${/class="katex/.test(html) ? 'yes' : 'NO'} img=${/<img/.test(html) ? 'yes' : 'NO'}`);
+    console.log(`dom: katex=${/class="katex/.test(html) ? 'yes' : 'NO'} img=${/<img/.test(html) ? 'yes' : 'NO'} frontmatter=${/data-type="frontmatter"/.test(html) ? 'yes' : 'NO'}`);
+    const view: any = editor.action((ctx: any) => ctx.get(editorViewCtx));
+    const matches = setSearchQuery(view, 'Heading', {});
+    const found = findNextMatch(view);
+    const replaced = replaceAllMatches(view, 'X');
+    console.log(`search: matches=${matches} findNext=${found} replaced=${replaced} activeDecoration=${view.dom.querySelectorAll('.typeleft-search-match').length}`);
   }
   // Feed the serialized output back through the editor: a stable serializer
   // must be idempotent, otherwise repeated saves keep rewriting the file.
@@ -144,6 +152,7 @@ for (const file of files) {
     .use(inlineMathView)
     .use(blockMathView)
     .use(createImageView)
+    .use(searchPlugin)
     .create();
   const secondOutput = second.action(getMarkdown());
   await second.destroy();

@@ -55,12 +55,20 @@ export const renderDiagram = async (
 };
 
 const LANGUAGE_LIST = [
-  '', 'text', 'bash', 'c', 'cpp', 'csharp', 'css', 'diff', 'go', 'html',
-  'java', 'javascript', 'json', 'jsx', 'kotlin', 'latex', 'lua', 'markdown',
-  'php', 'python', 'r', 'ruby', 'rust', 'scss', 'shell', 'sql', 'swift',
-  'toml', 'tsx', 'typescript', 'xml', 'yaml', 'mermaid', 'flowchart',
-  'sequence', 'plantuml', 'vega-lite',
+  '', 'text', 'bash', 'sh', 'c', 'cpp', 'csharp', 'css', 'diff', 'go', 'html',
+  'java', 'javascript', 'js', 'json', 'jsx', 'kotlin', 'latex', 'lua', 'markdown',
+  'php', 'python', 'py', 'r', 'ruby', 'rb', 'rust', 'scss', 'shell', 'sql', 'swift',
+  'toml', 'ts', 'tsx', 'typescript', 'xml', 'yaml', 'yml', 'mermaid', 'flowchart',
+  'sequence', 'plantuml', 'vega', 'vega-lite', 'graphql', 'dockerfile', 'makefile',
+  'objectivec', 'perl', 'powershell', 'scala', 'haskell', 'elixir', 'dart', 'vue',
 ];
+
+/** Keep unknown languages selectable instead of silently resetting to text. */
+const languageOptions = (current: string): string[] => {
+  const list = [...LANGUAGE_LIST];
+  if (current && !list.includes(current)) list.splice(1, 0, current);
+  return list;
+};
 
 export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view, getPos) => {
   let currentNode = node;
@@ -76,13 +84,17 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
 
   const select = document.createElement('select');
   select.className = 'md-fences-language';
-  for (const lang of LANGUAGE_LIST) {
-    const option = document.createElement('option');
-    option.value = lang;
-    option.textContent = lang || 'text';
-    select.appendChild(option);
-  }
-  select.value = node.attrs.language || '';
+  const fillSelect = (current: string) => {
+    select.innerHTML = '';
+    for (const lang of languageOptions(current)) {
+      const option = document.createElement('option');
+      option.value = lang;
+      option.textContent = lang || 'text';
+      select.appendChild(option);
+    }
+    select.value = current || '';
+  };
+  fillSelect(node.attrs.language || '');
 
   const actions = document.createElement('div');
   actions.className = 'md-fences-actions';
@@ -175,7 +187,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
       const languageChanged = next.attrs.language !== currentNode.attrs.language;
       currentNode = next;
       if (languageChanged) {
-        select.value = next.attrs.language || '';
+        fillSelect(next.attrs.language || '');
         dom.setAttribute('data-language', next.attrs.language || '');
       }
       schedulePreview();

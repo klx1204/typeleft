@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Typeleft devtest</title>
+    <link id="theme-dark" rel="stylesheet" href="/theme/editor/dark.theme.css" />
+    <link id="theme-prism-dark" rel="stylesheet" href="/theme/prismjs/dark.theme.css" />
+    <link id="theme-light" rel="stylesheet" href="/theme/editor/light.theme.css" disabled />
+    <link id="theme-prism-light" rel="stylesheet" href="/theme/prismjs/light.theme.css" disabled />
+    <script>
+      if (location.search.indexOf('light') !== -1) {
+        document.getElementById('theme-dark').disabled = true;
+        document.getElementById('theme-prism-dark').disabled = true;
+        document.getElementById('theme-light').disabled = false;
+        document.getElementById('theme-prism-light').disabled = false;
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    </script>
+    <style>
+      body {
+        margin: 0;
+        background: var(--editorColor00);
+        color: var(--editorColor80);
+        font-family: -apple-system, "PingFang SC", sans-serif;
+      }
+    </style>
+    <script src="/devtest/stub.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/devtest/main.tsx"></script>
+  </body>
+</html>

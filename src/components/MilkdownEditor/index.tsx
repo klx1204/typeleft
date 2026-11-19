@@ -28,7 +28,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { prism } from '@milkdown/plugin-prism';
 import { $prose } from '@milkdown/kit/utils';
 import { getMarkdown, replaceAll, callCommand } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, NodeSelection, Selection } from '@milkdown/kit/prose/state';
 import {
   addRowAfter,
   addColumnAfter,
@@ -302,6 +302,17 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         editor = instance;
         editorRef.current = instance;
         setReady(true);
+        // A document starting with an atom (front matter, image, …) would open
+        // with that node selected, which looks like a focus ring. Start in the
+        // first text block instead.
+        try {
+          const view = instance.action((ctx) => ctx.get(editorViewCtx));
+          if (view.state.selection instanceof NodeSelection) {
+            const pos = Math.min(view.state.selection.to + 1, view.state.doc.content.size);
+            const next = Selection.near(view.state.doc.resolve(pos), 1);
+            if (next) view.dispatch(view.state.tr.setSelection(next));
+          }
+        } catch { /* ignore */ }
         const elapsed = Math.round(performance.now() - startedAt);
         (window as any).__milkdownReady = elapsed;
         transport.postMessage('SaveState', { status: `Milkdown ready ${elapsed}ms` });

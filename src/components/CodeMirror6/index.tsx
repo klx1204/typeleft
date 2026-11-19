@@ -117,6 +117,7 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
       }),
     });
     viewRef.current = view;
+    emitStats(propsRef.current.markdown ?? '');
     requestAnimationFrame(() => {
       const anchor = propsRef.current.cursor?.anchor;
       if (anchor && typeof anchor.line === 'number') {

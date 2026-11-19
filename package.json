@@ -10,7 +10,8 @@
     "tauri": "tauri",
     "test:roundtrip": "bun scripts/milkdown-roundtrip.ts scripts/fixtures/roundtrip.md scripts/fixtures/roundtrip-edge.md",
     "test:cm6": "bun scripts/codemirror-smoke.ts",
-    "test": "bun run test:roundtrip && bun run test:cm6"
+    "test": "bun run test:roundtrip && bun run test:cm6 && bun run test:web",
+    "test:web": "bash scripts/web-smoke.sh"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

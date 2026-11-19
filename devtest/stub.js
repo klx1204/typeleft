@@ -1,0 +1,110 @@
+/* Dev-only Tauri stub so the real React components can run in a plain browser.
+ * Loaded before any module, it implements the small part of the Tauri IPC the
+ * editor components use (event bus, settings, content loading). */
+(function () {
+  var listeners = new Map();
+  var callbacks = new Map();
+  var nextId = 1;
+  var emitted = [];
+
+  var settings = {
+    editorEngine: 'milkdown',
+    autoSave: false,
+    fontSize: 16,
+    lineHeight: 1.6,
+    editorAreaWidth: '860px',
+    bulletListMarker: '-',
+    lang: 'zh',
+    sourceCode: false,
+  };
+
+  var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
+
+  window.__TAURI_INTERNALS__ = {
+    metadata: {
+      currentWindow: { label: 'main' },
+      currentWebview: { windowLabel: 'main', label: 'main' },
+    },
+    transformCallback: function (cb, once) {
+      var id = nextId++;
+      var wrapped = once
+        ? function () {
+            callbacks.delete(id);
+            delete window['_' + id];
+            return cb.apply(null, arguments);
+          }
+        : cb;
+      callbacks.set(id, wrapped);
+      window['_' + id] = wrapped;
+      return id;
+    },
+    convertFileSrc: function (path) {
+      return 'asset://localhost/' + encodeURIComponent(path);
+    },
+    invoke: function (cmd, args) {
+      args = args || {};
+      if (cmd === 'plugin:event|listen') {
+        var set = listeners.get(args.event) || new Set();
+        set.add(args.handler);
+        listeners.set(args.event, set);
+        return Promise.resolve(nextId++);
+      }
+      if (cmd === 'plugin:event|unlisten') {
+        listeners.get(args.event) && listeners.get(args.event).delete(args.handler);
+        return Promise.resolve(null);
+      }
+      if (cmd === 'plugin:event|emit' || cmd === 'plugin:event|emit_to') {
+        emitted.push({ event: args.event, payload: args.payload });
+        var handlers = Array.from(listeners.get(args.event) || []);
+        handlers.forEach(function (id) {
+          var cb = callbacks.get(id) || window['_' + id];
+          if (cb) {
+            try {
+              cb({ event: args.event, id: id, payload: args.payload });
+            } catch (err) {
+              window.__errors.push('listener error: ' + String(err));
+            }
+          }
+        });
+        return Promise.resolve(null);
+      }
+      if (cmd === 'get_settings') return Promise.resolve(settings);
+      if (cmd === 'content_loaded') {
+        return Promise.resolve({ text: window.__FIXTURE__ || '', base_path: '', file_path: '/tmp/fixture.md' });
+      }
+      if (cmd === 'get_current_theme') return Promise.resolve('dark');
+      if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
+      if (cmd === 'latest_backup') return Promise.resolve(null);
+      return Promise.resolve(null);
+    },
+  };
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = {
+    registerListener: function () {},
+    unregisterListener: function () {},
+  };
+  window.__emitted = emitted;
+  window.__emit = function (event, payload) {
+    return window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: event, payload: payload });
+  };
+  window.__errors = [];
+  window.addEventListener('error', function (event) {
+    window.__errors.push('window.error: ' + (event.message || event.type));
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    window.__errors.push('unhandledrejection: ' + String(event.reason));
+  });
+  var originalError = console.error.bind(console);
+  console.error = function () {
+    window.__errors.push(Array.prototype.map.call(arguments, String).join(' '));
+    originalError.apply(null, arguments);
+  };
+  if (fixture !== null) window.__FIXTURE__ = fixture;
+
+  // Mirror services/theme.ts, which sets these at runtime in the real app.
+  var rootStyle = document.documentElement.style;
+  rootStyle.setProperty('--themeColor', 'rgba(68, 138, 255, 1)');
+  [10, 20, 30, 40, 50, 60, 70, 80, 90].forEach(function (e) {
+    rootStyle.setProperty('--themeColor' + e, 'rgba(68, 138, 255, ' + e / 100 + ')');
+  });
+  window.actualTheme = 'dark';
+})();

@@ -1,4 +1,3 @@
-@layer typeleft-base {
 .cm6-write {
   max-width: var(--editorAreaWidth, 860px);
   margin: 0 auto;
@@ -94,5 +93,4 @@
 
 .cm6-host .tok-meta {
   color: var(--editorColor30);
-}
 }

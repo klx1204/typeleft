@@ -318,7 +318,8 @@ listItemIndent: 'one'
 ### 自动化测试
 
 ```bash
-bun run test           # 三套测试
+bun run test           # 四套测试
+bun run test:engine    # 引擎选择与 200K 回退判定
 bun run test:roundtrip # markdown 解析/序列化差异与幂等性
 bun run test:cm6       # CodeMirror 6 冒烟
 bun run test:web       # 真实浏览器渲染 + 交互回归
@@ -326,6 +327,7 @@ bun run test:web       # 真实浏览器渲染 + 交互回归
 
 - `scripts/milkdown-roundtrip.ts`：Domino 中运行 Milkdown 解析/序列化，输出差异与幂等性
 - `scripts/codemirror-smoke.ts`：CM6 文档载入、中文插入、撤销、搜索、全部替换
+- `scripts/engine-select.ts`：默认 milkdown、显式 muya、阈值与 1MB 回退
 - `scripts/web-smoke.sh` + `devtest/`：在无头 Chrome 中挂载真实的 `MilkdownEditor` 与
   `CodeMirror6` 组件（Tauri IPC 用 stub 替代），断言 frontmatter / 表格 / 任务列表 /
   KaTeX / 代码块行号 / Mermaid / 图片 / Prism token / TOC / 字数，并驱动搜索面板与

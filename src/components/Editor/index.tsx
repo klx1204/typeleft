@@ -13,6 +13,7 @@ import { htmlToMarkdown } from "services/importHtml";
 import { DEFAULT_TURNDOWN_CONFIG } from "components/Muya/lib/config";
 import { getHtmlToc, getTOC } from "services/common";
 import { useI18n } from "services/i18n";
+import { LARGE_DOC_LIMIT, resolveEngine } from "./engine";
 
 const modalOverlayStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 10002, display: 'flex',
@@ -35,10 +36,6 @@ const dialogPrimaryBtnStyle: React.CSSProperties = {
     ...dialogBtnStyle, backgroundColor: 'var(--themeColor)', borderColor: 'var(--themeColor)', color: '#fff',
 };
 
-// ProseMirror has no virtualised rendering: very large documents would block the
-// UI for seconds, so they open with the Muya compatibility engine instead.
-const LARGE_DOC_LIMIT = 200 * 1024
-
 const Editor: React.FC = () => {
     const { t } = useI18n();
     const [markdown, setMarkdown] = useState<string>();
@@ -60,12 +57,12 @@ const Editor: React.FC = () => {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [conflict, setConflict] = useState<{ content: string } | null>(null);
     const [backupPrompt, setBackupPrompt] = useState<{ id: string; created: number; content: string } | null>(null);
-    const [docTooLarge, setDocTooLarge] = useState(false);
+    const [docLength, setDocLength] = useState(0);
 
     // Decided when a document is loaded, never while typing: switching engines
     // mid-edit would drop undo history and focus.
     const adoptDocSize = useCallback((text: string) => {
-        setDocTooLarge((text?.length ?? 0) > LARGE_DOC_LIMIT);
+        setDocLength(text?.length ?? 0);
     }, []);
 
     const OnFileLoaded = useCallback(() => setTimeout(() => transport.postMessage('FileLoaded', { text: markdownRef.current }), 100), [])
@@ -408,8 +405,8 @@ const Editor: React.FC = () => {
         return <></>
     }
 
-    const configuredEngine = options.editorEngine === 'muya' ? 'muya' : 'milkdown'
-    const activeEngine = configuredEngine === 'milkdown' && docTooLarge ? 'muya' : configuredEngine
+    const activeEngine = resolveEngine(options.editorEngine, docLength)
+    const docTooLarge = docLength > LARGE_DOC_LIMIT
 
     return (
         <>
@@ -479,7 +476,7 @@ const Editor: React.FC = () => {
                 </div>
             )}
             <div style={{ marginLeft: sidebarOpen ? sidePaneWidth : 0, transition: 'margin-left .2s' }}>
-                {configuredEngine === 'milkdown' && docTooLarge && (
+                {activeEngine === 'muya' && options.editorEngine !== 'muya' && docTooLarge && (
                     <div style={{
                         padding: '4px 12px', fontSize: 12, textAlign: 'center',
                         color: 'var(--editorColor60)', backgroundColor: 'var(--editorColor04)',

@@ -334,6 +334,17 @@ bun run test:web       # 真实浏览器渲染 + 交互回归
   真实输入（`execCommand`），任何 `console.error` 都会失败。可用 `?light=1` 检查浅色主题，
   `?static=1` 关闭交互，`?cm6=1` 只渲染源码模式。
 
+### 包体积与发布
+
+| 产物 | v0.1.5（Muya） | v0.2.0（Milkdown） | 变化 |
+|---|---|---|---|
+| macOS universal `.dmg` | 13 MB | 14 MB | +1 MB |
+| Linux `amd64.AppImage` | 82 MB | 83 MB | +1 MB |
+| Windows `x64-setup.exe` | 5 MB | 6 MB | +1 MB |
+
+前端 `dist` 9.4 MB（其中主包 2.8 MB、mermaid 1.1 MB、vega-embed 0.7 MB）。
+发布：v0.2.0（引擎切换）→ v0.2.1（菜单命令/主题/CM6 修复）→ v0.3.0（高亮、上下标、图片对齐缩放）。
+
 ### 需人工验证
 
 - 中文 IME（拼音组合、候选词、全角标点）

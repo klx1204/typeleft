@@ -9,6 +9,9 @@
     <link id="theme-light" rel="stylesheet" href="/theme/editor/light.theme.css" disabled />
     <link id="theme-prism-light" rel="stylesheet" href="/theme/prismjs/light.theme.css" disabled />
     <script>
+      if (location.search.indexOf('theme') !== -1) {
+        document.write('<link rel="stylesheet" href="/devtest/typora-theme.css">');
+      }
       if (location.search.indexOf('light') !== -1) {
         document.getElementById('theme-dark').disabled = true;
         document.getElementById('theme-prism-dark').disabled = true;

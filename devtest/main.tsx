@@ -152,6 +152,22 @@ const finish = (extraCheck?: () => void) => {
   const h1 = ml.querySelector('h1') as HTMLElement | null;
   check('milkdown themed heading color', !!h1 && getComputedStyle(h1).color !== 'rgb(0, 0, 0)');
 
+  if (location.search.includes('theme')) {
+    const write = ml.querySelector('#write') as HTMLElement | null;
+    const writeStyle = write ? getComputedStyle(write) : null;
+    check('typora theme wins over base layer', writeStyle?.maxWidth === '780px', writeStyle?.maxWidth || 'n/a');
+    check('typora theme font', (writeStyle?.fontFamily || '').includes('Georgia'), writeStyle?.fontFamily || '');
+    check('typora theme h1 colour', !!h1 && getComputedStyle(h1).color === 'rgb(139, 94, 0)',
+      h1 ? getComputedStyle(h1).color : 'n/a');
+    const before = h1 ? getComputedStyle(h1, '::before').content : '';
+    // Computed style returns the unresolved `counter(h1)` expression; the
+    // screenshot is what proves the numbers render.
+    check('typora theme CSS counters', (before || '').includes('counter(h1)'), before);
+    const fence = ml.querySelector('pre.md-fences') as HTMLElement | null;
+    check('typora theme code block', !!fence && getComputedStyle(fence).backgroundColor === 'rgb(43, 43, 43)',
+      fence ? getComputedStyle(fence).backgroundColor : 'n/a');
+  }
+
   check('cm6 editor mounted', !!cm.querySelector('.cm-editor'));
   check('cm6 lines', cm.querySelectorAll('.cm-line').length > 5, `${cm.querySelectorAll('.cm-line').length}`);
   check('cm6 gutters', cm.querySelectorAll('.cm-gutterElement').length > 3);

@@ -14,10 +14,19 @@ Typeleft 0.2.1 is a polish release for the new Milkdown / CodeMirror 6 editor st
 - **Word count in source mode** — switching to source mode immediately publishes
   the word/character counts and outline instead of waiting for the first edit.
 
+## Themes
+
+- The editor's own surfaces (front matter, code block chrome, table borders,
+  task checkboxes, blockquotes) are now derived from `currentColor` instead of
+  the app palette, so Typora themes that only override `#write` colours stay
+  readable — including CSS counters and dark code blocks.
+
 ## Testing
 
 `bun run test` now also runs a real-browser regression suite (`devtest/`): the
 actual React components are mounted in headless Chrome, checked for front matter,
 tables, task lists, KaTeX, line numbers, Mermaid previews, images, Prism tokens,
-TOC/word count, then exercised with search and real typing. Any console error
+TOC/word count, then exercised with search and real typing. Adding `?theme=1`
+loads a Typora-style theme and asserts that it beats the base layer (width,
+font, heading colour, CSS counters, code block background). Any console error
 fails the run.

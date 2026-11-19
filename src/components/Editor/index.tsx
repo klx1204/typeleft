@@ -1,5 +1,6 @@
 import CodeMirror from "components/CodeMirror";
 import MuyaEditor from "components/Muya";
+import MilkdownEditor from "components/MilkdownEditor";
 import Sidebar from "components/Sidebar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { remote } from "services/remote";
@@ -388,7 +389,7 @@ const Editor: React.FC = () => {
         setSidebarOpen(true);
     }), []);
 
-    if (!options) {
+    if (!options || markdown === undefined) {
         return <></>
     }
 
@@ -470,6 +471,13 @@ const Editor: React.FC = () => {
                         onCursorChange={setCursor}
                         onSearchArgChange={setSearchArg}
                         onSearchOpenChange={setSearchOpen}
+                    />
+                ) : options.editorEngine === 'milkdown' ? (
+                    <MilkdownEditor
+                        key={filePath ?? 'new'}
+                        markdown={markdown ?? ''}
+                        options={options}
+                        onMarkdownChange={setMarkdown}
                     />
                 ) : (
                     <MuyaEditor

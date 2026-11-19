@@ -1,14 +1,13 @@
-import { $view } from '@milkdown/kit/utils';
+import { $remark, $view } from '@milkdown/kit/utils';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import { visit } from 'unist-util-visit';
+
+type Align = 'left' | 'center' | 'right' | null;
 
 const isAbsolute = (src: string) =>
   /^[a-zA-Z]:[\\/]/.test(src) || src.startsWith('/') || src.startsWith('\\');
 
-/**
- * Resolve an image `src` from markdown into something the webview can load.
- * Relative paths are resolved against the currently opened file's folder.
- */
 const toAssetUrl = (path: string): string => {
   try {
     return convertFileSrc(path);
@@ -18,6 +17,10 @@ const toAssetUrl = (path: string): string => {
   }
 };
 
+/**
+ * Resolve an image `src` from markdown into something the webview can load.
+ * Relative paths are resolved against the currently opened file's folder.
+ */
 export const resolveImageSrc = (src: string): string => {
   if (!src) return src;
   if (/^(https?:|asset:|blob:|data:|tauri:)/i.test(src)) return src;
@@ -31,7 +34,6 @@ export const resolveImageSrc = (src: string): string => {
   }
   if (!basePath) return raw;
   const joined = `${basePath.replace(/\\/g, '/')}/${raw.replace(/^\.\//, '')}`;
-  // Collapse `a/../b` segments.
   const parts = joined.split('/');
   const out: string[] = [];
   for (const part of parts) {
@@ -43,45 +45,211 @@ export const resolveImageSrc = (src: string): string => {
   return toAssetUrl(out.join('/'));
 };
 
-export const createImageView = $view(imageSchema.node, () => (node) => {
+const attrOf = (raw: string, name: string): string | null => {
+  const re = new RegExp(`(?:^|\\s)${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i');
+  const match = re.exec(raw);
+  if (!match) return null;
+  return match[2] ?? match[3] ?? '';
+};
+
+/**
+ * Muya (and Typora) store image layout as inline HTML:
+ *   <img src="a.png" alt="x" width="300" data-align="center">
+ * Turn those back into image nodes so they stay editable.
+ */
+export const imageHtmlRemark = $remark('typeleftImageHtml', () => function typeleftImageHtml() {
+  return (tree: any) => {
+    visit(tree, 'html', (node: any, index: number | undefined, parent: any) => {
+      if (!parent || index === undefined || parent.type !== 'paragraph') return;
+      const match = /^\s*<img\b([^>]*?)\/?>\s*$/i.exec(node.value || '');
+      if (!match) return;
+      const raw = match[1];
+      const src = attrOf(raw, 'src');
+      if (!src) return;
+      parent.children[index] = {
+        type: 'image',
+        url: src,
+        alt: attrOf(raw, 'alt') ?? '',
+        title: attrOf(raw, 'title') ?? null,
+        data: {
+          width: attrOf(raw, 'width'),
+          align: attrOf(raw, 'data-align'),
+        },
+      };
+    });
+  };
+});
+
+const escapeAttr = (value: string) => String(value ?? '').replace(/"/g, '&quot;');
+
+export const imageLayoutSchema = imageSchema.extendSchema((prev) => (ctx: any) => {
+  const base = prev(ctx);
+  return {
+    ...base,
+    attrs: {
+      ...base.attrs,
+      width: { default: null },
+      align: { default: null },
+    },
+    parseDOM: [
+      {
+        tag: 'img[src]',
+        getAttrs: (dom: any) => ({
+          src: dom.getAttribute('src') || '',
+          alt: dom.getAttribute('alt') || '',
+          title: dom.getAttribute('title') || '',
+          width: dom.getAttribute('width') || null,
+          align: dom.getAttribute('data-align') || null,
+        }),
+      },
+    ],
+    toDOM: (node: any) => {
+      const attrs: Record<string, string> = {
+        src: node.attrs.src,
+        alt: node.attrs.alt,
+      };
+      if (node.attrs.title) attrs.title = node.attrs.title;
+      if (node.attrs.width) attrs.width = node.attrs.width;
+      if (node.attrs.align) attrs['data-align'] = node.attrs.align;
+      return ['img', attrs];
+    },
+    parseMarkdown: {
+      match: ({ type }: any) => type === 'image',
+      runner: (state: any, node: any, type: any) => {
+        state.addNode(type, {
+          src: node.url,
+          alt: node.alt ?? '',
+          title: node.title ?? '',
+          width: node.data?.width ?? null,
+          align: node.data?.align ?? null,
+        });
+      },
+    },
+    toMarkdown: {
+      match: (node: any) => node.type.name === 'image',
+      runner: (state: any, node: any) => {
+        const { src, alt, title, width, align } = node.attrs;
+        if (width || align) {
+          const parts = [`src="${escapeAttr(src)}"`];
+          if (alt) parts.push(`alt="${escapeAttr(alt)}"`);
+          if (title) parts.push(`title="${escapeAttr(title)}"`);
+          if (width) parts.push(`width="${escapeAttr(width)}"`);
+          if (align) parts.push(`data-align="${align}"`);
+          state.addNode('html', undefined, `<img ${parts.join(' ')}>`);
+          return;
+        }
+        state.addNode('image', undefined, undefined, {
+          title,
+          url: src,
+          alt,
+        });
+      },
+    },
+  };
+});
+
+export const createImageView = $view(imageLayoutSchema.node, () => (node, view, getPos) => {
+  let currentNode = node;
+
   const wrapper = document.createElement('span');
   wrapper.className = 'md-image image-node';
   wrapper.setAttribute('data-src', node.attrs.src ?? '');
 
   const img = document.createElement('img');
   img.alt = node.attrs.alt ?? '';
-  if (node.attrs.title) img.title = node.attrs.title;
+  img.loading = 'lazy';
+  img.draggable = false;
 
-  const apply = (next: typeof node) => {
-    wrapper.setAttribute('data-src', next.attrs.src ?? '');
-    img.alt = next.attrs.alt ?? '';
-    if (next.attrs.title) img.title = next.attrs.title;
-    wrapper.setAttribute('data-align', next.attrs.align ?? 'center');
-    wrapper.setAttribute('data-width', next.attrs.width ?? '');
-    img.style.width = next.attrs.width || '';
-    img.src = resolveImageSrc(next.attrs.src ?? '');
+  const toolbar = document.createElement('span');
+  toolbar.className = 'image-toolbar';
+  const alignButtons: [Align, string, string][] = [
+    ['left', '⟸', 'Align left'],
+    ['center', '⇔', 'Center'],
+    ['right', '⟹', 'Align right'],
+    [null, '⤢', 'Original size'],
+  ];
+  alignButtons.forEach(([align, glyph, title]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = glyph;
+    button.title = title;
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      updateAttrs({ align, width: align === null ? null : currentNode.attrs.width });
+    });
+    toolbar.appendChild(button);
+  });
+
+  const handle = document.createElement('span');
+  handle.className = 'image-resize-handle';
+  handle.title = 'Drag to resize';
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(toolbar);
+  wrapper.appendChild(handle);
+
+  const updateAttrs = (patch: Partial<{ width: string | null; align: Align }>) => {
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (typeof pos !== 'number') return;
+    const attrs = { ...currentNode.attrs, ...patch };
+    view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, attrs));
   };
 
-  const applyInitial = () => {
-    wrapper.setAttribute('data-align', 'center');
-    img.className = 'md-image';
-    img.loading = 'lazy';
-    img.src = resolveImageSrc(node.attrs.src ?? '');
-    wrapper.appendChild(img);
+  const apply = (target: typeof node) => {
+    currentNode = target;
+    const { src, alt, title, width, align } = target.attrs;
+    img.alt = alt ?? '';
+    img.title = title ?? '';
+    img.style.width = width || '';
+    img.src = resolveImageSrc(src ?? '');
+    wrapper.setAttribute('data-src', src ?? '');
+    wrapper.setAttribute('data-align', align ?? 'center');
+    wrapper.setAttribute('data-width', width ?? '');
+    Array.from(toolbar.querySelectorAll('button')).forEach((button, index) => {
+      button.classList.toggle('active', align === alignButtons[index][0]);
+    });
   };
-  applyInitial();
+  apply(node);
+
+  // Drag the right edge to set an explicit width.
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+  handle.addEventListener('mousedown', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragging = true;
+    startX = event.clientX;
+    startWidth = img.getBoundingClientRect().width || img.naturalWidth || 300;
+    const onMove = (moveEvent: MouseEvent) => {
+      if (!dragging) return;
+      const width = Math.max(40, Math.round(startWidth + moveEvent.clientX - startX));
+      img.style.width = `${width}px`;
+    };
+    const onUp = (upEvent: MouseEvent) => {
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      const width = Math.max(40, Math.round(startWidth + upEvent.clientX - startX));
+      updateAttrs({ width: `${width}px` });
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
 
   return {
     dom: wrapper,
     update(next) {
       if (next.type.name !== 'image') return false;
-      node = next;
       apply(next);
       return true;
     },
     // The DOM `src` is a resolved asset:// URL while the node keeps the
     // original markdown path, so never let ProseMirror re-read it from the DOM.
     ignoreMutation() { return true; },
-    stopEvent() { return false; },
+    stopEvent(event) {
+      const target = event.target as HTMLElement;
+      return !!target.closest('.image-toolbar') || !!target.closest('.image-resize-handle');
+    },
   };
 });

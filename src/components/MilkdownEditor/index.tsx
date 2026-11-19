@@ -22,11 +22,12 @@ import {
   insertImageCommand,
   turnIntoTextCommand,
 } from '@milkdown/kit/preset/commonmark';
-import { gfm, insertTableCommand, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
+import { gfm, insertTableCommand, toggleStrikethroughCommand, remarkGFMPlugin } from '@milkdown/kit/preset/gfm';
+import remarkGfm from 'remark-gfm';
 import { history, undoCommand, redoCommand } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { prism } from '@milkdown/plugin-prism';
-import { $prose } from '@milkdown/kit/utils';
+import { $prose, $remark } from '@milkdown/kit/utils';
 import { getMarkdown, replaceAll, callCommand } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, NodeSelection, Selection } from '@milkdown/kit/prose/state';
 import {
@@ -52,7 +53,8 @@ import { createApplicationMenuState } from 'services/menuState';
 import { useI18n } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
-import { createImageView } from './nodes/image';
+import { marksRemark, highlightMark, superscriptMark, subscriptMark } from './nodes/marks';
+import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
 import {
@@ -76,6 +78,11 @@ interface IMilkdownEditor {
   onSearchArgChange: (arg: { value: string; opt: any } | undefined) => void;
   onSearchOpenChange?: (open: number) => void;
 }
+
+// GFM's single-tilde strikethrough would swallow `~subscript~`, so register
+// remark-gfm ourselves with only `~~strikethrough~~` enabled.
+const gfmPlugins = (gfm as any[]).filter(plugin => plugin !== remarkGFMPlugin);
+const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 
 const focusKey = new PluginKey('TYPLEFT_FOCUS');
 const focusPlugin = $prose(() => new Plugin({
@@ -278,18 +285,25 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         });
       })
       .use(commonmark)
-      .use(gfm)
+      .use(gfmPlugins)
+      .use(gfmRemark)
       .use(history)
       .use(listener)
       .use(prism)
       .use(frontmatterRemark)
       .use(frontmatterNode)
       .use(frontmatterView)
+      .use(marksRemark)
+      .use(highlightMark)
+      .use(superscriptMark)
+      .use(subscriptMark)
       .use(mathRemark)
       .use(inlineMathNode)
       .use(blockMathNode)
       .use(inlineMathView)
       .use(blockMathView)
+      .use(imageHtmlRemark)
+      .use(imageLayoutSchema)
       .use(createImageView)
       .use(createCodeBlockView)
       .use(searchPlugin)

@@ -12,6 +12,8 @@ tags: [a, b]
 
 中文段落，**粗体**、*斜体*、\`行内代码\`、~~删除~~、[链接](https://example.com)。
 
+高亮 ==重点==，上标 mc^2^，下标 H~2~O。
+
 ## 二级标题
 
 > 引用块
@@ -46,7 +48,9 @@ $$
 a^2 + b^2 = c^2
 $$
 
-![demo](poc.png)
+![demo](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMjQwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iIzQ0OGFmZiIvPjxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjM0IiBmaWxsPSIjZmZkMTY2Ii8+PHJlY3QgeD0iMTEwIiB5PSIzMCIgd2lkdGg9IjEwMCIgaGVpZ2h0PSI2MCIgcng9IjgiIGZpbGw9IiMwNmQ2YTAiLz48L3N2Zz4=)
+
+<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNDAiIGhlaWdodD0iMTIwIj48cmVjdCB3aWR0aD0iMjQwIiBoZWlnaHQ9IjEyMCIgZmlsbD0iIzQ0OGFmZiIvPjxjaXJjbGUgY3g9IjYwIiBjeT0iNjAiIHI9IjM0IiBmaWxsPSIjZmZkMTY2Ii8+PHJlY3QgeD0iMTEwIiB5PSIzMCIgd2lkdGg9IjEwMCIgaGVpZ2h0PSI2MCIgcng9IjgiIGZpbGw9IiMwNmQ2YTAiLz48L3N2Zz4=" alt="居中图片" data-align="center" width="160px">
 
 脚注[^1]。
 
@@ -139,6 +143,9 @@ const finish = (extraCheck?: () => void) => {
   }).join(' | '));
   check('milkdown line numbers', ml.querySelectorAll('.md-fences-gutter > div').length >= 2);
   check('milkdown image', !!ml.querySelector('.md-image img'));
+  const aligned = ml.querySelector('.image-node[data-align="center"][data-width="160px"]') as HTMLElement | null;
+  check('image layout attrs', !!aligned, aligned ? (aligned.querySelector('img') as HTMLImageElement).style.width : 'n/a');
+  check('image toolbar', (aligned?.querySelectorAll('.image-toolbar button').length ?? 0) === 4);
   const fm = ml.querySelector('pre[data-type="frontmatter"]') as HTMLElement | null;
   check('milkdown frontmatter', !!fm);
   if (fm) {
@@ -149,6 +156,9 @@ const finish = (extraCheck?: () => void) => {
   }
   check('milkdown diagram preview', !!ml.querySelector('.diagram-preview.active svg'));
   check('milkdown Prism tokens', ml.querySelectorAll('.token.keyword, .token.function').length > 0);
+  check('milkdown highlight mark', !!ml.querySelector('mark') && (ml.querySelector('mark')!.textContent || '').includes('重点'));
+  check('milkdown superscript', !!ml.querySelector('sup'));
+  check('milkdown subscript', !!ml.querySelector('sub'));
   const h1 = ml.querySelector('h1') as HTMLElement | null;
   check('milkdown themed heading color', !!h1 && getComputedStyle(h1).color !== 'rgb(0, 0, 0)');
 

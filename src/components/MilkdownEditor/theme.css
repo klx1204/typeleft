@@ -250,8 +250,67 @@
 /* Images */
 #write.milkdown-write .md-image.image-node {
   display: block;
+  position: relative;
   text-align: center;
   margin: 1em 0;
+}
+
+#write.milkdown-write .md-image.image-node[data-align="left"] {
+  text-align: left;
+}
+
+#write.milkdown-write .md-image.image-node[data-align="right"] {
+  text-align: right;
+}
+
+#write.milkdown-write .image-toolbar {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: var(--floatBgColor, rgba(0, 0, 0, 0.6));
+  border: 1px solid var(--tl-border, rgba(127, 127, 127, 0.3));
+}
+
+#write.milkdown-write .image-node:hover .image-toolbar {
+  display: flex;
+}
+
+#write.milkdown-write .image-toolbar button {
+  border: none;
+  background: transparent;
+  color: var(--editorColor80, #eee);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+#write.milkdown-write .image-toolbar button:hover,
+#write.milkdown-write .image-toolbar button.active {
+  background: var(--themeColor, #448aff);
+  color: #fff;
+}
+
+#write.milkdown-write .image-resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  display: none;
+  cursor: nwse-resize;
+  border-radius: 2px;
+  background: var(--themeColor, #448aff);
+  border: 1px solid var(--editorColor00, #fff);
+}
+
+#write.milkdown-write .image-node:hover .image-resize-handle {
+  display: block;
 }
 
 #write.milkdown-write .md-image > img {

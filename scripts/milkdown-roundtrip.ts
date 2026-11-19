@@ -66,12 +66,17 @@ g.DOMRect = win.DOMRect ?? class { constructor(public x = 0, public y = 0, publi
 
 const { Editor, rootCtx, defaultValueCtx, remarkStringifyOptionsCtx, editorViewCtx } = await import('@milkdown/kit/core');
 const { commonmark } = await import('@milkdown/kit/preset/commonmark');
-const { gfm } = await import('@milkdown/kit/preset/gfm');
+const { gfm, remarkGFMPlugin } = await import('@milkdown/kit/preset/gfm');
+const remarkGfm = (await import('remark-gfm')).default;
+const { $remark } = await import('@milkdown/kit/utils');
+const gfmPlugins = (gfm as any[]).filter((plugin: any) => plugin !== remarkGFMPlugin);
+const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 const { history } = await import('@milkdown/kit/plugin/history');
 const { getMarkdown } = await import('@milkdown/kit/utils');
 const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('../src/components/MilkdownEditor/nodes/frontmatter');
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
-const { createImageView } = await import('../src/components/MilkdownEditor/nodes/image');
+const { createImageView, imageLayoutSchema, imageHtmlRemark } = await import('../src/components/MilkdownEditor/nodes/image');
+const { marksRemark, highlightMark, superscriptMark, subscriptMark } = await import('../src/components/MilkdownEditor/nodes/marks');
 const { searchPlugin, setSearchQuery, findNextMatch, replaceAllMatches } = await import('../src/components/MilkdownEditor/search');
 
 const files = process.argv.slice(2);
@@ -102,17 +107,28 @@ for (const file of files) {
       }));
     })
     .use(commonmark)
-    .use(gfm)
+    .use(gfmPlugins)
+    .use(gfmRemark)
     .use(history)
     .use(frontmatterRemark)
     .use(frontmatterNode)
     .use(frontmatterView)
+    .use(marksRemark)
+    .use(highlightMark)
+    .use(superscriptMark)
+    .use(subscriptMark)
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
     .use(inlineMathView)
     .use(blockMathView)
+    .use(imageHtmlRemark)
+    .use(imageLayoutSchema)
     .use(createImageView)
+    .use(marksRemark)
+    .use(highlightMark)
+    .use(superscriptMark)
+    .use(subscriptMark)
     .use(searchPlugin)
     .create();
 
@@ -142,7 +158,8 @@ for (const file of files) {
       }));
     })
     .use(commonmark)
-    .use(gfm)
+    .use(gfmPlugins)
+    .use(gfmRemark)
     .use(history)
     .use(frontmatterRemark)
     .use(frontmatterNode)
@@ -151,7 +168,13 @@ for (const file of files) {
     .use(blockMathNode)
     .use(inlineMathView)
     .use(blockMathView)
+    .use(imageHtmlRemark)
+    .use(imageLayoutSchema)
     .use(createImageView)
+    .use(marksRemark)
+    .use(highlightMark)
+    .use(superscriptMark)
+    .use(subscriptMark)
     .use(searchPlugin)
     .create();
   const secondOutput = second.action(getMarkdown());

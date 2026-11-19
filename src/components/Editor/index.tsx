@@ -1,4 +1,4 @@
-import CodeMirror from "components/CodeMirror";
+import CodeMirror from "components/CodeMirror6";
 import MuyaEditor from "components/Muya";
 import MilkdownEditor from "components/MilkdownEditor";
 import Sidebar from "components/Sidebar";
@@ -35,6 +35,10 @@ const dialogPrimaryBtnStyle: React.CSSProperties = {
     ...dialogBtnStyle, backgroundColor: 'var(--themeColor)', borderColor: 'var(--themeColor)', color: '#fff',
 };
 
+// ProseMirror has no virtualised rendering: very large documents would block the
+// UI for seconds, so they open with the Muya compatibility engine instead.
+const LARGE_DOC_LIMIT = 200 * 1024
+
 const Editor: React.FC = () => {
     const { t } = useI18n();
     const [markdown, setMarkdown] = useState<string>();
@@ -56,6 +60,13 @@ const Editor: React.FC = () => {
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
     const [conflict, setConflict] = useState<{ content: string } | null>(null);
     const [backupPrompt, setBackupPrompt] = useState<{ id: string; created: number; content: string } | null>(null);
+    const [docTooLarge, setDocTooLarge] = useState(false);
+
+    // Decided when a document is loaded, never while typing: switching engines
+    // mid-edit would drop undo history and focus.
+    const adoptDocSize = useCallback((text: string) => {
+        setDocTooLarge((text?.length ?? 0) > LARGE_DOC_LIMIT);
+    }, []);
 
     const OnFileLoaded = useCallback(() => setTimeout(() => transport.postMessage('FileLoaded', { text: markdownRef.current }), 100), [])
 
@@ -93,6 +104,7 @@ const Editor: React.FC = () => {
             setOptions(opt)
             setMarkdown(text)
             markdownRef.current = text
+            adoptDocSize(text)
             adoptLoadedFile(text, fp)
             OnFileLoaded();
         })
@@ -153,6 +165,7 @@ const Editor: React.FC = () => {
         setCursor(undefined)
         setMarkdown(text)
         markdownRef.current = text
+        adoptDocSize(text)
         adoptLoadedFile(text, filePath)
         if (filePath) {
             const name = filePath.split('/').pop() || filePath.split('\\').pop() || 'Typeleft';
@@ -167,6 +180,7 @@ const Editor: React.FC = () => {
         setCursor(cursor)
         setTimeout(() => setMarkdown(text))
         markdownRef.current = text
+        adoptDocSize(text)
         adoptLoadedFile(text)
     }), [adoptLoadedFile]);
 
@@ -208,6 +222,7 @@ const Editor: React.FC = () => {
         setCursor(undefined)
         setMarkdown('')
         markdownRef.current = ''
+        adoptDocSize('')
         adoptLoadedFile('')
         document.title = 'Typeleft'
         getCurrentWebviewWindow().setTitle('Typeleft').catch(() => {});
@@ -393,6 +408,9 @@ const Editor: React.FC = () => {
         return <></>
     }
 
+    const configuredEngine = options.editorEngine === 'muya' ? 'muya' : 'milkdown'
+    const activeEngine = configuredEngine === 'milkdown' && docTooLarge ? 'muya' : configuredEngine
+
     return (
         <>
             <Sidebar open={sidebarOpen} section={sidebarSection} onClose={() => setSidebarOpen(false)} />
@@ -415,6 +433,7 @@ const Editor: React.FC = () => {
                                     const text = await remoteCommon.readTextFile({ path: filePath });
                                     setMarkdown(text);
                                     markdownRef.current = text;
+                                    adoptDocSize(text);
                                     adoptLoadedFile(text, filePath);
                                     setSaveStatus('idle');
                                 } catch { /* ignore */ }
@@ -449,6 +468,7 @@ const Editor: React.FC = () => {
                                 setBackupPrompt(null);
                                 setMarkdown(content);
                                 markdownRef.current = content;
+                                adoptDocSize(content);
                                 if (filePath) {
                                     await remoteCommon.deleteBackup({ path: filePath, id: backupPrompt.id }).catch(() => {});
                                 }
@@ -459,6 +479,15 @@ const Editor: React.FC = () => {
                 </div>
             )}
             <div style={{ marginLeft: sidebarOpen ? sidePaneWidth : 0, transition: 'margin-left .2s' }}>
+                {configuredEngine === 'milkdown' && docTooLarge && (
+                    <div style={{
+                        padding: '4px 12px', fontSize: 12, textAlign: 'center',
+                        color: 'var(--editorColor60)', backgroundColor: 'var(--editorColor04)',
+                        borderBottom: '1px solid var(--editorColor10)',
+                    }}>
+                        {t('Large document: switched to the compatibility editor for performance')}
+                    </div>
+                )}
                 {options.sourceCode ? (
                     <CodeMirror
                         options={options}
@@ -472,12 +501,19 @@ const Editor: React.FC = () => {
                         onSearchArgChange={setSearchArg}
                         onSearchOpenChange={setSearchOpen}
                     />
-                ) : options.editorEngine === 'milkdown' ? (
+                ) : activeEngine === 'milkdown' ? (
                     <MilkdownEditor
                         key={filePath ?? 'new'}
                         markdown={markdown ?? ''}
+                        cursor={cursor}
                         options={options}
+                        searchOpen={searchOpen}
+                        searchArg={searchArg}
+                        scrollTopRef={muyaScrollTopRef}
                         onMarkdownChange={setMarkdown}
+                        onCursorChange={setCursor}
+                        onSearchArgChange={setSearchArg}
+                        onSearchOpenChange={setSearchOpen}
                     />
                 ) : (
                     <MuyaEditor

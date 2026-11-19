@@ -124,6 +124,7 @@ const zhLabels: Record<string, string> = {
     autoCheck: '自动勾选任务列表',
     lang: '语言',
     wordCountMethod: '字数统计方式',
+    editorEngine: '编辑器引擎（milkdown / muya）',
     sidePaneWidth: '侧边栏宽度',
     fileStartupAction: '启动时（文件）',
     folderStartupAction: '启动时（文件夹）',
@@ -142,6 +143,7 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'focusMode', label: 'Focus Mode', type: 'checkbox' },
       { key: 'hideQuickInsertHint', label: 'Hide Quick Insert Hint', type: 'checkbox' },
       { key: 'hideLinkPopup', label: 'Hide Link Popup', type: 'checkbox' },
+      { key: 'editorEngine', label: 'Editor Engine', type: 'select', options: ['milkdown', 'muya'] },
     ],
   },
   {

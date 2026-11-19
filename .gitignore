@@ -14,3 +14,6 @@ src-tauri/target/
 # local env
 .env
 .env.local
+
+# round-trip harness output
+scripts/fixtures/*.out.md

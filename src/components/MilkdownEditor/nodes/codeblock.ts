@@ -1,0 +1,199 @@
+import { $view } from '@milkdown/kit/utils';
+import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
+import loadRenderer from 'components/Muya/lib/renderers';
+
+const DIAGRAM_LANGS = ['mermaid', 'flowchart', 'sequence', 'plantuml', 'vega-lite', 'vega'] as const;
+type DiagramLang = typeof DIAGRAM_LANGS[number];
+
+export const isDiagramLang = (lang: string): lang is DiagramLang =>
+  (DIAGRAM_LANGS as readonly string[]).includes(lang);
+
+/** Render a fenced diagram into `target`, matching the Muya renderer behaviour. */
+export const renderDiagram = async (
+  target: HTMLElement,
+  lang: DiagramLang,
+  code: string,
+  options: any = {}
+): Promise<void> => {
+  const dark = (window as any).actualTheme === 'dark';
+  try {
+    if (lang === 'mermaid') {
+      const mermaid = await loadRenderer('mermaid');
+      mermaid.initialize({
+        securityLevel: 'strict',
+        theme: options.mermaidTheme || (dark ? 'dark' : 'default'),
+      });
+      mermaid.parse(code);
+      target.textContent = code;
+      mermaid.init(undefined, target);
+      return;
+    }
+    if (lang === 'vega' || lang === 'vega-lite') {
+      const embed = await loadRenderer('vega-lite');
+      const spec = JSON.parse(code);
+      const host = document.createElement('div');
+      target.appendChild(host);
+      await embed(host, spec, {
+        actions: false,
+        tooltip: false,
+        renderer: 'svg',
+        theme: options.vegaTheme || (dark ? 'dark' : 'latimes'),
+      });
+      return;
+    }
+    const renderer = await loadRenderer(lang as 'flowchart' | 'sequence' | 'plantuml');
+    const diagram = renderer.parse(code);
+    if (lang === 'plantuml') {
+      diagram.insertImgElement(target);
+    } else {
+      diagram.drawSVG(target, lang === 'sequence' ? { theme: options.sequenceTheme } : {});
+    }
+  } catch (err) {
+    target.textContent = '< Invalid diagram >';
+    target.classList.add('diagram-error');
+  }
+};
+
+const LANGUAGE_LIST = [
+  '', 'text', 'bash', 'c', 'cpp', 'csharp', 'css', 'diff', 'go', 'html',
+  'java', 'javascript', 'json', 'jsx', 'kotlin', 'latex', 'lua', 'markdown',
+  'php', 'python', 'r', 'ruby', 'rust', 'scss', 'shell', 'sql', 'swift',
+  'toml', 'tsx', 'typescript', 'xml', 'yaml', 'mermaid', 'flowchart',
+  'sequence', 'plantuml', 'vega-lite',
+];
+
+export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view, getPos) => {
+  let currentNode = node;
+  let timer: number | undefined;
+  let destroyed = false;
+
+  const dom = document.createElement('div');
+  dom.className = 'md-fences-wrapper';
+  dom.setAttribute('data-language', node.attrs.language ?? '');
+
+  const header = document.createElement('div');
+  header.className = 'md-fences-header';
+
+  const select = document.createElement('select');
+  select.className = 'md-fences-language';
+  for (const lang of LANGUAGE_LIST) {
+    const option = document.createElement('option');
+    option.value = lang;
+    option.textContent = lang || 'text';
+    select.appendChild(option);
+  }
+  select.value = node.attrs.language || '';
+
+  const actions = document.createElement('div');
+  actions.className = 'md-fences-actions';
+
+  const wrapBtn = document.createElement('button');
+  wrapBtn.type = 'button';
+  wrapBtn.textContent = '↩';
+  wrapBtn.title = 'Toggle line wrap';
+  wrapBtn.addEventListener('click', () => {
+    dom.classList.toggle('wrap');
+  });
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.textContent = '⧉';
+  copyBtn.title = 'Copy';
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard?.writeText(currentNode.textContent).catch(() => {});
+  });
+
+  actions.appendChild(wrapBtn);
+  actions.appendChild(copyBtn);
+  header.appendChild(select);
+  header.appendChild(actions);
+
+  const body = document.createElement('div');
+  body.className = 'md-fences-body';
+
+  const gutter = document.createElement('div');
+  gutter.className = 'md-fences-gutter';
+
+  const pre = document.createElement('pre');
+  pre.className = 'md-fences';
+  const code = document.createElement('code');
+  code.className = 'md-fences-content';
+  pre.appendChild(code);
+  body.appendChild(gutter);
+  body.appendChild(pre);
+
+  const updateGutter = () => {
+    const lines = currentNode.textContent.split('\n').length;
+    if (gutter.childElementCount === lines) return;
+    gutter.innerHTML = '';
+    for (let i = 1; i <= lines; i += 1) {
+      const line = document.createElement('div');
+      line.textContent = String(i);
+      gutter.appendChild(line);
+    }
+  };
+
+  const preview = document.createElement('div');
+  preview.className = 'diagram-preview';
+
+  dom.appendChild(header);
+  dom.appendChild(body);
+  dom.appendChild(preview);
+
+  const schedulePreview = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      if (destroyed) return;
+      const language = currentNode.attrs.language ?? '';
+      preview.classList.toggle('active', isDiagramLang(language));
+      if (!isDiagramLang(language)) {
+        preview.textContent = '';
+        return;
+      }
+      preview.textContent = '';
+      preview.classList.remove('diagram-error');
+      renderDiagram(preview, language, currentNode.textContent, (window as any).typeleftEditorOptions ?? {});
+    }, 400);
+  };
+
+  select.addEventListener('change', () => {
+    const pos = typeof getPos === 'function' ? getPos() : undefined;
+    if (typeof pos !== 'number') return;
+    const language = select.value;
+    view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, { ...currentNode.attrs, language }));
+    dom.setAttribute('data-language', language);
+  });
+
+  schedulePreview();
+  updateGutter();
+
+  return {
+    dom,
+    contentDOM: code,
+    update(next) {
+      if (next.type !== currentNode.type) return false;
+      const languageChanged = next.attrs.language !== currentNode.attrs.language;
+      currentNode = next;
+      if (languageChanged) {
+        select.value = next.attrs.language || '';
+        dom.setAttribute('data-language', next.attrs.language || '');
+      }
+      schedulePreview();
+      updateGutter();
+      return true;
+    },
+    destroy() {
+      destroyed = true;
+      if (timer) window.clearTimeout(timer);
+    },
+    ignoreMutation(mutation) {
+      if (mutation.type === 'selection') return false;
+      const target = mutation.target as HTMLElement;
+      return !code.contains(target);
+    },
+    stopEvent(event) {
+      const target = event.target as HTMLElement;
+      return !!target.closest('.md-fences-header') || !!target.closest('.diagram-preview');
+    },
+  };
+});

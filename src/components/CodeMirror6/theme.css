@@ -1,0 +1,98 @@
+@layer typeleft-base {
+.cm6-write {
+  max-width: var(--editorAreaWidth, 860px);
+  margin: 0 auto;
+  padding: 20px 50px 100px 50px;
+  box-sizing: border-box;
+}
+
+.cm6-host .cm-editor {
+  background: transparent;
+  color: var(--editorColor80);
+  font-family: "DejaVu Sans Mono", "Source Code Pro", Consolas, monospace;
+  font-size: 0.95em;
+  line-height: 1.6;
+  outline: none;
+}
+
+.cm6-host .cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm6-host .cm-scroller {
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.cm6-host .cm-content {
+  caret-color: var(--editorColor80);
+  padding: 4px 0;
+}
+
+.cm6-host .cm-gutters {
+  background: transparent;
+  border-right: 1px solid var(--editorColor10);
+  color: var(--editorColor30);
+}
+
+.cm6-host .cm-activeLineGutter {
+  background: var(--editorColor04);
+  color: var(--editorColor60);
+}
+
+.cm6-host .cm-activeLine {
+  background: var(--editorColor02);
+}
+
+.cm6-host .cm-selectionBackground,
+.cm6-host .cm-content ::selection {
+  background: var(--themeColor) !important;
+  opacity: 0.25;
+}
+
+.cm6-host .cm-cursor {
+  border-left-color: var(--editorColor80);
+}
+
+.cm6-host .cm-searchMatch {
+  background: rgba(255, 213, 0, 0.45);
+}
+
+.cm6-host .cm-searchMatch.cm-searchMatch-selected {
+  background: rgba(255, 153, 0, 0.75);
+  outline: 1px solid rgba(255, 120, 0, 0.9);
+}
+
+/* Markdown syntax colours (fallback when no highlight style matches). */
+.cm6-host .tok-heading,
+.cm6-host .ͼm {
+  color: var(--themeColor);
+  font-weight: 600;
+}
+
+.cm6-host .tok-strong {
+  font-weight: 700;
+}
+
+.cm6-host .tok-emphasis {
+  font-style: italic;
+}
+
+.cm6-host .tok-link,
+.cm6-host .tok-url {
+  color: var(--themeColor);
+}
+
+.cm6-host .tok-monospace {
+  background: var(--editorColor04);
+  border-radius: 2px;
+}
+
+.cm6-host .tok-quote {
+  color: var(--editorColor50);
+}
+
+.cm6-host .tok-meta {
+  color: var(--editorColor30);
+}
+}

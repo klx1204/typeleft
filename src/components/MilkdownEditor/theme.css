@@ -1,0 +1,461 @@
+/* Base styles for the Milkdown engine, scoped to `#write.milkdown-write` and
+ * placed in a low-priority cascade layer so Typora user themes (unlayered)
+ * always win without specificity hacks. */
+@layer typeleft-base {
+/* Base styles for the Milkdown engine.
+ * Loaded before user themes, so Typora themes can override at equal specificity.
+ * DOM hooks mirror Typora: #write.milkdown-write, pre.md-fences, .md-image, task list items.
+ */
+
+#write.milkdown-write {
+  max-width: var(--editorAreaWidth, 860px);
+  margin: 0 auto;
+  padding: 20px 50px 100px 50px;
+  box-sizing: border-box;
+  cursor: text;
+  font-size: var(--editorFontSize, 16px);
+  line-height: var(--editorLineHeight, 1.6);
+}
+
+#write.milkdown-write .milkdown-host {
+  outline: none;
+}
+
+#write.milkdown-write .ProseMirror {
+  outline: none;
+  min-height: calc(100vh - 140px);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  font-variant-ligatures: none;
+  -webkit-font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
+}
+
+#write.milkdown-write .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+#write.milkdown-write p {
+  margin: 0.6em 0;
+}
+
+#write.milkdown-write h1, #write.milkdown-write h2, #write.milkdown-write h3, #write.milkdown-write h4, #write.milkdown-write h5, #write.milkdown-write h6 {
+  position: relative;
+  margin: 1.2em 0 0.6em;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--editorColor80);
+}
+
+#write.milkdown-write h1 { font-size: 2em; }
+#write.milkdown-write h2 { font-size: 1.6em; }
+#write.milkdown-write h3 { font-size: 1.37em; }
+#write.milkdown-write h4 { font-size: 1.2em; }
+#write.milkdown-write h5 { font-size: 1.05em; }
+#write.milkdown-write h6 { font-size: 0.95em; color: var(--editorColor60); }
+
+#write.milkdown-write a {
+  color: var(--themeColor);
+  text-decoration: none;
+}
+
+#write.milkdown-write a:hover {
+  text-decoration: underline;
+}
+
+#write.milkdown-write blockquote {
+  margin: 1em 0;
+  padding: 0.2em 0 0.2em 1em;
+  border-left: 4px solid var(--editorColor10);
+  color: var(--editorColor60);
+}
+
+#write.milkdown-write ul, #write.milkdown-write ol {
+  padding-left: 1.6em;
+  margin: 0.5em 0;
+}
+
+#write.milkdown-write li {
+  margin: 0.2em 0;
+}
+
+#write.milkdown-write li > p {
+  margin: 0.2em 0;
+}
+
+/* Task list: render a checkbox drawn with CSS, Typora-compatible hooks. */
+#write.milkdown-write li[data-item-type="task"] {
+  list-style: none;
+  position: relative;
+  margin-left: -1.3em;
+  padding-left: 1.5em;
+}
+
+#write.milkdown-write li[data-item-type="task"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35em;
+  width: 0.95em;
+  height: 0.95em;
+  border: 1.5px solid var(--editorColor30);
+  border-radius: 3px;
+  box-sizing: border-box;
+  cursor: pointer;
+  background: transparent;
+}
+
+#write.milkdown-write li[data-item-type="task"][data-checked="true"]::before {
+  background: var(--themeColor);
+  border-color: var(--themeColor);
+}
+
+#write.milkdown-write li[data-item-type="task"][data-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.28em;
+  top: 0.5em;
+  width: 0.28em;
+  height: 0.5em;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  cursor: pointer;
+}
+
+#write.milkdown-write li[data-item-type="task"][data-checked="true"] > p {
+  color: var(--editorColor40);
+  text-decoration: line-through;
+}
+
+#write.milkdown-write hr {
+  border: none;
+  border-top: 1px solid var(--editorColor10);
+  margin: 1.6em 0;
+}
+
+/* Inline code */
+#write.milkdown-write code {
+  font-family: "DejaVu Sans Mono", "Source Code Pro", Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--editorColor04);
+  border-radius: 3px;
+  padding: 0.12em 0.3em;
+}
+
+/* Code fences */
+#write.milkdown-write .md-fences-wrapper {
+  margin: 1em 0;
+  border-radius: 4px;
+  background: var(--editorColor04);
+  border: 1px solid var(--editorColor10);
+  overflow: hidden;
+}
+
+#write.milkdown-write .md-fences-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--editorColor10);
+  font-size: 12px;
+  color: var(--editorColor40);
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+
+#write.milkdown-write .md-fences-wrapper:hover .md-fences-header {
+  opacity: 1;
+}
+
+#write.milkdown-write .md-fences-language {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+#write.milkdown-write .md-fences-actions button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+}
+
+#write.milkdown-write pre.md-fences {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  background: transparent;
+  font-family: "DejaVu Sans Mono", "Source Code Pro", Consolas, monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+}
+
+#write.milkdown-write .md-fences-wrapper.wrap pre.md-fences {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+#write.milkdown-write pre.md-fences code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+#write.milkdown-write .diagram-preview {
+  display: none;
+  padding: 8px 12px;
+  border-top: 1px dashed var(--editorColor10);
+  text-align: center;
+}
+
+#write.milkdown-write .diagram-preview.active {
+  display: block;
+}
+
+#write.milkdown-write .diagram-preview svg {
+  max-width: 100%;
+}
+
+#write.milkdown-write .diagram-error {
+  color: #c0392b;
+}
+
+/* Images */
+#write.milkdown-write .md-image.image-node {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+#write.milkdown-write .md-image > img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tables */
+#write.milkdown-write table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+  overflow: hidden;
+}
+
+#write.milkdown-write th, #write.milkdown-write td {
+  border: 1px solid var(--editorColor10);
+  padding: 0.4em 0.7em;
+  text-align: left;
+  vertical-align: top;
+}
+
+#write.milkdown-write th {
+  background: var(--editorColor04);
+  font-weight: 600;
+}
+
+#write.milkdown-write .selectedCell::after {
+  background: var(--themeColor);
+  opacity: 0.12;
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#write.milkdown-write .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--themeColor);
+  pointer-events: none;
+}
+
+#write.milkdown-write .tableWrapper {
+  overflow-x: auto;
+}
+
+/* Math */
+#write.milkdown-write .math-node {
+  cursor: pointer;
+}
+
+#write.milkdown-write .math-inline {
+  padding: 0 2px;
+}
+
+#write.milkdown-write .math-block {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+#write.milkdown-write .math-node-input {
+  font-family: "DejaVu Sans Mono", monospace;
+  font-size: 0.95em;
+  border: 1px solid var(--themeColor);
+  border-radius: 3px;
+  padding: 1px 4px;
+  background: var(--editorColor00);
+  color: var(--editorColor80);
+  min-width: 8em;
+}
+
+#write.milkdown-write .math-error {
+  color: #c0392b;
+}
+
+/* Front matter */
+#write.milkdown-write pre[data-type="frontmatter"] {
+  margin: 0 0 1.2em;
+  padding: 10px 12px;
+  border-left: 3px solid var(--editorColor10);
+  background: var(--editorColor04);
+  color: var(--editorColor60);
+  font-family: "DejaVu Sans Mono", "Source Code Pro", monospace;
+  font-size: 0.85em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  border-radius: 3px;
+}
+
+/* Footnotes */
+#write.milkdown-write .footnote-ref {
+  color: var(--themeColor);
+  cursor: pointer;
+}
+
+#write.milkdown-write section.footnotes {
+  margin-top: 2em;
+  font-size: 0.9em;
+  color: var(--editorColor60);
+}
+
+#write.milkdown-write .footnote-backref {
+  margin-left: 4px;
+}
+
+/* Search highlights */
+#write.milkdown-write .typeleft-search-match {
+  background: rgba(255, 213, 0, 0.45);
+  border-radius: 2px;
+}
+
+#write.milkdown-write .typeleft-search-active {
+  background: rgba(255, 153, 0, 0.75);
+  outline: 1px solid rgba(255, 120, 0, 0.9);
+}
+
+/* Focus mode: dim everything except the current block. */
+#write.milkdown-write.focus-mode .ProseMirror > * {
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+#write.milkdown-write.focus-mode .ProseMirror > .has-focus,
+#write.milkdown-write.focus-mode .ProseMirror > *:hover {
+  opacity: 1;
+}
+
+/* Gap cursor */
+.ProseMirror-gapcursor:after {
+  border-top-color: var(--editorColor80);
+}
+
+/* Placeholder for empty documents */
+#write.milkdown-write .ProseMirror p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--editorColor30);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+}
+
+@layer typeleft-base {
+.milkdown-bubble-toolbar,
+.milkdown-table-toolbar {
+  z-index: 900;
+  display: flex;
+  gap: 2px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  background: var(--floatBgColor, var(--editorColor00));
+  border: 1px solid var(--floatBorderColor, var(--editorColor10));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.milkdown-bubble-toolbar button,
+.milkdown-table-toolbar button {
+  border: none;
+  background: transparent;
+  color: var(--editorColor70, var(--editorColor50));
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.milkdown-bubble-toolbar button:hover,
+.milkdown-table-toolbar button:hover,
+.milkdown-bubble-toolbar button.active {
+  background: var(--editorColor06);
+}
+}
+
+@layer typeleft-base {
+#write.milkdown-write.typewriter {
+  padding-top: calc(50vh - 136px);
+  padding-bottom: calc(50vh - 54px);
+}
+}
+
+@layer typeleft-base {
+#write.milkdown-write .md-fences-body {
+  display: flex;
+  align-items: stretch;
+}
+
+#write.milkdown-write .md-fences-gutter {
+  user-select: none;
+  padding: 10px 6px 10px 10px;
+  text-align: right;
+  color: var(--editorColor30);
+  font-family: "DejaVu Sans Mono", "Source Code Pro", Consolas, monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  border-right: 1px solid var(--editorColor10);
+  min-width: 2em;
+  background: var(--editorColor02);
+}
+
+#write.milkdown-write pre.md-fences {
+  flex: 1;
+  min-width: 0;
+}
+}
+
+@layer typeleft-base {
+#write.milkdown-write .frontmatter-editor {
+  width: 100%;
+  min-height: 4em;
+  border: 1px solid var(--themeColor);
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-family: "DejaVu Sans Mono", "Source Code Pro", monospace;
+  font-size: 0.85em;
+  background: var(--editorColor00);
+  color: var(--editorColor80);
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+}

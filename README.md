@@ -8,9 +8,11 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 
 ## Features
 
-- **WYSIWYG Markdown editing** powered by Muya (the editor engine from MarkText)
+- **WYSIWYG Markdown editing** powered by Milkdown (ProseMirror + remark), with the legacy Muya engine available as a fallback
 - **Cross-platform**: macOS (Intel / Apple Silicon), Windows, Linux
-- **Source mode** with CodeMirror and its own search bar
+- **Source mode** with CodeMirror 6 and its own search bar
+- **Math** (KaTeX, inline and block), **diagrams** (Mermaid / Flowchart / Sequence / PlantUML / Vega) and **front matter** (YAML / TOML)
+- **Large documents** (> 200 KB) automatically open with the Muya compatibility engine
 - **Find & replace** with case-sensitive / regex / whole-word options
 - **Undo / redo** with a debounced snapshot history
 - **Outline & file tree** sidebars, with file operations (rename, move, copy, delete to trash, new file/folder)
@@ -29,7 +31,7 @@ Typeleft loads Typora `.css` themes directly.
 - Open it from **View → Themes...** (or Settings → Theme & Diagrams), copy the theme `.css` files (plus any fonts/images), refresh and select.
 - Load order: theme CSS → `base.user.css` → `{theme}.user.css`.
 - Supported: typography, colours, headings, lists, tables, blockquotes, code blocks, task lists, background images, `@font-face` fonts, CSS counters (auto numbering), side bar colours.
-- Not supported: native menu styling (drawn by the OS), `#write > p` direct-child selectors, CodeMirror internals (line numbers, active line), TOC blocks.
+- Not supported: native menu styling (drawn by the OS), `#write > p` direct-child selectors, TOC blocks.
 - Relative `url()` and `@import` references are inlined (assets as `data:` URLs, imported CSS as text) and cannot escape the theme folder; external `http(s)` references are blocked.
 
 ## Download

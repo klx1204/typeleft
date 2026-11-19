@@ -263,3 +263,60 @@ markdown prop 变化 → 若与编辑器当前 md 不同 → replaceAll(新内�
 | 切换与清理 | 1 周 |
 | 发布 | 1 周 |
 | **合计** | **约 10–14 周（单人）** |
+
+---
+
+## 9. 实施状态（v0.2.0）
+
+### 已交付
+
+| 阶段 | 内容 | 状态 |
+|---|---|---|
+| 0 | PoC、round-trip 差异清单、性能基线、报告 | ✅ |
+| 1 | 适配层：cursor/scroll 同步、搜索替换、撤销重做、字数、TOC、自动保存兼容、`editorEngine` 设置 | ✅ |
+| 1.5 | 源码模式 CodeMirror 6（替换 CM5，含搜索/光标/滚动/主题） | ✅ |
+| 2 | 代码块、表格、数学、图片、脚注、Frontmatter、图表、格式工具栏、主题钩子 | ✅ |
+| 2（延后） | 斜杠命令菜单、上下标、`==高亮==`、图片拖拽缩放句柄、表格列宽拖拽持久化 | ⏸ 0.3 |
+| 3 | 默认引擎 milkdown、>200KB 回退 Muya、回归清单 | ⏳ 待人工回归 |
+| 4 | 版本 0.2.0、四平台 CI、Release | ⏳ |
+
+### 实现要点
+
+- `src/components/MilkdownEditor/`
+  - `index.tsx`：编辑器生命周期、菜单命令、搜索栏、格式/表格浮动工具栏、状态事件
+  - `nodes/frontmatter.ts`：YAML/TOML atom 节点，保留种类，双击编辑
+  - `nodes/math.ts`：`remark-math` + KaTeX 行内/块级节点，双击编辑
+  - `nodes/image.ts`：本地/相对路径 `convertFileSrc` 解析；粘贴/拖拽/上传走 `services/imageAction.ts`
+  - `nodes/codeblock.ts`：语言选择、行号、换行、复制、Mermaid/Flow/Sequence/PlantUML/Vega 预览
+  - `search.ts`：Decoration 搜索高亮与替换
+  - `theme.css`：`@layer typeleft-base` 低优先级基础样式，Typora 主题（无 layer）始终覆盖
+- `src/components/CodeMirror6/`：CM6 源码模式
+- `src/services/imageAction.ts`：两套引擎共用的图片处理管线
+
+### 序列化选项
+
+为贴近 Typora/Muya 的输出，序列化器固定：
+
+```ts
+bullet: settings.bulletListMarker || '-'
+rule: '-'
+fence: '`'
+listItemIndent: 'one'
+```
+
+### 已知差异（可接受）
+
+- Setext 标题 → ATX（`#`）
+- 缩进代码块 / `~~~` 围栏 → 三反引号围栏
+- 表格单元格补齐空格（对齐列宽），**幂等**
+- 列表符号统一为 `-`（跟随设置）
+- 硬换行 `  ⏎` → `\⏎`
+- 连续的有序列表按 CommonMark 语义合并后重新编号（编号本身无语义）
+- `<br>` 作为文档最后一个块时会被丢弃；段落内 `<br>` 保留为 `<br />`
+
+### 需人工验证
+
+- 中文 IME（拼音组合、候选词、全角标点）
+- 100KB–500KB 文档输入延迟、滚动流畅度
+- 主题（Academic 等）在 Milkdown 下的实际观感
+- 表格编辑手感、图片拖拽

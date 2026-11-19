@@ -1,14 +1,18 @@
-.react-codemirror2 {
+.cm6-host {
   height: 100%;
 }
 
-.CodeMirror {
-  height: auto !important;
+.cm6-host .cm-editor {
+  height: auto;
 }
 
-.CodeMirror-scroll {
+.cm6-host .cm-scroller {
   min-height: calc(100vh - 48px);
   cursor: text;
+}
+
+.cm6-host .cm-editor.cm-focused {
+  outline: none;
 }
 
 body.compact-mode .StatusBar {

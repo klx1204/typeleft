@@ -682,5 +682,13 @@
   "Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.": {
     "en": "Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.",
     "zh": "把 Typora 主题的 .css 文件（以及字体/图片）复制到主题文件夹，刷新后选择即可。"
+  },
+  "Large document: switched to the compatibility editor for performance": {
+    "en": "Large document: switched to the compatibility editor for performance",
+    "zh": "大文档：为保证流畅，已切换到兼容编辑器"
+  },
+  "Editor Engine": {
+    "en": "Editor Engine",
+    "zh": "编辑器引擎"
   }
 }

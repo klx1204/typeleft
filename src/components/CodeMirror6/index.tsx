@@ -234,6 +234,25 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
     focusSearch();
   }, [props.searchOpen, focusSearch]);
 
+  // Cmd/Ctrl+F must open the app's own search bar, not CodeMirror's built-in
+  // panel (which `search()` installs via its keymap).
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod) return;
+      const key = event.key.toLowerCase();
+      if (key === 'f') {
+        event.preventDefault();
+        event.stopPropagation();
+        propsRef.current.onSearchOpenChange?.(1);
+      }
+    };
+    host.addEventListener('keydown', onKeyDown, true);
+    return () => host.removeEventListener('keydown', onKeyDown, true);
+  }, []);
+
   const searchBarStyle: React.CSSProperties = useMemo(() => ({
     display: 'flex', alignItems: 'center', gap: 6,
     padding: '6px 12px',

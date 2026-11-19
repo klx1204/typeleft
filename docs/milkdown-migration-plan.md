@@ -314,9 +314,20 @@ listItemIndent: 'one'
 - 连续的有序列表按 CommonMark 语义合并后重新编号（编号本身无语义）
 - `<br>` 作为文档最后一个块时会被丢弃；段落内 `<br>` 保留为 `<br />`
 
+### 自动化测试
+
+```bash
+bun run test        # round-trip 回归 + CodeMirror 6 冒烟测试
+bun run test:roundtrip
+bun run test:cm6
+```
+
+- `scripts/milkdown-roundtrip.ts`：Domino 中运行 Milkdown 解析/序列化，输出差异与幂等性
+- `scripts/codemirror-smoke.ts`：CM6 文档载入、中文插入、撤销、搜索、全部替换
+
 ### 需人工验证
 
 - 中文 IME（拼音组合、候选词、全角标点）
-- 100KB–500KB 文档输入延迟、滚动流畅度
+- 50KB–200KB 文档输入延迟、滚动流畅度
 - 主题（Academic 等）在 Milkdown 下的实际观感
 - 表格编辑手感、图片拖拽

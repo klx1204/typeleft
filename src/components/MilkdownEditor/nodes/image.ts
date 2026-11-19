@@ -9,6 +9,15 @@ const isAbsolute = (src: string) =>
  * Resolve an image `src` from markdown into something the webview can load.
  * Relative paths are resolved against the currently opened file's folder.
  */
+const toAssetUrl = (path: string): string => {
+  try {
+    return convertFileSrc(path);
+  } catch {
+    // Not running inside a Tauri webview (tests, plain browser).
+    return path;
+  }
+};
+
 export const resolveImageSrc = (src: string): string => {
   if (!src) return src;
   if (/^(https?:|asset:|blob:|data:|tauri:)/i.test(src)) return src;
@@ -18,7 +27,7 @@ export const resolveImageSrc = (src: string): string => {
   }
   const basePath: string = (window as any).basePath || '';
   if (isAbsolute(raw)) {
-    return convertFileSrc(raw.replace(/\\/g, '/'));
+    return toAssetUrl(raw.replace(/\\/g, '/'));
   }
   if (!basePath) return raw;
   const joined = `${basePath.replace(/\\/g, '/')}/${raw.replace(/^\.\//, '')}`;
@@ -31,7 +40,7 @@ export const resolveImageSrc = (src: string): string => {
     if (part === '..') { out.pop(); continue; }
     out.push(part);
   }
-  return convertFileSrc(out.join('/'));
+  return toAssetUrl(out.join('/'));
 };
 
 export const createImageView = $view(imageSchema.node, () => (node) => {
@@ -70,6 +79,9 @@ export const createImageView = $view(imageSchema.node, () => (node) => {
       apply(next);
       return true;
     },
+    // The DOM `src` is a resolved asset:// URL while the node keeps the
+    // original markdown path, so never let ProseMirror re-read it from the DOM.
+    ignoreMutation() { return true; },
     stopEvent() { return false; },
   };
 });

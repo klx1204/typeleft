@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:roundtrip": "bun scripts/milkdown-roundtrip.ts scripts/fixtures/roundtrip.md scripts/fixtures/roundtrip-edge.md"
+    "test:roundtrip": "bun scripts/milkdown-roundtrip.ts scripts/fixtures/roundtrip.md scripts/fixtures/roundtrip-edge.md",
+    "test:cm6": "bun scripts/codemirror-smoke.ts",
+    "test": "bun run test:roundtrip && bun run test:cm6"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

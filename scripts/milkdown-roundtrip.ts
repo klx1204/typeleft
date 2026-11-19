@@ -70,7 +70,8 @@ const { gfm } = await import('@milkdown/kit/preset/gfm');
 const { history } = await import('@milkdown/kit/plugin/history');
 const { getMarkdown } = await import('@milkdown/kit/utils');
 const { frontmatterNode, frontmatterRemark } = await import('../src/components/MilkdownEditor/nodes/frontmatter');
-const { mathRemark, inlineMathNode, blockMathNode } = await import('../src/components/MilkdownEditor/nodes/math');
+const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
+const { createImageView } = await import('../src/components/MilkdownEditor/nodes/image');
 
 const files = process.argv.slice(2);
 if (!files.length) {
@@ -107,9 +108,17 @@ for (const file of files) {
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
+    .use(inlineMathView)
+    .use(blockMathView)
+    .use(createImageView)
     .create();
 
   const output = editor.action(getMarkdown());
+
+  if (file === files[0]) {
+    const html = root.innerHTML;
+    console.log(`dom: katex=${/class="katex/.test(html) ? 'yes' : 'NO'} img=${/<img/.test(html) ? 'yes' : 'NO'}`);
+  }
   // Feed the serialized output back through the editor: a stable serializer
   // must be idempotent, otherwise repeated saves keep rewriting the file.
   const second = await Editor.make()
@@ -132,6 +141,9 @@ for (const file of files) {
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
+    .use(inlineMathView)
+    .use(blockMathView)
+    .use(createImageView)
     .create();
   const secondOutput = second.action(getMarkdown());
   await second.destroy();

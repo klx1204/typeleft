@@ -641,7 +641,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     propsRef.current.onSearchOpenChange?.(0);
     propsRef.current.onSearchArgChange(undefined);
     const view = getView();
-    if (view) setSearchQuery(view, '', searchOpts);
+    if (view) {
+      setSearchQuery(view, '', searchOpts);
+      view.focus();
+    }
   }, [getView, searchOpts]);
 
   useEffect(() => {

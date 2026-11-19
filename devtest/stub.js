@@ -95,7 +95,7 @@
   });
   var originalError = console.error.bind(console);
   console.error = function () {
-    window.__errors.push(Array.prototype.map.call(arguments, String).join(' '));
+    window.__errors.push(Array.prototype.map.call(arguments, function (a) { return a && a.stack ? String(a.stack) : String(a); }).join(' '));
     originalError.apply(null, arguments);
   };
   if (fixture !== null) window.__FIXTURE__ = fixture;

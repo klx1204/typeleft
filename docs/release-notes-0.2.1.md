@@ -2,6 +2,12 @@ Typeleft 0.2.1 is a polish release for the new Milkdown / CodeMirror 6 editor st
 
 ## Fixes
 
+- **Menu commands** — format, heading, list, insert and undo/redo actions passed
+  the command plugin object instead of its command key, so they silently failed
+  with `Context "plugin" not found`. They now run correctly.
+- **Slash menu** — typing `/` at the start of a line opens a filterable menu
+  (headings, lists, task list, quote, code, table, math, divider, image) with
+  keyboard navigation. New in this release.
 - **Source mode colours** — the editor's own theme rules were being overridden by
   CodeMirror's built-in styles (the active line looked pale blue in dark mode).
   They now win, and the cursor/selection colours follow the app theme.

@@ -54,6 +54,7 @@ import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/fro
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
 import { createImageView } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
+import { slashPlugin, setSlashCommandHandler } from './slash';
 import {
   searchPlugin,
   setSearchQuery,
@@ -292,6 +293,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(createImageView)
       .use(createCodeBlockView)
       .use(searchPlugin)
+      .use(slashPlugin)
       .use(focusPlugin)
       .create()
       .then((instance) => {
@@ -431,8 +433,11 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   const run = useCallback((command: any, payload?: any) => {
     const editor = editorRef.current;
     if (!editor) return false;
+    // `$command` plugins expose the actual command key on `.key`; passing the
+    // plugin object itself makes Milkdown look up a slice called "plugin".
+    const key = command && command.key ? command.key : command;
     try {
-      return editor.action(callCommand(command, payload));
+      return editor.action(callCommand(key, payload));
     } catch (err) {
       console.error('[Milkdown] command failed', err);
       return false;
@@ -778,6 +783,27 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       view.focus();
     });
   }, [withView]);
+
+  // Slash menu commands.
+  useEffect(() => {
+    setSlashCommandHandler((id) => {
+      switch (id) {
+        case 'h1': run(wrapInHeadingCommand, 1); break;
+        case 'h2': run(wrapInHeadingCommand, 2); break;
+        case 'h3': run(wrapInHeadingCommand, 3); break;
+        case 'bullet': run(wrapInBulletListCommand); break;
+        case 'ordered': run(wrapInOrderedListCommand); break;
+        case 'task': toggleTaskList(); break;
+        case 'quote': run(wrapInBlockquoteCommand); break;
+        case 'code': run(createCodeBlockCommand); break;
+        case 'table': run(insertTableCommand, { row: 3, col: 3 }); break;
+        case 'math': insertBlockMath(); break;
+        case 'hr': run(insertHrCommand); break;
+        case 'image': insertImageFromFile(); break;
+        default: break;
+      }
+    });
+  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile]);
 
   // ------------------------------------------------------------------ render
   const searchBarStyle: React.CSSProperties = {

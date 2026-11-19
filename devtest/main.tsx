@@ -183,7 +183,7 @@ const finish = (extraCheck?: () => void) => {
     state ? `${state.payload?.state?.toc?.length} headings` : '');
 
   const errors = ((window as any).__errors || []).filter((e: string) => !/Warning: Each child|ReactDOM.render/.test(e));
-  check('no console errors', errors.length === 0, errors.join(' | ').slice(0, 300));
+  check('no console errors', errors.length === 0, errors.join(' | ').slice(0, 1200));
 
   if (extraCheck) extraCheck();
 
@@ -244,17 +244,55 @@ if (isStatic) {
       const md = (window as any).__latestMarkdown?.() ?? '';
       check('typed text reaches markdown', md.includes('TYPED 中文'));
 
-      // CodeMirror typing
-      const cmContent = document.querySelector('#cm6-test .cm-content') as HTMLElement | null;
-      if (cmContent) {
-        cmContent.focus();
-        document.execCommand('insertText', false, 'CM6TYPED');
-      }
-      setTimeout(() => {
-        const cmText = cmContent?.textContent ?? '';
-        check('cm6 typing works', cmText.includes('CM6TYPED'));
+      // Slash menu: new paragraph -> "/" -> filter -> Enter
+      const pmEl = document.querySelector('#milkdown-test .ProseMirror') as HTMLElement | null;
+      if (pmEl) {
+        const paras = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'));
+        const target = paras[paras.length - 1] as HTMLElement | undefined;
+        if (target) {
+          pmEl.focus();
+          const range = document.createRange();
+          range.selectNodeContents(target);
+          range.collapse(false);
+          const sel = window.getSelection();
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+          pmEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+          document.execCommand('insertText', false, '/');
+        }
+        setTimeout(() => {
+          const menu = document.querySelector('.slash-menu');
+          check('slash menu opens', !!menu, `${menu?.childElementCount ?? 0} items`);
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+          void setter;
+          document.execCommand('insertText', false, 'h2');
+          setTimeout(() => {
+            const items = Array.from(document.querySelectorAll('.slash-menu-item'));
+            check('slash menu filters', items.length === 1 && (items[0].textContent || '').includes('Heading 2'),
+              items.map(i => i.textContent).join(' | ').slice(0, 80));
+            pmEl?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+            setTimeout(() => {
+              const h2s = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror h2'));
+              check('slash command applies', h2s.some(h => (h.textContent || '').includes('h2') || (h.textContent || '') === ''),
+                `${h2s.length} h2`);
+              check('slash menu closes', !document.querySelector('.slash-menu'));
+                      // CodeMirror typing
+              const cmContent = document.querySelector('#cm6-test .cm-content') as HTMLElement | null;
+              if (cmContent) {
+                cmContent.focus();
+                document.execCommand('insertText', false, 'CM6TYPED');
+              }
+              setTimeout(() => {
+                const cmText = cmContent?.textContent ?? '';
+                check('cm6 typing works', cmText.includes('CM6TYPED'));
+                finish();
+              }, 400);
+            }, 400);
+          }, 300);
+        }, 300);
+      } else {
         finish();
-      }, 400);
+      }
     }, 600);
   }, 500);
 }, 2500);

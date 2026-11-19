@@ -273,8 +273,6 @@ if (isStatic) {
         setTimeout(() => {
           const menu = document.querySelector('.slash-menu');
           check('slash menu opens', !!menu, `${menu?.childElementCount ?? 0} items`);
-          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-          void setter;
           document.execCommand('insertText', false, 'h2');
           setTimeout(() => {
             const items = Array.from(document.querySelectorAll('.slash-menu-item'));

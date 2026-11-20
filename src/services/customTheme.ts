@@ -35,6 +35,12 @@ const normalizePath = (path: string): string => {
     return prefix + out.join('/')
 }
 
+// Typora themes style `#write`'s direct children, but the Milkdown DOM wraps the
+// document in `.milkdown > .ProseMirror`. Re-point those selectors at the real
+// structure; on the Muya engine they simply do not match (same as before).
+const rewriteWriteChildren = (css: string): string =>
+    css.replace(/#write\s*>\s*/g, '#write .ProseMirror > ')
+
 const isExternal = (url: string) => /^(https?:|wss?:|ftp:|blob:|data:|asset:|file:|#)/i.test(url)
 
 /**
@@ -204,9 +210,10 @@ export const applyCustomTheme = async (name: string): Promise<string | null> => 
         const imported = await inlineImports(combined, base)
         const { css, blocked } = await inlineThemeAssets(imported, themeDir)
         const bridge = buildBridge(combined)
+        const rewritten = rewriteWriteChildren(css)
 
         const el = getStyleEl()
-        el.textContent = `${css}\n${bridge}`
+        el.textContent = `${rewritten}\n${bridge}`
         if (blocked > 0) {
             console.warn(`[Typeleft] theme "${name}": ${blocked} external resource reference(s) blocked`)
         }

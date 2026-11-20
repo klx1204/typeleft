@@ -75,6 +75,12 @@
       if (cmd === 'get_current_theme') return Promise.resolve('dark');
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);
+      if (cmd === 'get_theme_dir') return Promise.resolve('/devtest/');
+      if (cmd === 'list_themes') return Promise.resolve(['typora-theme.css']);
+      if (cmd === 'theme_file_exists') return Promise.resolve(false);
+      if (cmd === 'read_theme_file') {
+        return Promise.resolve(window.__THEME_CSS__ || '');
+      }
       return Promise.resolve(null);
     },
   };

@@ -88,3 +88,8 @@ pre.md-fences {
   color: #b58900;
   text-decoration: underline;
 }
+
+/* Direct-child selector, as used by many Typora themes. */
+#write > p {
+  letter-spacing: 1.5px;
+}

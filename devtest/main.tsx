@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import MilkdownEditor from '../src/components/MilkdownEditor';
+import { applyCustomTheme } from '../src/services/customTheme';
+import themeCss from './typora-theme.css?raw';
 import CodeMirror6 from '../src/components/CodeMirror6';
 
 const fixture = `---
@@ -24,7 +26,9 @@ tags: [a, b]
 1. 有序一
 2. 有序二
 
-- [ ] 待办
+- [ ] 父任务
+  - [ ] 子任务 A
+  - [x] 子任务 B
 - [x] 已完成
 
 | Name | Value |
@@ -66,6 +70,7 @@ const options: any = {
   typewriter: false,
   focusMode: false,
   autoSave: false,
+  autoCheck: true,
 };
 
 const results: string[] = [];
@@ -132,7 +137,7 @@ const finish = (extraCheck?: () => void) => {
   check('milkdown #write.milkdown-write', !!ml.querySelector('#write.milkdown-write'));
   check('milkdown headings', ml.querySelectorAll('h1,h2').length >= 2, `${ml.querySelectorAll('h1,h2').length}`);
   check('milkdown table', !!ml.querySelector('table'));
-  check('milkdown task items', ml.querySelectorAll('li[data-item-type="task"]').length === 2);
+  check('milkdown task items', ml.querySelectorAll('li[data-item-type="task"]').length >= 4, `${ml.querySelectorAll('li[data-item-type="task"]').length}`);
   check('milkdown task checked', !!ml.querySelector('li[data-item-type="task"][data-checked="true"]'));
   check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
@@ -156,13 +161,15 @@ const finish = (extraCheck?: () => void) => {
   }
   check('milkdown diagram preview', !!ml.querySelector('.diagram-preview.active svg'));
   check('milkdown Prism tokens', ml.querySelectorAll('.token.keyword, .token.function').length > 0);
-  check('milkdown highlight mark', !!ml.querySelector('mark') && (ml.querySelector('mark')!.textContent || '').includes('重点'));
+  check('milkdown highlight mark', Array.from(ml.querySelectorAll('mark')).some(m => (m.textContent || '').includes('重点')));
   check('milkdown superscript', !!ml.querySelector('sup'));
   check('milkdown subscript', !!ml.querySelector('sub'));
   const h1 = ml.querySelector('h1') as HTMLElement | null;
   check('milkdown themed heading color', !!h1 && getComputedStyle(h1).color !== 'rgb(0, 0, 0)');
 
-  if (location.search.includes('theme')) {
+  (window as any).__THEME_CSS__ = themeCss;
+
+if (location.search.includes('theme')) {
     const write = ml.querySelector('#write') as HTMLElement | null;
     const writeStyle = write ? getComputedStyle(write) : null;
     check('typora theme wins over base layer', writeStyle?.maxWidth === '780px', writeStyle?.maxWidth || 'n/a');
@@ -173,6 +180,9 @@ const finish = (extraCheck?: () => void) => {
     // Computed style returns the unresolved `counter(h1)` expression; the
     // screenshot is what proves the numbers render.
     check('typora theme CSS counters', (before || '').includes('counter(h1)'), before);
+    const firstP = ml.querySelector('#write > .milkdown .ProseMirror > p, #write .ProseMirror > p') as HTMLElement | null;
+    check('typora theme #write > p rewritten', !!firstP && getComputedStyle(firstP).letterSpacing === '1.5px',
+      firstP ? getComputedStyle(firstP).letterSpacing : 'n/a');
     const fence = ml.querySelector('pre.md-fences') as HTMLElement | null;
     check('typora theme code block', !!fence && getComputedStyle(fence).backgroundColor === 'rgb(43, 43, 43)',
       fence ? getComputedStyle(fence).backgroundColor : 'n/a');
@@ -206,13 +216,103 @@ const finish = (extraCheck?: () => void) => {
   console.log(results.join('\n'));
 };
 
+(window as any).__THEME_CSS__ = themeCss;
+
+if (location.search.includes('theme')) {
+  applyCustomTheme('typora-theme.css').then((err) => {
+    if (err) console.error('custom theme failed: ' + err);
+  });
+}
+
 ReactDOM.render(<Harness />, document.getElementById('root'));
 
 const isStatic = location.search.includes('static');
+const isPickers = location.search.includes('pickers');
+
+const runPickerChecks = async () => {
+  const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const pm = document.querySelector('#milkdown-test .ProseMirror') as HTMLElement | null;
+  if (!pm) { finish(); return; }
+  pm.focus();
+
+  const gotoEnd = () => {
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(pm);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  };
+  const typeSlash = async (query: string) => {
+    gotoEnd();
+    document.execCommand('insertText', false, ' /' + query);
+    await wait(350);
+  };
+  const pressEnter = () => pm.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+  const clickFirst = (selector: string) => {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    el?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  };
+
+  // Emoji
+  await typeSlash('emoji');
+  check('slash: emoji command', !!document.querySelector('.slash-menu'));
+  pressEnter();
+  await wait(350);
+  const emojiBox = document.querySelector('.emoji-picker');
+  check('emoji picker opens', !!emojiBox);
+  clickFirst('.emoji-grid button');
+  await wait(250);
+  check('emoji inserted', (pm.textContent || '').includes('😀'), (pm.textContent || '').slice(-12));
+
+  // Table picker
+  await typeSlash('table');
+  pressEnter();
+  await wait(350);
+  check('table picker opens', !!document.querySelector('.table-picker'));
+  const rows = document.querySelectorAll('.table-grid-row');
+  const targetCell = rows[1]?.querySelectorAll('.table-grid-cell')[2] as HTMLElement | undefined;
+  targetCell?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+  await wait(350);
+  const tables = document.querySelectorAll('#milkdown-test table');
+  const lastTable = tables[tables.length - 1];
+  check('table picker creates 2x3', !!lastTable && lastTable.querySelectorAll('tr').length === 2 && lastTable.querySelectorAll('th').length === 3,
+    lastTable ? `${lastTable.querySelectorAll('tr').length}x${lastTable.querySelectorAll('th').length}` : 'none');
+
+  // Footnote
+  await typeSlash('footnote');
+  pressEnter();
+  await wait(400);
+  check('footnote inserted', /\[\^\d+\]/.test(pm.textContent || '') || !!document.querySelector('#milkdown-test dl[data-type]'),
+    (pm.textContent || '').slice(-30));
+
+  // Link popover (no window.prompt)
+  const para = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'))
+    .find(p => (p.textContent || '').includes('中文段落')) as HTMLElement | undefined;
+  if (para) {
+    const range = document.createRange();
+    range.selectNodeContents(para);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    pm.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await wait(300);
+    const linkBtn = Array.from(document.querySelectorAll('.milkdown-bubble-toolbar button'))
+      .find(b => b.getAttribute('title') === 'Link') as HTMLElement | undefined;
+    linkBtn?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    await wait(250);
+    check('link popover opens', !!document.querySelector('.link-popover'));
+  }
+
+  finish();
+};
 
 // Let Milkdown create, KaTeX render and Mermaid draw before asserting.
 if (isStatic) {
   setTimeout(() => finish(), 3000);
+} else if (isPickers) {
+  setTimeout(() => { void runPickerChecks(); }, 2500);
 } else setTimeout(() => {
   // Search panel driven through the real transport event.
   (window as any).__setSearchOpen(1);
@@ -284,17 +384,73 @@ if (isStatic) {
               check('slash command applies', h2s.some(h => (h.textContent || '').includes('h2') || (h.textContent || '') === ''),
                 `${h2s.length} h2`);
               check('slash menu closes', !document.querySelector('.slash-menu'));
-                      // CodeMirror typing
-              const cmContent = document.querySelector('#cm6-test .cm-content') as HTMLElement | null;
-              if (cmContent) {
-                cmContent.focus();
-                document.execCommand('insertText', false, 'CM6TYPED');
+                      // Formatting bubble: select a paragraph, click the three new marks.
+              const targetP = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'))
+                .find(p => (p.textContent || '').includes('中文段落')) as HTMLElement | undefined;
+              const clickBubble = (title: string) => {
+                const btn = Array.from(document.querySelectorAll('.milkdown-bubble-toolbar button'))
+                  .find(b => b.getAttribute('title') === title) as HTMLElement | undefined;
+                btn?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+              };
+              if (targetP && pmEl) {
+                const r = document.createRange();
+                r.selectNodeContents(targetP);
+                const sel2 = window.getSelection();
+                sel2?.removeAllRanges();
+                sel2?.addRange(r);
+                document.dispatchEvent(new Event('selectionchange'));
+                pmEl.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
               }
               setTimeout(() => {
-                const cmText = cmContent?.textContent ?? '';
-                check('cm6 typing works', cmText.includes('CM6TYPED'));
-                finish();
-              }, 400);
+                check('format bubble opens', !!document.querySelector('.milkdown-bubble-toolbar'));
+                clickBubble('Highlight');
+                clickBubble('Superscript');
+                clickBubble('Subscript');
+                setTimeout(() => {
+                  check('bubble highlight', !!targetP?.querySelector('mark'));
+                  check('bubble superscript', !!targetP?.querySelector('sup'));
+                  check('bubble subscript', !!targetP?.querySelector('sub'));
+
+                  // autoCheck: ticking the parent ticks its children.
+                  // ProseMirror may replace the <li> nodes when attrs change, so
+                  // always look them up again instead of caching references.
+                  const findTask = (text: string) =>
+                    Array.from(document.querySelectorAll('#milkdown-test li[data-item-type="task"]'))
+                      .find(li => (li.textContent || '').includes(text)) as HTMLElement | undefined;
+                  const stateOf = (text: string) => findTask(text)?.getAttribute('data-checked') ?? 'missing';
+                  const clickCheckbox = (li: HTMLElement) => {
+                    const rect = li.getBoundingClientRect();
+                    li.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: rect.left + 5, clientY: rect.top + 8 }));
+                  };
+                  const parentLi = findTask('父任务');
+                  if (parentLi) clickCheckbox(parentLi);
+                  setTimeout(() => {
+                    check('autoCheck ticks children',
+                      stateOf('子任务 A') === 'true' && stateOf('子任务 B') === 'true',
+                      `${stateOf('子任务 A')},${stateOf('子任务 B')}`);
+                    check('autoCheck ticks parent', stateOf('父任务') === 'true', stateOf('父任务'));
+
+                    // Untick one child: the parent must follow.
+                    const childA = findTask('子任务 A');
+                    if (childA) clickCheckbox(childA);
+                    setTimeout(() => {
+                      check('autoCheck unticks parent', stateOf('父任务') === 'false', stateOf('父任务'));
+
+                      // CodeMirror typing
+                      const cmContent = document.querySelector('#cm6-test .cm-content') as HTMLElement | null;
+                      if (cmContent) {
+                        cmContent.focus();
+                        document.execCommand('insertText', false, 'CM6TYPED');
+                      }
+                      setTimeout(() => {
+                        const cmText = cmContent?.textContent ?? '';
+                        check('cm6 typing works', cmText.includes('CM6TYPED'));
+                        finish();
+                      }, 400);
+                    }, 350);
+                  }, 350);
+                }, 300);
+              }, 300);
             }, 400);
           }, 300);
         }, 300);

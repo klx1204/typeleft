@@ -12,7 +12,6 @@ import {
   toggleStrongCommand,
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
-  toggleLinkCommand,
   wrapInHeadingCommand,
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
@@ -30,6 +29,7 @@ import { prism } from '@milkdown/plugin-prism';
 import { $prose, $remark } from '@milkdown/kit/utils';
 import { getMarkdown, replaceAll, callCommand } from '@milkdown/kit/utils';
 import { Plugin, PluginKey, NodeSelection, Selection } from '@milkdown/kit/prose/state';
+import { toggleMark } from '@milkdown/kit/prose/commands';
 import {
   addRowAfter,
   addColumnAfter,
@@ -54,10 +54,11 @@ import { createApplicationMenuState } from 'services/menuState';
 import { useI18n } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
-import { marksRemark, highlightMark, superscriptMark, subscriptMark } from './nodes/marks';
+import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule } from './nodes/marks';
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
+import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
 import {
   searchPlugin,
   setSearchQuery,
@@ -86,6 +87,23 @@ const gfmPlugins = (gfm as any[]).filter(plugin => plugin !== remarkGFMPlugin);
 const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 
 const MAX_TOC = 500;
+
+const placeholderPlugin = $prose(() => new Plugin({
+  props: {
+    decorations(state) {
+      const decorations: Decoration[] = [];
+      state.doc.forEach((node, offset) => {
+        if (node.type.name === 'paragraph' && node.content.size === 0) {
+          decorations.push(Decoration.node(offset, offset + node.nodeSize, {
+            class: 'is-empty',
+            'data-placeholder': '输入 / 插入内容',
+          }));
+        }
+      });
+      return DecorationSet.create(state.doc, decorations);
+    },
+  },
+}));
 
 const focusKey = new PluginKey('TYPLEFT_FOCUS');
 const focusPlugin = $prose(() => new Plugin({
@@ -129,6 +147,9 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   const [toolbar, setToolbar] = useState<{ top: number; left: number } | null>(null);
   const [formatState, setFormatState] = useState<Record<string, boolean>>({});
   const [tableBar, setTableBar] = useState<{ top: number; left: number } | null>(null);
+  const [emojiPicker, setEmojiPicker] = useState<{ top: number; left: number } | null>(null);
+  const [tablePicker, setTablePicker] = useState<{ top: number; left: number } | null>(null);
+  const [linkPopover, setLinkPopover] = useState<{ top: number; left: number; href: string; text: string } | null>(null);
 
   const getView = useCallback((): EditorView | null => {
     try {
@@ -208,6 +229,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       ['link', 'a'],
       ['strikethrough', 'del'],
       ['highlight', 'mark'],
+      ['superscript', 'sup'],
+      ['subscript', 'sub'],
     ];
     for (const [name, tag] of marks) {
       const type = state.schema.marks[name];
@@ -304,6 +327,9 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(highlightMark)
       .use(superscriptMark)
       .use(subscriptMark)
+      .use(highlightInputRule)
+      .use(superscriptInputRule)
+      .use(subscriptInputRule)
       .use(mathRemark)
       .use(inlineMathNode)
       .use(blockMathNode)
@@ -315,6 +341,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(createCodeBlockView)
       .use(searchPlugin)
       .use(slashPlugin)
+      .use(placeholderPlugin)
       .use(focusPlugin)
       .create()
       .then((instance) => {
@@ -465,12 +492,117 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     }
   }, []);
 
+  const toggleMarkByName = useCallback((name: string) => {
+    withView((view) => {
+      const type = view.state.schema.marks[name];
+      if (type) toggleMark(type)(view.state, view.dispatch, view);
+      view.focus();
+    });
+  }, []);
+
   const withView = useCallback((fn: (view: EditorView, editor: Editor) => void) => {
     const editor = editorRef.current;
     const view = getView();
     if (!editor || !view) return;
     fn(view, editor);
   }, [getView]);
+
+  const caretCoords = useCallback(() => {
+    const view = getView();
+    if (!view) return { top: 240, left: 240 };
+    try {
+      const coords = view.coordsAtPos(view.state.selection.from);
+      return { top: coords.bottom + 6, left: coords.left };
+    } catch {
+      return { top: 240, left: 240 };
+    }
+  }, [getView]);
+
+  const openEmojiPicker = useCallback(() => setEmojiPicker(caretCoords()), [caretCoords]);
+  const openTablePicker = useCallback(() => setTablePicker(caretCoords()), [caretCoords]);
+
+  const openLinkPopover = useCallback(() => {
+    const view = getView();
+    if (!view) return;
+    const { from, to } = view.state.selection;
+    const linkType = view.state.schema.marks.link;
+    let href = '';
+    if (linkType) {
+      const node = view.state.doc.nodeAt(from);
+      const mark = node?.marks.find(m => m.type === linkType)
+        ?? view.state.doc.resolve(from).marks().find(m => m.type === linkType);
+      href = (mark?.attrs.href as string) || '';
+    }
+    setLinkPopover({
+      ...caretCoords(),
+      href,
+      text: view.state.doc.textBetween(from, to, ' '),
+    });
+  }, [getView, caretCoords]);
+
+  const insertTextAtCursor = useCallback((text: string) => {
+    withView((view) => {
+      view.dispatch(view.state.tr.insertText(text).scrollIntoView());
+      view.focus();
+    });
+  }, [withView]);
+
+  const insertFootnote = useCallback(() => {
+    withView((view) => {
+      const schema = view.state.schema;
+      const defType = schema.nodes.footnote_definition;
+      const refType = schema.nodes.footnote_reference;
+      if (!defType || !refType) return;
+      let max = 0;
+      view.state.doc.descendants((n: any) => {
+        if (n.type.name === 'footnote_definition' || n.type.name === 'footnote_reference') {
+          const value = parseInt(String(n.attrs.label), 10);
+          if (!Number.isNaN(value)) max = Math.max(max, value);
+        }
+        return true;
+      });
+      const label = String(max + 1);
+      const tr = view.state.tr.replaceSelectionWith(refType.create({ label }));
+      const paragraph = schema.nodes.paragraph.create(null, schema.text('脚注内容'));
+      const definition = defType.create({ label }, paragraph);
+      const insertPos = tr.doc.content.size;
+      tr.insert(insertPos, definition);
+      try {
+        const $inside = tr.doc.resolve(Math.min(insertPos + 2, tr.doc.content.size - 1));
+        tr.setSelection(Selection.near($inside, 1));
+      } catch { /* ignore */ }
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+    });
+  }, [withView]);
+
+  const applyLink = useCallback((href: string, text: string) => {
+    withView((view) => {
+      const { from, to } = view.state.selection;
+      const linkType = view.state.schema.marks.link;
+      if (!linkType) return;
+      let tr = view.state.tr;
+      let end = to;
+      if (text && text !== view.state.doc.textBetween(from, to, ' ')) {
+        tr = tr.insertText(text, from, to);
+        end = from + text.length;
+      }
+      tr = tr.addMark(from, end, linkType.create({ href }));
+      view.dispatch(tr);
+      view.focus();
+    });
+    setLinkPopover(null);
+  }, [withView]);
+
+  const removeLink = useCallback(() => {
+    withView((view) => {
+      const { from, to } = view.state.selection;
+      const linkType = view.state.schema.marks.link;
+      if (linkType) view.dispatch(view.state.tr.removeMark(from, to, linkType));
+      view.focus();
+    });
+    setLinkPopover(null);
+  }, [withView]);
 
   const insertBlockMath = useCallback(() => {
     withView((view, editor) => {
@@ -528,8 +660,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       strike: toggleStrikethroughCommand,
     };
     if (type === 'link') {
-      const href = window.prompt('Link URL', 'https://');
-      if (href) run(toggleLinkCommand, { href });
+      openLinkPopover();
       return;
     }
     if (type === 'clear') {
@@ -548,7 +679,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     }
     const command = commands[type];
     if (command) run(command);
-  }), [run, withView]);
+  }), [run, withView, openLinkPopover]);
 
   useEffect(() => transport.addListener<string>('UpdateParagraph', (type) => {
     if (type.startsWith('heading ')) {
@@ -562,11 +693,11 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       case 'ol-order': run(wrapInOrderedListCommand); break;
       case 'ul-bullet': run(wrapInBulletListCommand); break;
       case 'ul-task': toggleTaskList(); break;
-      case 'table': run(insertTableCommand, { row: 3, col: 3 }); break;
+      case 'table': openTablePicker(); break;
       case 'mathblock': insertBlockMath(); break;
       default: run(turnIntoTextCommand); break;
     }
-  }), [run, toggleTaskList, insertBlockMath]);
+  }), [run, toggleTaskList, insertBlockMath, openTablePicker]);
 
   useEffect(() => transport.addListener<string>('InsertParagraph', (pos) => {
     if (pos === 'hr') run(insertHrCommand);
@@ -731,7 +862,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       if (!li) return;
       const rect = li.getBoundingClientRect();
       if (event.clientX - rect.left > 26) return;
-      const inside = view.posAtDOM(li, 0);
+      // Resolve through the click coordinates: the checkbox sits in the item's
+      // left padding, and posAtCoords reliably lands inside its paragraph.
+      const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      const inside = at ? at.pos : view.posAtDOM(li, 0);
       const $inside = view.state.doc.resolve(inside);
       let depth = $inside.depth;
       while (depth > 0 && $inside.node(depth).type.name !== 'list_item') depth -= 1;
@@ -740,10 +874,47 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       const node = view.state.doc.nodeAt(pos);
       if (!node) return;
       event.preventDefault();
-      view.dispatch(view.state.tr.setNodeMarkup(pos, undefined, {
-        ...node.attrs,
-        checked: node.attrs.checked !== true,
-      }));
+      const nextChecked = node.attrs.checked !== true;
+      const setChecked = (tr: any, at: number, checked: boolean) => {
+        const target = tr.doc.nodeAt(at);
+        if (!target) return tr;
+        return tr.setNodeMarkup(at, undefined, { ...target.attrs, checked });
+      };
+      let tr = setChecked(view.state.tr, pos, nextChecked);
+
+      // Mirrors Muya's `autoCheck`: a parent tick cascades to its children, then
+      // parents become ticked when all of their direct task children are ticked.
+      if (propsRef.current.options?.autoCheck) {
+        node.descendants((child, offset) => {
+          if (child.type.name === 'list_item' && child.attrs.checked != null) {
+            tr = setChecked(tr, pos + 1 + offset, nextChecked);
+          }
+          return true;
+        });
+
+        const $pos = view.state.doc.resolve(pos + 1);
+        for (let d = $pos.depth; d > 0; d -= 1) {
+          const ancestor = $pos.node(d);
+          if (ancestor.type.name !== 'list_item' || ancestor.attrs.checked == null) continue;
+          const ancestorPos = $pos.before(d);
+          const fresh = tr.doc.nodeAt(ancestorPos);
+          if (!fresh) continue;
+          const children: boolean[] = [];
+          fresh.forEach((list: any) => {
+            list.forEach((item: any) => {
+              if (item.type.name === 'list_item' && item.attrs.checked != null) {
+                children.push(item.attrs.checked === true);
+              }
+            });
+          });
+          if (!children.length) break;
+          const parentChecked = children.every(Boolean);
+          if (fresh.attrs.checked === parentChecked) break;
+          tr = setChecked(tr, ancestorPos, parentChecked);
+        }
+      }
+
+      view.dispatch(tr);
     };
     view.dom.addEventListener('mousedown', onClick);
     return () => view.dom.removeEventListener('mousedown', onClick);
@@ -817,14 +988,16 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         case 'task': toggleTaskList(); break;
         case 'quote': run(wrapInBlockquoteCommand); break;
         case 'code': run(createCodeBlockCommand); break;
-        case 'table': run(insertTableCommand, { row: 3, col: 3 }); break;
+        case 'table': openTablePicker(); break;
+        case 'emoji': openEmojiPicker(); break;
+        case 'footnote': insertFootnote(); break;
         case 'math': insertBlockMath(); break;
         case 'hr': run(insertHrCommand); break;
         case 'image': insertImageFromFile(); break;
         default: break;
       }
     });
-  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile]);
+  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile, openTablePicker, openEmojiPicker, insertFootnote]);
 
   // ------------------------------------------------------------------ render
   const searchBarStyle: React.CSSProperties = {
@@ -891,11 +1064,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
           <button className={formatState.emphasis ? 'active' : ''} onMouseDown={e => { e.preventDefault(); run(toggleEmphasisCommand); }} title="Italic"><i>I</i></button>
           <button className={formatState.inlineCode ? 'active' : ''} onMouseDown={e => { e.preventDefault(); run(toggleInlineCodeCommand); }} title="Inline code">{"<>"}</button>
           <button className={formatState.strikethrough ? 'active' : ''} onMouseDown={e => { e.preventDefault(); run(toggleStrikethroughCommand); }} title="Strikethrough"><s>S</s></button>
-          <button onMouseDown={e => {
-            e.preventDefault();
-            const href = window.prompt('Link URL', 'https://');
-            if (href) run(toggleLinkCommand, { href });
-          }} title="Link">🔗</button>
+          <button className={formatState.highlight ? 'active' : ''} onMouseDown={e => { e.preventDefault(); toggleMarkByName('highlight'); }} title="Highlight">H</button>
+          <button className={formatState.superscript ? 'active' : ''} onMouseDown={e => { e.preventDefault(); toggleMarkByName('superscript'); }} title="Superscript">x²</button>
+          <button className={formatState.subscript ? 'active' : ''} onMouseDown={e => { e.preventDefault(); toggleMarkByName('subscript'); }} title="Subscript">x₂</button>
+          <button onMouseDown={e => { e.preventDefault(); openLinkPopover(); }} title="Link">🔗</button>
         </div>
       )}
 
@@ -914,6 +1086,39 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
           <button onMouseDown={e => { e.preventDefault(); alignCell('right'); }} title="Align right">右</button>
           <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteTable); }} title="Delete table">×</button>
         </div>
+      )}
+
+      {emojiPicker && (
+        <EmojiPicker
+          top={emojiPicker.top}
+          left={emojiPicker.left}
+          onPick={(emoji) => { insertTextAtCursor(emoji); setEmojiPicker(null); }}
+          onClose={() => setEmojiPicker(null)}
+        />
+      )}
+
+      {tablePicker && (
+        <TablePicker
+          top={tablePicker.top}
+          left={tablePicker.left}
+          onPick={(rows, cols) => {
+            setTablePicker(null);
+            run(insertTableCommand, { row: rows, col: cols });
+          }}
+          onClose={() => setTablePicker(null)}
+        />
+      )}
+
+      {linkPopover && (
+        <LinkPopover
+          top={linkPopover.top}
+          left={linkPopover.left}
+          initialHref={linkPopover.href}
+          initialText={linkPopover.text}
+          onApply={applyLink}
+          onRemove={removeLink}
+          onClose={() => setLinkPopover(null)}
+        />
       )}
 
       <div id="write" className={`milkdown-write${props.options?.typewriter ? ' typewriter' : ''}`}>

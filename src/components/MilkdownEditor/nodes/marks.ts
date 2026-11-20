@@ -1,4 +1,5 @@
-import { $markSchema, $remark } from '@milkdown/kit/utils';
+import { $markSchema, $remark, $inputRule } from '@milkdown/kit/utils';
+import { markRule } from '@milkdown/kit/prose';
 import { findAndReplace } from 'mdast-util-find-and-replace';
 
 /**
@@ -63,9 +64,22 @@ export const highlightMark = markSchema('highlight', 'mark');
 export const superscriptMark = markSchema('superscript', 'sup');
 export const subscriptMark = markSchema('subscript', 'sub');
 
+export const highlightInputRule = $inputRule((ctx) =>
+  markRule(/==([^=\n]+)==$/, highlightMark.type(ctx))
+);
+export const superscriptInputRule = $inputRule((ctx) =>
+  markRule(/\^([^\s^\n]+)\^$/, superscriptMark.type(ctx))
+);
+export const subscriptInputRule = $inputRule((ctx) =>
+  markRule(/(?<!~)~([^~\s\n]+)~$/, subscriptMark.type(ctx))
+);
+
 export const markPlugins = [
   marksRemark,
   highlightMark,
   superscriptMark,
   subscriptMark,
+  highlightInputRule,
+  superscriptInputRule,
+  subscriptInputRule,
 ];

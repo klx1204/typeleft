@@ -311,6 +311,34 @@ const runPickerChecks = async () => {
   fmEditor?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   await wait(150);
 
+  // Rich clipboard through the menu events (Tauri stub keeps the clipboard).
+  const firstP = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'))
+    .find(p => (p.textContent || '').includes('中文段落')) as HTMLElement | undefined;
+  if (firstP) {
+    const range = document.createRange();
+    range.selectNodeContents(firstP);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    pm.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await wait(250);
+    (window as any).__emit('Copy');
+    await wait(300);
+    const clip = (window as any).__clipboard;
+    check('copy writes html', !!clip?.html && String(clip.html).includes('中文段落') && String(clip.html).includes('strong'),
+      clip ? JSON.stringify(clip).slice(0, 120) : 'empty');
+
+    gotoEnd();
+    document.dispatchEvent(new Event('selectionchange'));
+    pm.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    await wait(250);
+    (window as any).__emit('Paste');
+    await wait(400);
+    const occurrences = (pm.textContent || '').split('中文段落').length - 1;
+    check('paste reads html', occurrences >= 2, `${occurrences} occurrences`);
+  }
+
   // Link popover (no window.prompt)
   const para = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'))
     .find(p => (p.textContent || '').includes('中文段落')) as HTMLElement | undefined;

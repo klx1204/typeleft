@@ -6,6 +6,7 @@
   var callbacks = new Map();
   var nextId = 1;
   var emitted = [];
+  var clipboard = { text: '', html: null };
 
   var settings = {
     editorEngine: 'milkdown',
@@ -81,6 +82,20 @@
       if (cmd === 'read_theme_file') {
         return Promise.resolve(window.__THEME_CSS__ || '');
       }
+      if (cmd === 'set_clipboard_rich') {
+        clipboard.text = args.text || '';
+        clipboard.html = args.html || null;
+        window.__clipboard = clipboard;
+        return Promise.resolve(true);
+      }
+      if (cmd === 'set_clipboard') {
+        clipboard.text = typeof args.data === 'string' ? args.data : '';
+        clipboard.html = null;
+        window.__clipboard = clipboard;
+        return Promise.resolve(true);
+      }
+      if (cmd === 'get_clipboard_html') return Promise.resolve(clipboard.html);
+      if (cmd === 'get_clipboard_text') return Promise.resolve(clipboard.text);
       return Promise.resolve(null);
     },
   };

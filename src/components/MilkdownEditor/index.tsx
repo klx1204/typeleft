@@ -199,10 +199,17 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     try {
       const blockStart = $from.depth > 0 ? $from.start(1) : from;
       const before = blockStart > 0 ? editor.action(getMarkdown({ from: 0, to: blockStart })) : '';
-      const lines = before ? before.split('\n') : [];
-      const line = Math.max(0, lines.length - 1);
-      const blockText = $from.parent.textBetween(0, $from.parentOffset, undefined, ' ');
-      const cursor = { anchor: { line, ch: blockText.length }, focus: { line, ch: blockText.length } };
+      // Serialize only the part of the block before the caret: this keeps inline
+      // markdown syntax (`**`, links, code) in the column count, unlike counting
+      // the rendered text length.
+      const within = from > blockStart ? editor.action(getMarkdown({ from: blockStart, to: from })) : '';
+      const prefixLines = (before || '').split('\n');
+      const withinLines = (within || '').split('\n');
+      const line = Math.max(0, prefixLines.length - 1 + withinLines.length - 1);
+      const ch = withinLines.length > 1
+        ? withinLines[withinLines.length - 1].length
+        : (prefixLines[prefixLines.length - 1] ?? '').length + withinLines[0].length;
+      const cursor = { anchor: { line, ch }, focus: { line, ch } };
       propsRef.current.onCursorChange(cursor);
       const selectionText = from === to ? '' : view.state.doc.textBetween(from, to, '\n');
       const menuState = createApplicationMenuState({
@@ -722,6 +729,14 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   }), [withView]);
 
   useEffect(() => transport.addListener('Paste', async () => {
+    const html = await remote.getClipboardHtml().catch(() => null);
+    if (html) {
+      withView((view) => {
+        view.pasteHTML(html);
+        view.focus();
+      });
+      return;
+    }
     const text = await remote.getClipboardText().catch(() => null);
     if (text) {
       withView((view) => view.dispatch(view.state.tr.insertText(text).scrollIntoView()));
@@ -737,22 +752,34 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     }
   }), [run, withView]);
 
-  useEffect(() => transport.addListener('Copy', () => {
+  const copySelection = useCallback((cut: boolean) => {
     const view = getView();
     if (!view) return;
     const { from, to } = view.state.selection;
     const text = view.state.doc.textBetween(from, to, '\n');
-    if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
-  }), [getView]);
+    let html = '';
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount && !selection.isCollapsed) {
+      const container = document.createElement('div');
+      container.appendChild(selection.getRangeAt(0).cloneContents());
+      html = container.innerHTML;
+    }
+    const finish = () => {
+      if (cut && from !== to) view.dispatch(view.state.tr.delete(from, to));
+      view.focus();
+    };
+    if (html) {
+      remote.setClipboardRich({ text, html }).then(finish).catch(finish);
+    } else if (text) {
+      remote.setClipboard({ type: 'text', data: text }).then(finish).catch(finish);
+    } else {
+      finish();
+    }
+  }, [getView]);
 
-  useEffect(() => transport.addListener('Cut', () => {
-    const view = getView();
-    if (!view) return;
-    const { from, to } = view.state.selection;
-    const text = view.state.doc.textBetween(from, to, '\n');
-    if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
-    view.dispatch(view.state.tr.delete(from, to));
-  }), [getView]);
+  useEffect(() => transport.addListener('Copy', () => copySelection(false)), [copySelection]);
+
+  useEffect(() => transport.addListener('Cut', () => copySelection(true)), [copySelection]);
 
   useEffect(() => transport.addListener<{ slug: string }>('ScrollTo', ({ slug }) => {
     const el = document.getElementById(slug);

@@ -11,6 +11,8 @@ const remote = {
     saveSettings: remoteFunction<Record<string, unknown>, void>('save_settings'),
     getStringResources: remoteFunction<{ names: string[] }, { [name: string]: string }>('get_string_resources'),
     setClipboard: remoteFunction<{ type: string, data: unknown }, boolean>('set_clipboard'),
+    setClipboardRich: remoteFunction<{ text: string, html: string }, boolean>('set_clipboard_rich'),
+    getClipboardHtml: remoteFunction<undefined, string | null>('get_clipboard_html'),
     getClipboardText: remoteFunction<undefined, string | null>('get_clipboard_text'),
     saveImage: remoteFunction<{ fileName: string, base64Data: string, subDir: string, basePath?: string }, string>('save_image'),
     copyImage: remoteFunction<{ sourcePath: string, destDir: string }, string>('copy_image'),

@@ -26,6 +26,7 @@ import {
   SearchQuery,
 } from '@codemirror/search';
 import transport from 'services/transport';
+import remote from 'services/remote/common';
 import { useI18n } from 'services/i18n';
 import { getTOC } from 'services/common';
 import './theme.css';
@@ -162,6 +163,36 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
       setSearchValue(props.searchArg.value);
     }
   }, [props.searchArg]);
+
+  useEffect(() => transport.addListener('Copy', () => {
+    const view = viewRef.current;
+    if (!view) return;
+    const range = view.state.selection.main;
+    const text = view.state.sliceDoc(range.from, range.to);
+    if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
+  }), []);
+
+  useEffect(() => transport.addListener('Cut', () => {
+    const view = viewRef.current;
+    if (!view) return;
+    const range = view.state.selection.main;
+    const text = view.state.sliceDoc(range.from, range.to);
+    if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
+    if (range.from !== range.to) view.dispatch({ changes: { from: range.from, to: range.to } });
+  }), []);
+
+  useEffect(() => transport.addListener('Paste', async () => {
+    const text = await remote.getClipboardText().catch(() => null);
+    if (!text) return;
+    const view = viewRef.current;
+    if (!view) return;
+    const range = view.state.selection.main;
+    view.dispatch({
+      changes: { from: range.from, to: range.to, insert: text },
+      selection: { anchor: range.from + text.length },
+    });
+    view.focus();
+  }), []);
 
   useEffect(() => {
     const onscroll = () => {

@@ -10,10 +10,17 @@ export interface SearchOptions {
   wholeWord?: boolean;
 }
 
+export interface SearchMatch {
+  from: number;
+  to: number;
+  /** Capture groups of the match, used to expand `$1` in replacements. */
+  groups?: string[];
+}
+
 export interface SearchState {
   query: string;
   options: SearchOptions;
-  matches: { from: number; to: number }[];
+  matches: SearchMatch[];
   active: number;
   decorations: DecorationSet;
 }
@@ -33,31 +40,61 @@ const buildRegexp = (query: string, options: SearchOptions): RegExp | null => {
   }
 };
 
-const collectMatches = (doc: ProseNode, query: string, options: SearchOptions) => {
-  const matches: { from: number; to: number }[] = [];
+/**
+ * Search inside each text block over its flattened inline text, so a match can
+ * span marks (e.g. `**bo**ld`) instead of only living inside a single text node.
+ */
+const collectMatches = (doc: ProseNode, query: string, options: SearchOptions): SearchMatch[] => {
+  const matches: SearchMatch[] = [];
   const re = buildRegexp(query, options);
   if (!re) return matches;
   doc.descendants((node, pos) => {
-    if (!node.isText) return true;
-    const text = node.text ?? '';
+    if (!node.isTextblock) return true;
+    let text = '';
+    const positions: number[] = [];
+    node.forEach((child, offset) => {
+      if (child.isText) {
+        const start = pos + 1 + offset;
+        for (let i = 0; i < child.text!.length; i += 1) positions.push(start + i);
+        text += child.text;
+      } else if (child.isInline) {
+        // Atoms (images, math, footnote refs) behave as one character.
+        positions.push(pos + 1 + offset);
+        text += '\uFFFC';
+      }
+    });
     re.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = re.exec(text)) !== null) {
       if (match[0].length === 0) { re.lastIndex += 1; continue; }
-      matches.push({ from: pos + match.index, to: pos + match.index + match[0].length });
+      const first = match.index;
+      const last = first + match[0].length - 1;
+      const from = positions[first];
+      const to = positions[last] + 1;
+      if (from == null || to == null) continue;
+      matches.push({ from, to, groups: match.slice() });
     }
     return false;
   });
   return matches;
 };
 
-const buildDecorations = (doc: ProseNode, matches: { from: number; to: number }[], active: number) => {
+const buildDecorations = (doc: ProseNode, matches: SearchMatch[], active: number) => {
   const decorations = matches.map((match, index) =>
     Decoration.inline(match.from, match.to, {
       class: index === active ? 'typeleft-search-match typeleft-search-active' : 'typeleft-search-match',
     })
   );
   return DecorationSet.create(doc, decorations);
+};
+
+const expandReplacement = (template: string, groups?: string[]): string => {
+  if (!groups) return template;
+  return template.replace(/\$(\d{1,2}|&)/g, (whole, key: string) => {
+    if (key === '&') return groups[0] ?? whole;
+    const index = Number(key);
+    return groups[index] ?? whole;
+  });
 };
 
 const makeState = (doc: ProseNode, query: string, options: SearchOptions, active = 0): SearchState => {
@@ -142,7 +179,8 @@ export const replaceCurrentMatch = (view: EditorView, replacement: string) => {
   const state = getSearchState(view);
   if (!state || !state.matches.length) return false;
   const match = state.matches[state.active] ?? state.matches[0];
-  const tr = view.state.tr.insertText(replacement, match.from, match.to);
+  const expanded = expandReplacement(replacement, match.groups);
+  const tr = view.state.tr.insertText(expanded, match.from, match.to);
   view.dispatch(tr);
   findNextMatch(view, 1);
   return true;
@@ -153,7 +191,7 @@ export const replaceAllMatches = (view: EditorView, replacement: string) => {
   if (!state || !state.matches.length) return 0;
   const tr = view.state.tr;
   for (const match of [...state.matches].reverse()) {
-    tr.insertText(replacement, match.from, match.to);
+    tr.insertText(expandReplacement(replacement, match.groups), match.from, match.to);
   }
   view.dispatch(tr);
   return state.matches.length;

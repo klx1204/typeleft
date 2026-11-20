@@ -258,6 +258,19 @@ fn set_clipboard(r#type: String, data: serde_json::Value) -> bool {
 }
 
 #[tauri::command]
+fn set_clipboard_rich(text: String, html: String) -> bool {
+    match arboard::Clipboard::new() {
+        Ok(mut ctx) => ctx.set().html(html, Some(text)).is_ok(),
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+fn get_clipboard_html() -> Option<String> {
+    arboard::Clipboard::new().ok().and_then(|mut ctx| ctx.get().html().ok())
+}
+
+#[tauri::command]
 fn get_clipboard_text() -> Option<String> {
     arboard::Clipboard::new().ok().and_then(|mut ctx| ctx.get_text().ok())
 }
@@ -1448,6 +1461,8 @@ pub fn run() {
             set_compact_mode,
             get_string_resources,
             set_clipboard,
+            set_clipboard_rich,
+            get_clipboard_html,
             get_clipboard_text,
             save_image,
             copy_image,

@@ -45,6 +45,16 @@ export const resolveImageSrc = (src: string): string => {
   return toAssetUrl(out.join('/'));
 };
 
+/** Read `width` from a style attribute, including Typora's `zoom: 50%`. */
+const styleSize = (raw: string): string | null => {
+  const style = attrOf(raw, 'style');
+  if (!style) return null;
+  const zoom = /zoom\s*:\s*([\d.]+)%?/i.exec(style);
+  if (zoom) return `${zoom[1]}%`;
+  const width = /width\s*:\s*([\d.]+(?:px|%|em|rem)?)/i.exec(style);
+  return width ? width[1] : null;
+};
+
 const attrOf = (raw: string, name: string): string | null => {
   const re = new RegExp(`(?:^|\\s)${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i');
   const match = re.exec(raw);
@@ -66,16 +76,22 @@ export const imageHtmlRemark = $remark('typeleftImageHtml', () => function typel
       const raw = match[1];
       const src = attrOf(raw, 'src');
       if (!src) return;
-      parent.children[index] = {
+      const image = {
         type: 'image',
         url: src,
         alt: attrOf(raw, 'alt') ?? '',
         title: attrOf(raw, 'title') ?? null,
         data: {
-          width: attrOf(raw, 'width'),
+          width: attrOf(raw, 'width') ?? styleSize(raw),
           align: attrOf(raw, 'data-align'),
         },
       };
+      if (parent.type === 'paragraph') {
+        parent.children[index] = image;
+      } else if (parent.type === 'root') {
+        // A standalone `<img>` block: wrap it so the inline image stays valid.
+        parent.children[index] = { type: 'paragraph', children: [image] };
+      }
     });
   };
 });

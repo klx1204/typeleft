@@ -51,6 +51,38 @@ export const frontmatterNode = $node('frontmatter', () => ({
   },
 }));
 
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+
+/**
+ * Tiny highlighter/validator for YAML and TOML front matter: enough to make
+ * keys stand out and to flag lines that are not `key: value` / `key = value`.
+ */
+const highlightFrontmatter = (value: string, kind: 'yaml' | 'toml'): { html: string; invalid: number } => {
+  let invalid = 0;
+  const lines = value.split('\n').map((line, index) => {
+    if (!line.trim()) return '';
+    if (/^\s*#/.test(line)) return `<span class="fm-comment">${escapeHtml(line)}</span>`;
+    if (kind === 'toml') {
+      if (/^\s*\[.*\]\s*$/.test(line)) return `<span class="fm-section">${escapeHtml(line)}</span>`;
+      const match = /^(\s*)([^=]+)(=)(.*)$/.exec(line);
+      if (match) {
+        return `${match[1]}<span class="fm-key">${escapeHtml(match[2].trimEnd())}</span>${match[2].match(/\s*$/)![0]}${match[3]}<span class="fm-value">${escapeHtml(match[4])}</span>`;
+      }
+      invalid = invalid || index + 1;
+      return `<span class="fm-error">${escapeHtml(line)}</span>`;
+    }
+    const match = /^(\s*)([^:#]+)(:)(.*)$/.exec(line);
+    if (match) {
+      return `${match[1]}<span class="fm-key">${escapeHtml(match[2].trimEnd())}</span>${match[2].match(/\s*$/)![0]}${match[3]}<span class="fm-value">${escapeHtml(match[4])}</span>`;
+    }
+    if (/^\s*-\s/.test(line)) return `<span class="fm-value">${escapeHtml(line)}</span>`;
+    invalid = invalid || index + 1;
+    return `<span class="fm-error">${escapeHtml(line)}</span>`;
+  });
+  return { html: lines.join('\n') + '\n', invalid };
+};
+
 /** Editable front matter: double-click to edit the raw YAML block. */
 export const frontmatterView = $view(frontmatterNode, () => (node, view, getPos) => {
   let currentNode = node;
@@ -72,12 +104,40 @@ export const frontmatterView = $view(frontmatterNode, () => (node, view, getPos)
   const startEdit = () => {
     if (textarea) return;
     const current = (currentNode.attrs.value as string) ?? '';
+    const kind = (currentNode.attrs.kind as string) === 'toml' ? 'toml' : 'yaml';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'frontmatter-editor-wrap';
+
+    const highlight = document.createElement('div');
+    highlight.className = 'frontmatter-highlight';
+    highlight.setAttribute('aria-hidden', 'true');
+
     textarea = document.createElement('textarea');
     textarea.className = 'frontmatter-editor';
     textarea.value = current;
     textarea.rows = Math.max(3, current.split('\n').length + 1);
+
+    const error = document.createElement('div');
+    error.className = 'frontmatter-error';
+    error.hidden = true;
+
+    const refresh = () => {
+      const { html, invalid } = highlightFrontmatter(textarea!.value, kind);
+      highlight.innerHTML = html;
+      highlight.scrollTop = textarea!.scrollTop;
+      error.hidden = invalid === 0;
+      error.textContent = invalid ? `第 ${invalid} 行格式可能无效` : '';
+    };
+    refresh();
+
+    wrap.appendChild(highlight);
+    wrap.appendChild(textarea);
+    wrap.appendChild(error);
     dom.innerHTML = '';
-    dom.appendChild(textarea);
+    dom.appendChild(wrap);
+    textarea.addEventListener('input', refresh);
+    textarea.addEventListener('scroll', () => { highlight.scrollTop = textarea!.scrollTop; });
     textarea.focus();
 
     const finish = (commit: boolean) => {

@@ -286,6 +286,17 @@ const runPickerChecks = async () => {
   check('footnote inserted', /\[\^\d+\]/.test(pm.textContent || '') || !!document.querySelector('#milkdown-test dl[data-type]'),
     (pm.textContent || '').slice(-30));
 
+  // Front matter editor: double-click renders the highlighter.
+  const fmBlock = document.querySelector('#milkdown-test pre[data-type="frontmatter"]') as HTMLElement | null;
+  fmBlock?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+  await wait(300);
+  check('frontmatter editor opens', !!document.querySelector('.frontmatter-editor'));
+  check('frontmatter highlighter', document.querySelectorAll('.frontmatter-highlight .fm-key').length > 0,
+    `${document.querySelectorAll('.frontmatter-highlight .fm-key').length} keys`);
+  const fmEditor = document.querySelector('.frontmatter-editor') as HTMLTextAreaElement | null;
+  fmEditor?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await wait(150);
+
   // Link popover (no window.prompt)
   const para = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror p'))
     .find(p => (p.textContent || '').includes('中文段落')) as HTMLElement | undefined;

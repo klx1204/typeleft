@@ -12,7 +12,7 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 - **Cross-platform**: macOS (Intel / Apple Silicon), Windows, Linux
 - **Source mode** with CodeMirror 6 and its own search bar
 - **Math** (KaTeX, inline and block), **diagrams** (Mermaid / Flowchart / Sequence / PlantUML / Vega) and **front matter** (YAML / TOML)
-- **Large documents** (> 200 KB) automatically open with the Muya compatibility engine
+- **Large documents** (> 200 KB) automatically open in source mode (CodeMirror 6 is virtualised); Shift+F forces rich text
 - **Find & replace** with case-sensitive / regex / whole-word options
 - **Undo / redo** with a debounced snapshot history
 - **Outline & file tree** sidebars, with file operations (rename, move, copy, delete to trash, new file/folder)

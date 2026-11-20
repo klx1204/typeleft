@@ -49,6 +49,7 @@ import './theme.css';
 import transport from 'services/transport';
 import remote from 'services/remote/common';
 import { processImage } from 'services/imageAction';
+import { LARGE_DOC_LIMIT } from 'components/Editor/engine';
 import { createApplicationMenuState } from 'services/menuState';
 import { useI18n } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
@@ -84,6 +85,8 @@ interface IMilkdownEditor {
 const gfmPlugins = (gfm as any[]).filter(plugin => plugin !== remarkGFMPlugin);
 const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 
+const MAX_TOC = 500;
+
 const focusKey = new PluginKey('TYPLEFT_FOCUS');
 const focusPlugin = $prose(() => new Plugin({
   key: focusKey,
@@ -110,6 +113,10 @@ const countWords = (text: string) => {
 };
 
 const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
+  // Safety net: ProseMirror has no virtualised rendering, so a document this
+  // large must go to source mode. The parent decides that, but if a render ever
+  // slips through we refuse to block the main thread for ~15 seconds.
+  const tooLarge = (props.markdown?.length ?? 0) > LARGE_DOC_LIMIT;
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -143,7 +150,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         const root = containerRef.current;
         if (!root) return;
         const nodes = Array.from(root.querySelectorAll('h1,h2,h3,h4,h5,h6')) as HTMLElement[];
-        const toc = nodes.map(el => ({
+        const toc = nodes.slice(0, MAX_TOC).map(el => ({
           content: el.textContent ?? '',
           lvl: Number(el.tagName.slice(1)),
           slug: el.id,
@@ -261,7 +268,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   // ------------------------------------------------------------- create once
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || tooLarge) return;
     const startedAt = performance.now();
     let cancelled = false;
     let editor: Editor | null = null;
@@ -834,6 +841,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     if (!view) return 0;
     return getSearchState(view)?.matches.length ?? 0;
   })();
+
+  if (tooLarge) return null;
 
   return (
     <div>

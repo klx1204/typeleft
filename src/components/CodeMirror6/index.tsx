@@ -30,6 +30,8 @@ import { useI18n } from 'services/i18n';
 import { getTOC } from 'services/common';
 import './theme.css';
 
+const MAX_TOC = 500;
+
 interface ICodeMirror6 {
   markdown: string;
   cursor: any;
@@ -58,8 +60,10 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
 
   const emitStats = useCallback((value: string) => {
     const wordCount = { character: value.length, word: value.split(/\s+/).filter(Boolean).length };
+    // A 1 MB document can contain thousands of headings; sending them all over
+    // IPC and into the sidebar is slower than it is useful.
     const { toc } = getTOC(value);
-    transport.postMessage('StateChange', { state: { wordCount, toc, cur: toc[0] }, codeMirror: true });
+    transport.postMessage('StateChange', { state: { wordCount, toc: toc.slice(0, MAX_TOC), cur: toc[0] }, codeMirror: true });
   }, []);
 
   const emitSelection = useCallback((view: EditorView) => {

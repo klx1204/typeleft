@@ -690,5 +690,9 @@
   "Editor Engine": {
     "en": "Editor Engine",
     "zh": "编辑器引擎"
+  },
+  "Large document: opened in source mode (Shift+F forces rich text)": {
+    "en": "Large document: opened in source mode (Shift+F forces rich text)",
+    "zh": "大文档：已用源码模式打开（Shift+F 可强制切换富文本）"
   }
 }

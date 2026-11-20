@@ -278,7 +278,7 @@ markdown prop 变化 → 若与编辑器当前 md 不同 → replaceAll(新内�
 | 2 | 代码块、表格、数学、图片、脚注、Frontmatter、图表、格式工具栏、主题钩子 | ✅ |
 | 2 | 斜杠命令菜单、`==高亮==`、上下标、图片对齐与拖拽缩放 | ✅ |
 | 2（延后） | 表格列宽拖拽持久化、图片内联 HTML 的非常规写法规范化 | ⏸ 后续 |
-| 3 | 默认引擎 milkdown、>200KB 回退 Muya、回归清单 | ⏳ 待人工回归 |
+| 3 | 默认引擎 milkdown、>200KB 自动源码模式、回归清单 | ✅ |
 | 4 | 版本 0.2.0、四平台 CI、Release | ⏳ |
 
 ### 实现要点
@@ -333,6 +333,15 @@ bun run test:web       # 真实浏览器渲染 + 交互回归
   KaTeX / 代码块行号 / Mermaid / 图片 / Prism token / TOC / 字数，并驱动搜索面板与
   真实输入（`execCommand`），任何 `console.error` 都会失败。可用 `?light=1` 检查浅色主题，
   `?static=1` 关闭交互，`?cm6=1` 只渲染源码模式。
+
+### 大文档策略（v0.4.0 调整）
+
+原方案是 >200K 字符回退 Muya。v0.4.0 改为**自动进入 CodeMirror 6 源码模式**：
+
+- CM6 是虚拟滚动的，1MB 文档也能流畅编辑
+- 不再自动依赖已停止维护的 Muya；Muya 仍可在设置中手动选择
+- 顶部提示条说明当前是源码模式，`Shift+F` 可强制切到富文本（用户自担卡顿）
+- 判定逻辑抽在 `src/components/Editor/engine.ts` 的 `resolveView`，并有单测
 
 ### 包体积与发布
 

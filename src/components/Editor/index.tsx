@@ -13,7 +13,7 @@ import { htmlToMarkdown } from "services/importHtml";
 import { DEFAULT_TURNDOWN_CONFIG } from "components/Muya/lib/config";
 import { getHtmlToc, getTOC } from "services/common";
 import { useI18n } from "services/i18n";
-import { LARGE_DOC_LIMIT, resolveEngine } from "./engine";
+import { LARGE_DOC_LIMIT, resolveView } from "./engine";
 
 const modalOverlayStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, zIndex: 10002, display: 'flex',
@@ -58,14 +58,15 @@ const Editor: React.FC = () => {
     const [conflict, setConflict] = useState<{ content: string } | null>(null);
     const [backupPrompt, setBackupPrompt] = useState<{ id: string; created: number; content: string } | null>(null);
     const [docLength, setDocLength] = useState(0);
+    // Set when the user explicitly asks for WYSIWYG on an oversized document.
+    const [forceWysiwyg, setForceWysiwyg] = useState(false);
 
     // Decided when a document is loaded, never while typing: switching engines
     // mid-edit would drop undo history and focus.
     const adoptDocSize = useCallback((text: string) => {
         setDocLength(text?.length ?? 0);
+        setForceWysiwyg(false);
     }, []);
-
-    const OnFileLoaded = useCallback(() => setTimeout(() => transport.postMessage('FileLoaded', { text: markdownRef.current }), 100), [])
 
     // Track what is on disk so we never rewrite unchanged content and can detect
     // concurrent external edits.
@@ -99,21 +100,23 @@ const Editor: React.FC = () => {
                 getCurrentWebviewWindow().setTitle(`${name} - Typeleft`).catch(() => {})
             }
             setOptions(opt)
+            // Size first: React may flush these separately, and the WYSIWYG
+            // editor must never start on a document that belongs in source mode.
+            adoptDocSize(text)
             setMarkdown(text)
             markdownRef.current = text
-            adoptDocSize(text)
             adoptLoadedFile(text, fp)
-            OnFileLoaded();
         })
-    }, [OnFileLoaded]);
+    }, []);
 
     useEffect(() => {
         optionsRef.current = options
     }, [options])
 
     useEffect(() => {
-        if (markdown != undefined && markdownRef.current != markdown) {
-            transport.postMessage('MarkdownChange', { text: markdown });
+        if (markdown != undefined) {
+            // No Rust/JS listener consumes this event; only keep the local ref
+            // in sync so saves write the current text.
             markdownRef.current = markdown
         }
     }, [markdown])
@@ -160,24 +163,23 @@ const Editor: React.FC = () => {
         window.basePath = basePath
         setFilePath(filePath)
         setCursor(undefined)
+        adoptDocSize(text)
         setMarkdown(text)
         markdownRef.current = text
-        adoptDocSize(text)
         adoptLoadedFile(text, filePath)
         if (filePath) {
             const name = filePath.split('/').pop() || filePath.split('\\').pop() || 'Typeleft';
             document.title = `${name} - Typeleft`;
             getCurrentWebviewWindow().setTitle(`${name} - Typeleft`).catch(() => {});
         }
-        OnFileLoaded();
-    }), [OnFileLoaded]);
+    }), []);
 
     useEffect(() => transport.addListener<{ text: string, cursor: string, basePath: string }>('SetMarkdown', ({ text, cursor, basePath }) => {
         window.basePath = basePath
         setCursor(cursor)
+        adoptDocSize(text)
         setTimeout(() => setMarkdown(text))
         markdownRef.current = text
-        adoptDocSize(text)
         adoptLoadedFile(text)
     }), [adoptLoadedFile]);
 
@@ -356,12 +358,17 @@ const Editor: React.FC = () => {
     }), []);
 
     const toggleSourceCode = useCallback(() => {
+        const isLarge = docLength > LARGE_DOC_LIMIT
+        if (optionsRef.current?.editorEngine !== 'muya' && isLarge) {
+            setForceWysiwyg(prev => !prev)
+            return
+        }
         setOptions((old: any) => {
             const next = { ...old, sourceCode: !old.sourceCode };
             remoteCommon.saveSettings(next).catch(() => {});
             return next;
         });
-    }, []);
+    }, [docLength]);
 
     useEffect(() => transport.addListener('ToggleSourceCode', () => {
         toggleSourceCode();
@@ -405,8 +412,7 @@ const Editor: React.FC = () => {
         return <></>
     }
 
-    const activeEngine = resolveEngine(options.editorEngine, docLength)
-    const docTooLarge = docLength > LARGE_DOC_LIMIT
+    const view = resolveView(options.editorEngine, docLength, !!options.sourceCode, forceWysiwyg)
 
     return (
         <>
@@ -428,9 +434,9 @@ const Editor: React.FC = () => {
                                 if (!filePath) return;
                                 try {
                                     const text = await remoteCommon.readTextFile({ path: filePath });
+                                    adoptDocSize(text);
                                     setMarkdown(text);
                                     markdownRef.current = text;
-                                    adoptDocSize(text);
                                     adoptLoadedFile(text, filePath);
                                     setSaveStatus('idle');
                                 } catch { /* ignore */ }
@@ -463,9 +469,9 @@ const Editor: React.FC = () => {
                             <button style={dialogPrimaryBtnStyle} onClick={async () => {
                                 const content = backupPrompt.content;
                                 setBackupPrompt(null);
+                                adoptDocSize(content);
                                 setMarkdown(content);
                                 markdownRef.current = content;
-                                adoptDocSize(content);
                                 if (filePath) {
                                     await remoteCommon.deleteBackup({ path: filePath, id: backupPrompt.id }).catch(() => {});
                                 }
@@ -476,16 +482,16 @@ const Editor: React.FC = () => {
                 </div>
             )}
             <div style={{ marginLeft: sidebarOpen ? sidePaneWidth : 0, transition: 'margin-left .2s' }}>
-                {activeEngine === 'muya' && options.editorEngine !== 'muya' && docTooLarge && (
+                {view.autoSource && (
                     <div style={{
                         padding: '4px 12px', fontSize: 12, textAlign: 'center',
                         color: 'var(--editorColor60)', backgroundColor: 'var(--editorColor04)',
                         borderBottom: '1px solid var(--editorColor10)',
                     }}>
-                        {t('Large document: switched to the compatibility editor for performance')}
+                        {t('Large document: opened in source mode (Shift+F forces rich text)')}
                     </div>
                 )}
-                {options.sourceCode ? (
+                {view.sourceMode ? (
                     <CodeMirror
                         options={options}
                         cursor={cursor}
@@ -498,7 +504,7 @@ const Editor: React.FC = () => {
                         onSearchArgChange={setSearchArg}
                         onSearchOpenChange={setSearchOpen}
                     />
-                ) : activeEngine === 'milkdown' ? (
+                ) : view.engine === 'milkdown' ? (
                     <MilkdownEditor
                         key={filePath ?? 'new'}
                         markdown={markdown ?? ''}

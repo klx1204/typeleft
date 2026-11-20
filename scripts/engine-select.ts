@@ -1,15 +1,42 @@
 /**
- * Unit checks for the engine fallback decision.
+ * Unit checks for the view decision (engine + source-mode fallback).
  * Usage: bun scripts/engine-select.ts
  */
-import { LARGE_DOC_LIMIT, resolveEngine } from '../src/components/Editor/engine';
+import { LARGE_DOC_LIMIT, resolveView } from '../src/components/Editor/engine';
+
+const small = 1_000;
+const large = LARGE_DOC_LIMIT + 1;
+const oneMb = 1024 * 1024;
 
 const cases: [string, boolean][] = [
-  ['defaults to milkdown for small documents', resolveEngine(undefined, 1_000) === 'milkdown'],
-  ['honours an explicit muya setting', resolveEngine('muya', 1_000) === 'muya'],
-  ['keeps milkdown at the limit', resolveEngine('milkdown', LARGE_DOC_LIMIT) === 'milkdown'],
-  ['falls back above the limit', resolveEngine('milkdown', LARGE_DOC_LIMIT + 1) === 'muya'],
-  ['falls back for a 1MB document', resolveEngine(undefined, 1024 * 1024) === 'muya'],
+  ['defaults to milkdown for small documents', (() => {
+    const v = resolveView(undefined, small, false);
+    return v.engine === 'milkdown' && v.sourceMode === false && v.autoSource === false;
+  })()],
+  ['keeps the user source-mode choice for small documents', (() => {
+    const v = resolveView('milkdown', small, true);
+    return v.sourceMode === true && v.autoSource === false;
+  })()],
+  ['opens large documents in source mode', (() => {
+    const v = resolveView('milkdown', large, false);
+    return v.engine === 'milkdown' && v.sourceMode === true && v.autoSource === true;
+  })()],
+  ['opens a 1MB document in source mode', (() => {
+    const v = resolveView(undefined, oneMb, false);
+    return v.sourceMode === true && v.autoSource === true;
+  })()],
+  ['shift+F override shows WYSIWYG', (() => {
+    const v = resolveView('milkdown', large, false, true);
+    return v.sourceMode === false && v.autoSource === false;
+  })()],
+  ['explicit muya is respected', (() => {
+    const v = resolveView('muya', large, false);
+    return v.engine === 'muya' && v.sourceMode === false && v.autoSource === false;
+  })()],
+  ['muya still honours the source setting', (() => {
+    const v = resolveView('muya', small, true);
+    return v.engine === 'muya' && v.sourceMode === true;
+  })()],
   ['limit is 200K characters', LARGE_DOC_LIMIT === 200 * 1024],
 ];
 

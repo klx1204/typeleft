@@ -46,7 +46,10 @@ const KEYS = [
     'No upload configuration', 'Test succeeded', 'Upload configuration',
     'Export', 'Export Configurations', 'Name', 'Output Directory', 'Include CSS', 'Include Frontmatter',
     'Export Now', 'Delete Configuration', 'Select output directory', 'Browse', 'Exported to',
-    'Export failed', 'New Configuration', 'Configurations'
+    'Export failed', 'New Configuration', 'Configurations',
+
+    'Large document: opened in source mode (Shift+F forces rich text)',
+    'Large document: switched to the compatibility editor for performance'
 ]
 
 let lang = 'en'

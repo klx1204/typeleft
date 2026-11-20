@@ -36,6 +36,8 @@ tags: [a, b]
 | alpha | 1 |
 | beta | 2 |
 
+<!-- tl-cw: 140,180 -->
+
 \`\`\`js
 const x = 1;
 const y = 2;
@@ -137,6 +139,9 @@ const finish = (extraCheck?: () => void) => {
   check('milkdown #write.milkdown-write', !!ml.querySelector('#write.milkdown-write'));
   check('milkdown headings', ml.querySelectorAll('h1,h2').length >= 2, `${ml.querySelectorAll('h1,h2').length}`);
   check('milkdown table', !!ml.querySelector('table'));
+  const firstTable = ml.querySelector('table');
+  const cols = firstTable ? firstTable.querySelectorAll('col') : [];
+  check('table column widths', cols.length === 2, `${cols.length} cols`);
   check('milkdown task items', ml.querySelectorAll('li[data-item-type="task"]').length >= 4, `${ml.querySelectorAll('li[data-item-type="task"]').length}`);
   check('milkdown task checked', !!ml.querySelector('li[data-item-type="task"][data-checked="true"]'));
   check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
@@ -285,6 +290,15 @@ const runPickerChecks = async () => {
   await wait(400);
   check('footnote inserted', /\[\^\d+\]/.test(pm.textContent || '') || !!document.querySelector('#milkdown-test dl[data-type]'),
     (pm.textContent || '').slice(-30));
+
+  // Diagram preview toggle
+  const previewBtn = document.querySelector('.md-fences-wrapper[data-language="mermaid"] button[title="Toggle preview"]') as HTMLElement | null;
+  previewBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  await wait(300);
+  check('diagram preview hides', !document.querySelector('.diagram-preview.active'));
+  previewBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+  await wait(3000);
+  check('diagram preview shows again', !!document.querySelector('.diagram-preview.active svg'));
 
   // Front matter editor: double-click renders the highlighter.
   const fmBlock = document.querySelector('#milkdown-test pre[data-type="frontmatter"]') as HTMLElement | null;

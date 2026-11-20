@@ -25,6 +25,9 @@ export const renderDiagram = async (
       });
       mermaid.parse(code);
       target.textContent = code;
+      // mermaid 8 marks rendered nodes with data-processed and would skip them
+      // when the preview is toggled off and on again.
+      target.removeAttribute('data-processed');
       mermaid.init(undefined, target);
       return;
     }
@@ -107,6 +110,22 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
     dom.classList.toggle('wrap');
   });
 
+  const previewBtn = document.createElement('button');
+  previewBtn.type = 'button';
+  previewBtn.textContent = '◉';
+  previewBtn.title = 'Toggle preview';
+  let previewEnabled = true;
+  previewBtn.addEventListener('click', () => {
+    previewEnabled = !previewEnabled;
+    previewBtn.classList.toggle('active', previewEnabled);
+    if (!previewEnabled) {
+      preview.textContent = '';
+      preview.classList.remove('active');
+    } else {
+      schedulePreview();
+    }
+  });
+
   const copyBtn = document.createElement('button');
   copyBtn.type = 'button';
   copyBtn.textContent = '⧉';
@@ -115,6 +134,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
     navigator.clipboard?.writeText(currentNode.textContent).catch(() => {});
   });
 
+  actions.appendChild(previewBtn);
   actions.appendChild(wrapBtn);
   actions.appendChild(copyBtn);
   header.appendChild(select);
@@ -157,9 +177,11 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
     timer = window.setTimeout(() => {
       if (destroyed) return;
       const language = currentNode.attrs.language ?? '';
-      preview.classList.toggle('active', isDiagramLang(language));
-      if (!isDiagramLang(language)) {
+      const renderable = previewEnabled && isDiagramLang(language);
+      preview.classList.toggle('active', renderable);
+      if (!renderable) {
         preview.textContent = '';
+        preview.classList.remove('diagram-error');
         return;
       }
       preview.textContent = '';

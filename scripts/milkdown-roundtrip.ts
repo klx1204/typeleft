@@ -66,7 +66,7 @@ g.DOMRect = win.DOMRect ?? class { constructor(public x = 0, public y = 0, publi
 
 const { Editor, rootCtx, defaultValueCtx, remarkStringifyOptionsCtx, editorViewCtx } = await import('@milkdown/kit/core');
 const { commonmark } = await import('@milkdown/kit/preset/commonmark');
-const { gfm, remarkGFMPlugin } = await import('@milkdown/kit/preset/gfm');
+const { gfm, remarkGFMPlugin, columnResizingPlugin } = await import('@milkdown/kit/preset/gfm');
 const remarkGfm = (await import('remark-gfm')).default;
 const { $remark } = await import('@milkdown/kit/utils');
 const gfmPlugins = (gfm as any[]).filter((plugin: any) => plugin !== remarkGFMPlugin);
@@ -77,6 +77,7 @@ const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('..
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
 const { createImageView, imageLayoutSchema, imageHtmlRemark } = await import('../src/components/MilkdownEditor/nodes/image');
 const { marksRemark, highlightMark, superscriptMark, subscriptMark } = await import('../src/components/MilkdownEditor/nodes/marks');
+const { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } = await import('../src/components/MilkdownEditor/nodes/table');
 const { searchPlugin, setSearchQuery, findNextMatch, replaceAllMatches } = await import('../src/components/MilkdownEditor/search');
 
 const files = process.argv.slice(2);
@@ -108,11 +109,16 @@ for (const file of files) {
     })
     .use(commonmark)
     .use(gfmPlugins)
+    .use(columnResizingPlugin)
     .use(gfmRemark)
     .use(history)
     .use(frontmatterRemark)
     .use(frontmatterNode)
     .use(frontmatterView)
+    .use(tableWidthRemark)
+    .use(tableWithWidth)
+    .use(tableCellWithWidth)
+    .use(tableHeaderWithWidth)
     .use(marksRemark)
     .use(highlightMark)
     .use(superscriptMark)
@@ -125,6 +131,10 @@ for (const file of files) {
     .use(imageHtmlRemark)
     .use(imageLayoutSchema)
     .use(createImageView)
+    .use(tableWidthRemark)
+    .use(tableWithWidth)
+    .use(tableCellWithWidth)
+    .use(tableHeaderWithWidth)
     .use(marksRemark)
     .use(highlightMark)
     .use(superscriptMark)
@@ -159,6 +169,7 @@ for (const file of files) {
     })
     .use(commonmark)
     .use(gfmPlugins)
+    .use(columnResizingPlugin)
     .use(gfmRemark)
     .use(history)
     .use(frontmatterRemark)
@@ -171,6 +182,10 @@ for (const file of files) {
     .use(imageHtmlRemark)
     .use(imageLayoutSchema)
     .use(createImageView)
+    .use(tableWidthRemark)
+    .use(tableWithWidth)
+    .use(tableCellWithWidth)
+    .use(tableHeaderWithWidth)
     .use(marksRemark)
     .use(highlightMark)
     .use(superscriptMark)

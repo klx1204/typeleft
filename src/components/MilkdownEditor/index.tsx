@@ -21,7 +21,7 @@ import {
   insertImageCommand,
   turnIntoTextCommand,
 } from '@milkdown/kit/preset/commonmark';
-import { gfm, insertTableCommand, toggleStrikethroughCommand, remarkGFMPlugin, columnResizingPlugin } from '@milkdown/kit/preset/gfm';
+import { gfm, insertTableCommand, toggleStrikethroughCommand, remarkGFMPlugin, columnResizingPlugin, strikethroughInputRule as presetStrikethroughInputRule } from '@milkdown/kit/preset/gfm';
 import remarkGfm from 'remark-gfm';
 import { history, undoCommand, redoCommand } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -54,7 +54,7 @@ import { createApplicationMenuState } from 'services/menuState';
 import { useI18n } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
-import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule } from './nodes/marks';
+import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule } from './nodes/marks';
 import { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } from './nodes/table';
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
@@ -84,7 +84,7 @@ interface IMilkdownEditor {
 
 // GFM's single-tilde strikethrough would swallow `~subscript~`, so register
 // remark-gfm ourselves with only `~~strikethrough~~` enabled.
-const gfmPlugins = (gfm as any[]).filter(plugin => plugin !== remarkGFMPlugin);
+const gfmPlugins = (gfm as any[]).filter(plugin => plugin !== remarkGFMPlugin && plugin !== presetStrikethroughInputRule);
 const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 
 const MAX_TOC = 500;
@@ -343,6 +343,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(highlightInputRule)
       .use(superscriptInputRule)
       .use(subscriptInputRule)
+      .use(strikethroughInputRule)
       .use(mathRemark)
       .use(inlineMathNode)
       .use(blockMathNode)

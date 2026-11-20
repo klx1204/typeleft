@@ -1,5 +1,6 @@
 import { $markSchema, $remark, $inputRule } from '@milkdown/kit/utils';
 import { markRule } from '@milkdown/kit/prose';
+import { strikethroughSchema } from '@milkdown/kit/preset/gfm';
 import { findAndReplace } from 'mdast-util-find-and-replace';
 
 /**
@@ -74,6 +75,12 @@ export const subscriptInputRule = $inputRule((ctx) =>
   markRule(/(?<!~)~([^~\s\n]+)~$/, subscriptMark.type(ctx))
 );
 
+// The preset's strikethrough rule also accepts a single tilde, which would
+// steal `~sub~`. Only `~~strike~~` is a strikethrough here.
+export const strikethroughInputRule = $inputRule((ctx) =>
+  markRule(/~~([^~\n]+)~~$/, strikethroughSchema.type(ctx))
+);
+
 export const markPlugins = [
   marksRemark,
   highlightMark,
@@ -82,4 +89,5 @@ export const markPlugins = [
   highlightInputRule,
   superscriptInputRule,
   subscriptInputRule,
+  strikethroughInputRule,
 ];

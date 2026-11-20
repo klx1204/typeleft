@@ -1,5 +1,17 @@
 # Typora 功能梳理与 Typeleft 对比
 
+> **状态说明（2026-11-21）**
+> 本表是 2026-11-14 基于 **v0.1.0 + Muya** 的静态审计，用于排优先级，不是当前功能清单。
+> 之后 Typeleft 已发生以下变化，表中「未支持 / 部分支持」的结论可能已过时：
+>
+> - **v0.1.5**：Typora 主题文件夹、`base.user.css`、CSS 计数器自动编号、`@font-face` 与背景图内联
+> - **v0.2.0**：WYSIWYG 换成 Milkdown、源码模式换成 CodeMirror 6
+> - **v0.2.1**：斜杠命令菜单、菜单命令修复、主题中性配色、代码块语言下拉
+> - **v0.3.0**：`==高亮==`、上标/下标、图片对齐与拖拽缩放
+> - **v0.4.0**：大文档自动源码模式
+>
+> 当前能力请以 [README](../README.md) 与 [迁移计划](milkdown-migration-plan.md) 为准。
+
 - 整理日期：2026-11-14
 - Typora 文档来源：<https://support.typora.io/>（共抓取 98 个页面：Quick Start 21 篇、How-To 48 篇、What's New 29 篇）
 - Typeleft 代码基线：`b05abc1`（v0.1.0，Tauri 2 + React + Muya）

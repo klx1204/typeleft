@@ -1,5 +1,10 @@
 # Milkdown PoC 报告（阶段 0）
 
+> **状态说明（2026-11-21）**
+> 本文件是阶段 0 的**历史记录**，其结论（「暂不切换」「大文档回退 Muya」）已被后续实现取代。
+> 最终交付：v0.2.0（引擎切换）→ v0.2.1（修复）→ v0.3.0（标记与图片布局）→ v0.4.0（大文档改走源码模式）。
+> 每个阻塞项的最终处理方式见文末「9. 后续结果对照」。
+
 - 日期：2026-11-19
 - 环境：Typeleft 0.1.5 + Tauri 2 + React 17 + macOS（Apple Silicon）
 - Milkdown：`@milkdown/kit@7.23.0` + `@milkdown/plugin-prism@7.23.0`
@@ -151,7 +156,7 @@ bun run test:roundtrip
 | ~449K | 4.7 s | 338 ms |
 | ~919K | 14.9 s | 1.1 s |
 
-结论：ProseMirror 无虚拟化，耗时随文档线性→超线性增长。因此 **>200K 字符自动回退 Muya**（`LARGE_DOC_LIMIT`），界面顶部给出提示。
+结论：ProseMirror 无虚拟化，耗时随文档线性→超线性增长。因此 **>200K 字符自动回退 Muya**（`LARGE_DOC_LIMIT`），界面顶部给出提示。（v0.4.0 起改为自动源码模式，见第 9 节。）
 
 ### 序列化配置
 
@@ -166,3 +171,24 @@ ctx.update(remarkStringifyOptionsCtx, prev => ({
 ```
 
 该配置同时消除了 PoC 阶段观察到的 `-` → `*` 与 `---` → `***` 两类差异。
+
+
+---
+
+## 9. 后续结果对照（2026-11-21）
+
+阶段 0 列出的阻塞项与最终处理方式：
+
+| 阶段 0 的问题 | 最终处理 | 版本 |
+|---|---|---|
+| Frontmatter 被破坏 | `remark-frontmatter`（YAML + TOML）+ 自定义 atom 节点，round-trip 逐字节一致，双击可编辑 | v0.2.0 |
+| 图片相对路径不显示 | 自定义 image nodeView + `convertFileSrc`，复用 `services/imageAction.ts` 的粘贴/拖拽/上传策略 | v0.2.0 |
+| 任务列表无 checkbox | GFM taskList 节点 + CSS checkbox，点击切换 | v0.2.0 |
+| 数学未启用 | `remark-math` + 自研 KaTeX 节点（未采用 `@benrbray/prosemirror-math`，避免 ProseMirror peer 冲突） | v0.2.0 |
+| 图表无插件 | 在 code block NodeView 内做预览（Mermaid / Flow / Sequence / PlantUML / Vega），markdown 仍是普通围栏块 | v0.2.0 |
+| 1MB 文档 17.8s | 先回退 Muya；v0.4.0 起改为**自动进入 CM6 源码模式**（CM6 虚拟滚动），打开 ~2.8s | v0.2.0 / v0.4.0 |
+| 搜索/撤销/字数/TOC 未接 | Decoration 搜索替换、history 插件、StateChange（字数 + 大纲上限 500） | v0.2.0 |
+| 中文 IME 未验证 | 2026-11-21 用**小鹤双拼**真机验证：组合下划线、候选窗、`vswf`→中文、无残留拼音 | v0.4.0 |
+| 代码块无语言/行号 | 自研 code block NodeView：语言下拉、行号、换行、复制、Prism 高亮 | v0.2.0 |
+
+阶段 0 建议的「回退 Muya」只作为过渡方案存在了一个版本周期，v0.4.0 起 Muya 仅保留为设置里的手动选项。

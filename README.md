@@ -8,13 +8,14 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 
 ## Features
 
-- **WYSIWYG Markdown editing** powered by Milkdown (ProseMirror + remark), with the legacy Muya engine available as a fallback
+- **WYSIWYG Markdown editing** powered by Milkdown (ProseMirror + remark); the legacy Muya engine is still selectable in Settings
 - **Cross-platform**: macOS (Intel / Apple Silicon), Windows, Linux
 - **Source mode** with CodeMirror 6 and its own search bar
 - **Math** (KaTeX, inline and block), **diagrams** (Mermaid / Flowchart / Sequence / PlantUML / Vega) and **front matter** (YAML / TOML)
 - **Large documents** (> 200 KB) automatically open in source mode (CodeMirror 6 is virtualised); Shift+F forces rich text
 - **Find & replace** with case-sensitive / regex / whole-word options
-- **Undo / redo** with a debounced snapshot history
+- **Undo / redo**, slash-command menu, formatting bubble and table toolbar
+- **Highlight / superscript / subscript** (`==mark==`, `^sup^`, `~sub~`), image alignment and drag-to-resize
 - **Outline & file tree** sidebars, with file operations (rename, move, copy, delete to trash, new file/folder)
 - **Recent files** menu
 - **Export** configurations (HTML, CSS / front matter toggles) and **direct printing**
@@ -60,6 +61,23 @@ Requirements: Rust toolchain, Bun (or npm), and the platform dependencies listed
 ```bash
 bun run tauri build
 ```
+
+## Testing
+
+```bash
+bun run test           # everything below
+bun run test:engine    # engine / source-mode decision (incl. the 200K limit)
+bun run test:roundtrip # markdown parse ↔ serialize fidelity
+bun run test:cm6       # CodeMirror 6 smoke test
+bun run test:web       # real components in headless Chrome
+```
+
+`test:web` serves `devtest/`, mounts the actual `MilkdownEditor` and
+`CodeMirror6` components with a stubbed Tauri IPC layer, checks the rendered
+DOM (front matter, tables, task lists, KaTeX, code blocks, diagrams, images,
+Prism tokens, outline, word count), drives the search panel and real typing, and
+fails on any `console.error`. `?light=1`, `?theme=1`, `?static=1` and `?cm6=1`
+switch the page into the other checks.
 
 ## License
 

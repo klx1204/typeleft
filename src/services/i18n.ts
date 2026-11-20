@@ -48,8 +48,7 @@ const KEYS = [
     'Export Now', 'Delete Configuration', 'Select output directory', 'Browse', 'Exported to',
     'Export failed', 'New Configuration', 'Configurations',
 
-    'Large document: opened in source mode (Shift+F forces rich text)',
-    'Large document: switched to the compatibility editor for performance'
+    'Large document: opened in source mode (Shift+F forces rich text)'
 ]
 
 let lang = 'en'

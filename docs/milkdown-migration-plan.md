@@ -19,7 +19,7 @@
 
 - 协同编辑（Yjs）
 - 移动端
-- 更换源码模式（仍为 CodeMirror，后续再升级到 CM6）
+- 重写编辑器以外的 UI（React、设置页、侧栏保持现状）
 - Typora 主题整窗 UI 版式兼容
 - 新增功能（TOC 块、Alerts 等）
 
@@ -47,8 +47,8 @@
 
 | 能力 | 方案 |
 |---|---|
-| 数学 | **首选 `@benrbray/prosemirror-math`**（schema + NodeView + KaTeX），与 ProseMirror 版本冲突时回退为自研 KaTeX NodeView |
-| 图表 | 自研统一 `diagram` 节点（Mermaid / Flow / Sequence / PlantUML / Vega），复用现有 `lib/renderers`，约 1 周 |
+| 数学 | ~~首选 `@benrbray/prosemirror-math`~~ → **实际：自研 KaTeX 节点**（`remark-math` + 双击编辑），避免 ProseMirror peer 版本冲突 |
+| 图表 | ~~自研统一 `diagram` 节点~~ → **实际：code block NodeView 内嵌预览**，markdown 仍是普通围栏代码块 |
 | 脚注 | 自定义节点或 remark 插件 |
 | Frontmatter | 自定义 atom 节点 + remark-frontmatter |
 | TOC | 自定义节点（可选，P2） |
@@ -211,15 +211,15 @@ markdown prop 变化 → 若与编辑器当前 md 不同 → replaceAll(新内�
 
 | 风险 | 概率 | 影响 | 缓解 |
 |---|---|---|---|
-| Markdown round-trip 失真 | 高 | 高 | PoC 先做差异测试；保留 raw 节点；必要时用 remark 插件补齐 |
-| 数学/图表插件不可用 | 高 | 中 | 数学用 `@benrbray/prosemirror-math`，冲突则自研 KaTeX 节点；图表自研 NodeView |
-| CM6 迁移遗漏功能 | 中 | 中 | CM5 → CM6 只迁移搜索/滚动/光标/主题，逐项对照验证 |
-| 中文 IME 异常 | 中 | 高 | PoC 重点验证；必要时锁定 ProseMirror 版本或调整 composition 处理 |
-| 光标映射复杂 | 中 | 中 | 先近似（百分比），再精确映射；搜索/状态栏不依赖精确光标 |
-| 大文档性能 | 中 | 中 | 1MB 基准；必要时分块/懒渲染 |
-| 主题兼容层重做 | 中 | 中 | 保留 `#write`，按 ProseMirror 结构补 `md-*`；CSS 变量桥接复用 |
-| 工期超预期 | 高 | 中 | 阶段 0 决策门槛；双引擎并存可随时回退 |
-| 回归遗漏 | 中 | 高 | 第 6 节清单 + 每阶段截图验证 |
+| Markdown round-trip 失真 | 高 | 高 | ✅ 已缓解：3 个 fixture + 幂等检查，仅表格补空格等可解释规范化 |
+| 数学/图表插件不可用 | 高 | 中 | ✅ 已解决：自研 KaTeX 节点；图表用 code block 预览 |
+| CM6 迁移遗漏功能 | 中 | 中 | ✅ 已解决：CM6 冒烟 + 浏览器回归覆盖搜索/滚动/光标/主题 |
+| 中文 IME 异常 | 中 | 高 | ✅ 已真机验证（小鹤双拼，2026-11-21），组合/候选/提交正常 |
+| 光标映射复杂 | 中 | 中 | ⚠️ 仍为近似（序列化前缀估算行号），可接受 |
+| 大文档性能 | 中 | 中 | ✅ 已解决：>200K 自动源码模式（CM6 虚拟滚动），1MB 打开 ~2.8s |
+| 主题兼容层重做 | 中 | 中 | ✅ 已解决：`@layer typeleft-base` + 中性表面色，Typora 主题验证通过 |
+| 工期超预期 | 高 | 中 | ✅ 已缓解：双引擎并存，按版本增量交付（0.2.0 → 0.4.0） |
+| 回归遗漏 | 中 | 高 | ✅ 已缓解：4 套自动化测试 + 真机抽检 |
 
 ---
 
@@ -266,7 +266,7 @@ markdown prop 变化 → 若与编辑器当前 md 不同 → replaceAll(新内�
 
 ---
 
-## 9. 实施状态（v0.2.0）
+## 9. 实施状态（v0.2.0 → v0.4.0）
 
 ### 已交付
 
@@ -279,7 +279,7 @@ markdown prop 变化 → 若与编辑器当前 md 不同 → replaceAll(新内�
 | 2 | 斜杠命令菜单、`==高亮==`、上下标、图片对齐与拖拽缩放 | ✅ |
 | 2（延后） | 表格列宽拖拽持久化、图片内联 HTML 的非常规写法规范化 | ⏸ 后续 |
 | 3 | 默认引擎 milkdown、>200KB 自动源码模式、回归清单 | ✅ |
-| 4 | 版本 0.2.0、四平台 CI、Release | ⏳ |
+| 4 | 版本 0.2.0 / 0.2.1 / 0.3.0 / 0.4.0，四平台 CI，Release | ✅ |
 
 ### 实现要点
 
@@ -351,12 +351,15 @@ bun run test:web       # 真实浏览器渲染 + 交互回归
 | Linux `amd64.AppImage` | 82 MB | 83 MB | +1 MB |
 | Windows `x64-setup.exe` | 5 MB | 6 MB | +1 MB |
 
+v0.4.0 维持同一体积（dmg 14 MB / AppImage 83 MB / setup 6 MB），大文档改走源码模式后未增加依赖。
+
 前端 `dist` 9.4 MB（其中主包 2.8 MB、mermaid 1.1 MB、vega-embed 0.7 MB）。
 发布：v0.2.0（引擎切换）→ v0.2.1（菜单命令/主题/CM6 修复）→ v0.3.0（高亮、上下标、图片对齐缩放）。
 
 ### 需人工验证
 
-- 中文 IME（拼音组合、候选词、全角标点）
-- 50KB–200KB 文档输入延迟、滚动流畅度
+- ~~中文 IME~~：✅ 2026-11-21 用小鹤双拼真机验证（`vswf`/`uurufa` → 中文输入法，候选窗、下划线、保存均正常）
+- ~~1MB 文档~~：✅ v0.4.0 自动源码模式，打开 ~2.8s
+- 50KB–200KB 文档输入延迟、滚动流畅度（仍待长期使用观察）
 - 主题（Academic 等）在 Milkdown 下的实际观感
 - 表格编辑手感、图片拖拽

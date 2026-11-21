@@ -48,6 +48,10 @@ graph TD
   A[开始] --> B[结束]
 \`\`\`
 
+\`\`\`math
+a^2 + b^2 = c^2
+\`\`\`
+
 行内公式 $E = mc^2$。
 
 $$
@@ -66,10 +70,12 @@ $$
 const layoutMode = location.search.includes('layout');
 const noPairMode = location.search.includes('nopair');
 const noMarksMode = location.search.includes('nomarks');
+const codeBlockMode = location.search.includes('codeblock');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
   ...(noMarksMode ? { superSubScript: false } : {}),
+  ...(codeBlockMode ? { codeBlockLineNumbers: false, codeBlockWrap: true, codeBlockDefaultLanguage: 'javascript' } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,
@@ -162,7 +168,7 @@ const finish = (extraCheck?: () => void) => {
   check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
   const selects = Array.from(ml.querySelectorAll('select.md-fences-language')) as HTMLSelectElement[];
-  check('language selects', selects.length === 2, selects.map(sel => {
+  check('language selects', selects.length === 3, selects.map(sel => {
     const cs = getComputedStyle(sel);
     return `value=${sel.value} bg=${cs.backgroundColor} appearance=${cs.appearance} color=${cs.color}`;
   }).join(' | '));
@@ -180,6 +186,7 @@ const finish = (extraCheck?: () => void) => {
     check('frontmatter visible', r.height > 10 && r.width > 10, `rect=${Math.round(r.width)}x${Math.round(r.height)} color=${cs.color} code=${code ? getComputedStyle(code).color : 'n/a'} text=${JSON.stringify((fm.textContent || '').slice(0, 40))}`);
   }
   check('milkdown diagram preview', !!ml.querySelector('.diagram-preview.active svg'));
+  check('milkdown math fence', !!ml.querySelector('.md-fences-wrapper[data-language="math"] .diagram-preview.active .katex'));
   check('milkdown Prism tokens', ml.querySelectorAll('.token.keyword, .token.function').length > 0);
   check('milkdown highlight mark', Array.from(ml.querySelectorAll('mark')).some(m => (m.textContent || '').includes('重点')));
   check('milkdown superscript', !!ml.querySelector('sup'));
@@ -329,7 +336,7 @@ const runPickerChecks = async () => {
   const previewBtn = document.querySelector('.md-fences-wrapper[data-language="mermaid"] button[title="Toggle preview"]') as HTMLElement | null;
   previewBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   await wait(300);
-  check('diagram preview hides', !document.querySelector('.diagram-preview.active'));
+  check('diagram preview hides', !document.querySelector('.md-fences-wrapper[data-language="mermaid"] .diagram-preview.active'));
   previewBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   await wait(3000);
   check('diagram preview shows again', !!document.querySelector('.diagram-preview.active svg'));

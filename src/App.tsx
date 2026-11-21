@@ -7,6 +7,7 @@ import CommandPalette from 'components/CommandPalette';
 import ExportDialog from 'components/ExportDialog';
 import ImageConfigDialog from 'components/ImageConfigDialog';
 import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
+import { initZoom, installZoomWheel, zoomIn, zoomOut, zoomReset } from 'services/zoom';
 import { remote } from 'services/remote';
 import transport from 'services/transport';
 import 'services/theme'
@@ -57,6 +58,31 @@ function App() {
 
   useEffect(() => {
     getCustomTheme().then(name => { if (name) applyCustomTheme(name); });
+  }, []);
+
+  // Zoom + full screen (#23 / #24)
+  useEffect(() => {
+    remote.getSettings().then((s: any) => initZoom(s?.zoom)).catch(() => initZoom(1));
+    const offWheel = installZoomWheel();
+    const unsubs = [
+      transport.addListener('ZoomIn', () => zoomIn()),
+      transport.addListener('ZoomOut', () => zoomOut()),
+      transport.addListener('ZoomReset', () => zoomReset()),
+      transport.addListener('ToggleFullscreen', async () => {
+        try {
+          const { getCurrentWindow } = await import('@tauri-apps/api/window');
+          const win = getCurrentWindow();
+          await win.setFullscreen(!(await win.isFullscreen()));
+        } catch {
+          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+          else document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }),
+    ];
+    return () => {
+      offWheel();
+      unsubs.forEach(fn => fn());
+    };
   }, []);
 
   useEffect(() => transport.addListener<Record<string, unknown>>('SettingsChanged', (payload) => {

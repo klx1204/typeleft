@@ -55,6 +55,11 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'sidebar', label: 'Toggle Sidebar', category: 'View', action: () => transport.postMessage('SidebarToggle', { open: true }) },
     { id: 'outline', label: 'Show Outline', category: 'View', action: () => transport.postMessage('SidebarSection', { section: 'toc' }) },
     { id: 'source', label: 'Toggle Source Code', category: 'View', action: () => transport.postMessage('ToggleSourceCode', {}) },
+    { id: 'zoom_in', label: 'Zoom In', category: 'View', action: () => transport.postMessage('ZoomIn', {}) },
+    { id: 'zoom_out', label: 'Zoom Out', category: 'View', action: () => transport.postMessage('ZoomOut', {}) },
+    { id: 'zoom_reset', label: 'Actual Size', category: 'View', action: () => transport.postMessage('ZoomReset', {}) },
+    { id: 'fullscreen', label: 'Full Screen', category: 'View', action: () => transport.postMessage('ToggleFullscreen', {}) },
+    { id: 'copy_code', label: 'Copy Code Block', category: 'Edit', action: () => transport.postMessage('CopyCodeBlock', {}) },
     { id: 'compact', label: 'Toggle Compact Mode', category: 'View', action: () => transport.postMessage('ToggleCompactMode', {}) },
     { id: 'ontop', label: 'Toggle Always on Top', category: 'Window', action: () => transport.postMessage('ToggleAlwaysOnTop', {}) },
   ];

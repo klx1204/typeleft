@@ -60,6 +60,7 @@ import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/ima
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
 import { autoPairPlugin, setAutoPairOptions } from './autoPair';
+import { codeBlockDefaultsPlugin, codeBlockKeysPlugin, applyCodeBlockOptions, copyCodeBlock } from './codeblockExtras';
 import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
 import {
@@ -358,6 +359,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(searchPlugin)
       .use(slashPlugin)
       .use(autoPairPlugin)
+      .use(codeBlockDefaultsPlugin)
+      .use(codeBlockKeysPlugin)
       .use(placeholderPlugin)
       .use(focusPlugin)
       .create()
@@ -465,6 +468,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     if (write) write.classList.toggle('focus-mode', !!props.options?.focusMode);
     (window as any).typeleftEditorOptions = props.options;
     applyLayoutCss(props.options);
+    applyCodeBlockOptions(props.options);
     setAutoPairOptions(props.options);
     setSuperSubEnabled(props.options?.superSubScript !== false);
     const view = getView();
@@ -730,6 +734,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       insertImageFromFile();
     }
   }), [run, insertImageFromFile]);
+
+  useEffect(() => transport.addListener('CopyCodeBlock', () => {
+    withView(view => { copyCodeBlock(view); });
+  }), [withView]);
 
   useEffect(() => transport.addListener('SelectAll', () => {
     withView((view) => {

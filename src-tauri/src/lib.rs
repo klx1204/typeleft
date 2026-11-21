@@ -1128,6 +1128,12 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Show Outline" => "显示大纲",
         "Settings..." => "设置...",
         "Themes..." => "主题...",
+        "Zoom In" => "放大",
+        "Zoom Out" => "缩小",
+        "Actual Size" => "实际大小",
+        "Full Screen" => "全屏",
+        "Toggle Developer Tools" => "开发者工具",
+        "Copy Code Block" => "复制代码块",
         "Window" => "窗口",
         "Compact Mode" => "紧凑模式",
         "Always on Top" => "窗口置顶",
@@ -1190,12 +1196,13 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let copy = MenuItem::with_id(app, "copy", tr("Copy"), true, Some("CmdOrCtrl+C"))?;
     let paste = MenuItem::with_id(app, "paste", tr("Paste"), true, Some("CmdOrCtrl+V"))?;
     let select_all = MenuItem::with_id(app, "select_all", tr("Select All"), true, Some("CmdOrCtrl+A"))?;
+    let copy_code = MenuItem::with_id(app, "copy_code", tr("Copy Code Block"), true, None::<&str>)?;
     let sep3 = PredefinedMenuItem::separator(app)?;
     let find = MenuItem::with_id(app, "find", tr("Find..."), true, Some("CmdOrCtrl+F"))?;
     let replace = MenuItem::with_id(app, "replace", tr("Replace..."), true, Some("CmdOrCtrl+H"))?;
 
     let edit_menu = Submenu::with_items(app, tr("Edit"), true, &[
-        &undo, &redo, &sep2, &cut, &copy, &paste, &select_all, &sep3, &find, &replace,
+        &undo, &redo, &sep2, &cut, &copy, &paste, &select_all, &copy_code, &sep3, &find, &replace,
     ])?;
 
     let bold = MenuItem::with_id(app, "bold", tr("Bold"), true, Some("CmdOrCtrl+B"))?;
@@ -1239,10 +1246,25 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let view_themes = MenuItem::with_id(app, "view_themes", tr("Themes..."), true, None::<&str>)?;
     let sep_view = PredefinedMenuItem::separator(app)?;
     let view_settings = MenuItem::with_id(app, "view_settings", tr("Settings..."), true, Some("CmdOrCtrl+,"))?;
+    let zoom_in = MenuItem::with_id(app, "zoom_in", tr("Zoom In"), true, Some("CmdOrCtrl+="))?;
+    let zoom_out = MenuItem::with_id(app, "zoom_out", tr("Zoom Out"), true, Some("CmdOrCtrl+-"))?;
+    let zoom_reset = MenuItem::with_id(app, "zoom_reset", tr("Actual Size"), true, Some("CmdOrCtrl+0"))?;
+    let full_screen = MenuItem::with_id(app, "toggle_fullscreen", tr("Full Screen"), true, Some("Ctrl+CmdOrCtrl+F"))?;
 
-    let view_menu = Submenu::with_items(app, tr("View"), true, &[
-        &view_source, &view_sidebar, &view_outline, &view_themes, &sep_view, &view_settings,
-    ])?;
+    let sep_view_2 = PredefinedMenuItem::separator(app)?;
+    let sep_view_3 = PredefinedMenuItem::separator(app)?;
+    let mut view_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = vec![
+        &view_source, &view_sidebar, &view_outline, &view_themes, &sep_view,
+        &zoom_in, &zoom_out, &zoom_reset, &sep_view_2,
+        &full_screen, &sep_view_3, &view_settings,
+    ];
+    // Developer tools are only shipped in debug builds.
+    #[cfg(debug_assertions)]
+    let devtools = MenuItem::with_id(app, "devtools", tr("Toggle Developer Tools"), true, None::<&str>)?;
+    #[cfg(debug_assertions)]
+    view_items.push(&devtools);
+
+    let view_menu = Submenu::with_items(app, tr("View"), true, &view_items)?;
 
     let compact_mode = MenuItem::with_id(app, "compact_mode", tr("Compact Mode"), true, None::<&str>)?;
     let always_on_top = MenuItem::with_id(app, "always_on_top", tr("Always on Top"), true, None::<&str>)?;
@@ -1439,6 +1461,26 @@ pub fn run() {
                 "view_sidebar" => { let _ = app.emit("SidebarToggle", ()); }
                 "view_outline" => { let _ = app.emit("SidebarSection", serde_json::json!({"section": "toc"})); }
                 "view_settings" => { let _ = app.emit("OpenSettings", ()); }
+                "zoom_in" => { let _ = app.emit("ZoomIn", ()); }
+                "zoom_out" => { let _ = app.emit("ZoomOut", ()); }
+                "zoom_reset" => { let _ = app.emit("ZoomReset", ()); }
+                "toggle_fullscreen" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let full = window.is_fullscreen().unwrap_or(false);
+                        let _ = window.set_fullscreen(!full);
+                    }
+                }
+                "copy_code" => { let _ = app.emit("CopyCodeBlock", ()); }
+                #[cfg(debug_assertions)]
+                "devtools" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        if window.is_devtools_open() {
+                            window.close_devtools();
+                        } else {
+                            window.open_devtools();
+                        }
+                    }
+                }
                 "view_themes" => { let _ = app.emit("OpenThemeDialog", ()); }
                 "compact_mode" => { let _ = app.emit("ToggleCompactMode", ()); }
                 "always_on_top" => { let _ = app.emit("ToggleAlwaysOnTop", ()); }

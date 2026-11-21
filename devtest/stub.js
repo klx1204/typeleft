@@ -20,6 +20,9 @@
 
   var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
 
+  // Marked so services can tell the stub IPC apart from a real Tauri webview.
+  window.__DEV_STUB__ = true;
+
   window.__TAURI_INTERNALS__ = {
     metadata: {
       currentWindow: { label: 'main' },

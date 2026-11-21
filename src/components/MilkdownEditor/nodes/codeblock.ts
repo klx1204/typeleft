@@ -1,4 +1,5 @@
 import { $view } from '@milkdown/kit/utils';
+import katex from 'katex';
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
 import loadRenderer from 'services/renderers';
 import { t } from 'services/i18n';
@@ -9,6 +10,9 @@ type DiagramLang = typeof DIAGRAM_LANGS[number];
 export const isDiagramLang = (lang: string): lang is DiagramLang =>
   (DIAGRAM_LANGS as readonly string[]).includes(lang);
 
+/** `math` fences render through KaTeX as a display formula (#39). */
+export const isPreviewLang = (lang: string): boolean => isDiagramLang(lang) || lang === 'math';
+
 /** Render a fenced diagram into `target`, matching the Muya renderer behaviour. */
 export const renderDiagram = async (
   target: HTMLElement,
@@ -18,6 +22,15 @@ export const renderDiagram = async (
 ): Promise<void> => {
   const dark = (window as any).actualTheme === 'dark';
   try {
+    if ((lang as string) === 'math') {
+      katex.render(code || '\\phantom{x}', target, {
+        displayMode: true,
+        throwOnError: false,
+        strict: false,
+        trust: false,
+      });
+      return;
+    }
     if (lang === 'mermaid') {
       const mermaid = await loadRenderer('mermaid');
       mermaid.initialize({
@@ -63,7 +76,7 @@ const LANGUAGE_LIST = [
   'java', 'javascript', 'js', 'json', 'jsx', 'kotlin', 'latex', 'lua', 'markdown',
   'php', 'python', 'py', 'r', 'ruby', 'rb', 'rust', 'scss', 'shell', 'sql', 'swift',
   'toml', 'ts', 'tsx', 'typescript', 'xml', 'yaml', 'yml', 'mermaid', 'flowchart',
-  'sequence', 'plantuml', 'vega', 'vega-lite', 'graphql', 'dockerfile', 'makefile',
+  'sequence', 'plantuml', 'vega', 'vega-lite', 'math', 'graphql', 'dockerfile', 'makefile',
   'objectivec', 'perl', 'powershell', 'scala', 'haskell', 'elixir', 'dart', 'vue',
 ];
 
@@ -178,7 +191,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
     timer = window.setTimeout(() => {
       if (destroyed) return;
       const language = currentNode.attrs.language ?? '';
-      const renderable = previewEnabled && isDiagramLang(language);
+      const renderable = previewEnabled && isPreviewLang(language);
       preview.classList.toggle('active', renderable);
       if (!renderable) {
         preview.textContent = '';
@@ -187,7 +200,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
       }
       preview.textContent = '';
       preview.classList.remove('diagram-error');
-      renderDiagram(preview, language, currentNode.textContent, (window as any).typeleftEditorOptions ?? {});
+      renderDiagram(preview, language as any, currentNode.textContent, (window as any).typeleftEditorOptions ?? {});
     }, 400);
   };
 

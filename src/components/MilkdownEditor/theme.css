@@ -534,6 +534,16 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Settings → Editor: code block display (#33 / #34) */
+body.code-block-no-line-numbers #write.milkdown-write .md-fences-gutter {
+  display: none;
+}
+
+body.code-block-wrap #write.milkdown-write pre.md-fences {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 }
 
 @layer typeleft-base {

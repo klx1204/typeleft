@@ -71,6 +71,7 @@ run_mode() {
 run_mode "default" "" 15000
 run_mode "theme" "static=1&theme=1" 12000
 run_mode "layout" "static=1&layout=1" 12000
+run_mode "codeblock" "static=1&codeblock=1" 12000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

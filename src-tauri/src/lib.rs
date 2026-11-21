@@ -1008,17 +1008,26 @@ fn open_url(url: String) -> Result<(), String> {
 /// Open a file or folder with the platform's default handler.
 #[tauri::command]
 fn open_path(path: String) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    let command = "open";
     #[cfg(target_os = "windows")]
-    let command = "explorer";
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let command = "xdg-open";
-    std::process::Command::new(command)
-        .arg(&path)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+    {
+        return std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string());
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        #[cfg(target_os = "macos")]
+        let command = "open";
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let command = "xdg-open";
+        std::process::Command::new(command)
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]

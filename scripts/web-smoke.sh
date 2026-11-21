@@ -74,6 +74,7 @@ run_mode "layout" "static=1&layout=1" 12000
 run_mode "codeblock" "static=1&codeblock=1" 12000
 run_mode "sidebar" "static=1&sidebar=1" 12000
 run_mode "folders" "static=1&folders=1" 12000
+run_mode "export" "static=1&exportdialog=1" 12000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

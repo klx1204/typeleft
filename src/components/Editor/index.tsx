@@ -11,6 +11,7 @@ import ExportHtml from "services/exportHtml";
 import { htmlToMarkdown } from "services/importHtml";
 import { DEFAULT_TURNDOWN_CONFIG } from "services/markdown/config";
 import { getHtmlToc, getTOC } from "services/common";
+import { parseDocumentExport } from "services/docExport";
 import { useI18n } from "services/i18n";
 import { LARGE_DOC_LIMIT, resolveView } from "./engine";
 
@@ -126,7 +127,10 @@ const Editor: React.FC = () => {
 
     useEffect(() => transport.addListener<IExportArgs>('Export', async ({ type, context, basePath, title, options, targetPath }) => {
         let source = markdownRef.current ?? ''
-        if (options && (options as any).includeFrontmatter === false) {
+        // Front matter may carry its own export settings (#152).
+        const docExport = parseDocumentExport(source)
+        const merged: any = { ...options, ...docExport }
+        if (docExport.includeFrontmatter === false || (options && (options as any).includeFrontmatter === false)) {
             source = source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
         }
         const fallbackTitle = filePath
@@ -134,18 +138,30 @@ const Editor: React.FC = () => {
             : 'Typeleft'
         const generateOption = {
             printOptimization: type === 'print',
-            title: title || fallbackTitle,
-            toc: getHtmlToc(getTOC(source).toc),
-            ...options,
+            title: docExport.title || title || fallbackTitle,
+            toc: merged.includeToc === false ? '' : getHtmlToc(getTOC(source).toc),
+            ...merged,
+        }
+        // A document-level fileName / outputDir replaces the dialog target.
+        let finalTarget = targetPath
+        if (finalTarget && (docExport.fileName || docExport.outputDir)) {
+            const dir = docExport.outputDir ? String(docExport.outputDir).replace(/[\\/]+$/, '') : finalTarget.replace(/[\\/][^\\/]+$/, '')
+            const name = docExport.fileName || finalTarget.split(/[\\/]/).pop()
+            finalTarget = `${dir}/${name}`
         }
         const baseUrl = basePath ? `file:///${basePath.replaceAll('\\', '/')}/` : undefined
         const html = await new ExportHtml(source, { ...optionsRef.current, baseUrl }).generate(generateOption)
         if (type == 'print') {
             remote.printHTML({ html, context })
-        } else if (targetPath) {
+        } else if (finalTarget) {
             try {
-                await remote.writeTextFile({ path: targetPath, content: html })
-                transport.postMessage('ExportDone', { path: targetPath })
+                await remote.writeTextFile({ path: finalTarget, content: html })
+                transport.postMessage('ExportDone', { path: finalTarget })
+                const postAction = merged.postAction
+                if (postAction === 'open-file') remote.openPath({ path: finalTarget }).catch(() => {})
+                if (postAction === 'open-folder') {
+                    remote.openPath({ path: finalTarget.replace(/[\\/][^\\/]+$/, '') }).catch(() => {})
+                }
             } catch (e) {
                 transport.postMessage('ExportFailed', { message: String(e) })
             }

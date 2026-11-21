@@ -21,6 +21,11 @@
 
   var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
 
+  var exportConfigs = [
+    { id: 'a', name: 'HTML', exportType: 'html', fileName: 'a.html', outputDir: '', includeCss: true, includeFrontmatter: false, includeToc: true, postAction: 'none' },
+    { id: 'b', name: 'Print', exportType: 'html', fileName: 'b.html', outputDir: '', includeCss: false, includeFrontmatter: true, includeToc: false, postAction: 'none' },
+  ];
+
   // Marked so services can tell the stub IPC apart from a real Tauri webview.
   window.__DEV_STUB__ = true;
 
@@ -78,6 +83,9 @@
       }
       if (cmd === 'get_current_theme') return Promise.resolve('dark');
       if (cmd === 'list_recent_folders') return Promise.resolve(['/tmp/recent-notes']);
+      if (cmd === 'get_export_configs') return Promise.resolve(exportConfigs);
+      if (cmd === 'reorder_export_configs') { window.__reordered = args.ids; return Promise.resolve(null); }
+      if (cmd === 'get_settings_path') return Promise.resolve('/tmp/typeleft/settings.json');
       if (cmd === 'list_directory') return Promise.resolve([]);
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);

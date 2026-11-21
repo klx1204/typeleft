@@ -3,6 +3,18 @@
  * Usage: bun scripts/engine-select.ts
  */
 import { LARGE_DOC_LIMIT, resolveView } from '../src/components/Editor/engine';
+import { parseDocumentExport } from '../src/services/docExport';
+
+const withExport = parseDocumentExport(`---
+title: Release\nexport:
+  fileName: notes.html
+  includeToc: false
+  includeCss: true
+  postAction: open-file
+---
+
+# Body
+`);
 
 const small = 1_000;
 const large = LARGE_DOC_LIMIT + 1;
@@ -30,6 +42,10 @@ const cases: [string, boolean][] = [
     return v.sourceMode === false && v.autoSource === false;
   })()],
   ['limit is 200K characters', LARGE_DOC_LIMIT === 200 * 1024],
+  ['front matter export block is parsed', withExport.fileName === 'notes.html' && withExport.postAction === 'open-file'],
+  ['front matter booleans keep their type', withExport.includeToc === false && withExport.includeCss === true],
+  ['export keys outside the block are ignored', parseDocumentExport('---\ntitle: x\n---\n# Body').includeToc === undefined],
+  ['documents without front matter have no overrides', Object.keys(parseDocumentExport('# Body')).length === 0],
 ];
 
 let failed = 0;

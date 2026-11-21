@@ -11,6 +11,8 @@ interface ExportConfig {
   outputDir: string;
   includeCss: boolean;
   includeFrontmatter: boolean;
+  includeToc: boolean;
+  postAction: string;
 }
 
 interface IExportDialogProps {
@@ -48,6 +50,8 @@ const defaultConfig = (): ExportConfig => ({
   outputDir: '',
   includeCss: true,
   includeFrontmatter: false,
+  includeToc: true,
+  postAction: 'none',
 });
 
 const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
@@ -109,6 +113,20 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
     }
   };
 
+  const move = async (index: number, offset: number) => {
+    const target = index + offset;
+    if (target < 0 || target >= configs.length) return;
+    const next = [...configs];
+    const [item] = next.splice(index, 1);
+    next.splice(target, 0, item);
+    setConfigs(next);
+    try {
+      await remote.reorderExportConfigs({ ids: next.map(c => c.id) });
+    } catch (e: any) {
+      setError(e?.toString?.() ?? t('Operation failed'));
+    }
+  };
+
   const exportNow = async () => {
     setMessage('');
     setError('');
@@ -122,6 +140,8 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
       options: {
         includeCss: draft.includeCss,
         includeFrontmatter: draft.includeFrontmatter,
+        includeToc: draft.includeToc,
+        postAction: draft.postAction,
       },
     });
   };
@@ -163,7 +183,7 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
           borderRight: '1px solid var(--editorColor10)', overflowY: 'auto',
         }}>
           <div style={{ padding: '0 12px 8px', fontSize: 12, color: 'var(--editorColor40)' }}>{t('Configurations')}</div>
-          {configs.map(c => (
+          {configs.map((c, index) => (
             <div
               key={c.id}
               onClick={() => { setDraft({ ...c }); setMessage(''); setError(''); }}
@@ -172,8 +192,23 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
                 color: 'var(--editorColor60)',
                 backgroundColor: draft.id === c.id ? 'var(--editorColor06)' : 'transparent',
                 fontWeight: draft.id === c.id ? 600 : 400,
+                display: 'flex', alignItems: 'center', gap: 4,
               }}
-            >{c.name}</div>
+            >
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+              <button
+                title={t('Move Up')}
+                disabled={index === 0}
+                onClick={e => { e.stopPropagation(); move(index, -1); }}
+                style={{ background: 'none', border: 'none', cursor: index === 0 ? 'default' : 'pointer', opacity: index === 0 ? 0.3 : 0.7, color: 'inherit', padding: 0 }}
+              >↑</button>
+              <button
+                title={t('Move Down')}
+                disabled={index === configs.length - 1}
+                onClick={e => { e.stopPropagation(); move(index, 1); }}
+                style={{ background: 'none', border: 'none', cursor: index === configs.length - 1 ? 'default' : 'pointer', opacity: index === configs.length - 1 ? 0.3 : 0.7, color: 'inherit', padding: 0 }}
+              >↓</button>
+            </div>
           ))}
           <div
             onClick={() => setDraft(defaultConfig())}
@@ -204,7 +239,7 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
             <button style={btnStyle} onClick={browse}>{t('Browse')}</button>
           </div>
 
-          <div style={{ display: 'flex', gap: 24, marginTop: 16 }}>
+          <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               <input type="checkbox" checked={draft.includeCss} onChange={e => update({ includeCss: e.target.checked })} />
               {t('Include CSS')}
@@ -213,7 +248,22 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
               <input type="checkbox" checked={draft.includeFrontmatter} onChange={e => update({ includeFrontmatter: e.target.checked })} />
               {t('Include Frontmatter')}
             </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <input type="checkbox" checked={draft.includeToc} onChange={e => update({ includeToc: e.target.checked })} />
+              {t('Include Outline')}
+            </label>
           </div>
+
+          <div style={{ fontSize: 12, color: 'var(--editorColor40)', margin: '12px 0 6px' }}>{t('After Export')}</div>
+          <select
+            value={draft.postAction || 'none'}
+            onChange={e => update({ postAction: e.target.value })}
+            style={{ ...inputStyle, width: 220 }}
+          >
+            <option value="none">{t('Do Nothing')}</option>
+            <option value="open-file">{t('Open File')}</option>
+            <option value="open-folder">{t('Open Folder')}</option>
+          </select>
 
           {message && <div style={{ color: '#2e9d5b', fontSize: 12, marginTop: 12 }}>{message}</div>}
           {error && <div style={{ color: '#e05555', fontSize: 12, marginTop: 12 }}>{error}</div>}

@@ -814,5 +814,29 @@
   "Unpin Folder": {
     "en": "Unpin Folder",
     "zh": "取消固定"
+  },
+  "Include Outline": {
+    "en": "Include Outline",
+    "zh": "包含大纲"
+  },
+  "After Export": {
+    "en": "After Export",
+    "zh": "导出后"
+  },
+  "Do Nothing": {
+    "en": "Do Nothing",
+    "zh": "什么都不做"
+  },
+  "Open File": {
+    "en": "Open File",
+    "zh": "打开文件"
+  },
+  "Move Up": {
+    "en": "Move Up",
+    "zh": "上移"
+  },
+  "Move Down": {
+    "en": "Move Down",
+    "zh": "下移"
   }
 }

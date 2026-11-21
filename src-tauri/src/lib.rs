@@ -24,6 +24,10 @@ struct ExportConfig {
     output_dir: String,
     include_css: bool,
     include_frontmatter: bool,
+    #[serde(default = "default_true")]
+    include_toc: bool,
+    #[serde(default)]
+    post_action: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -39,6 +43,8 @@ struct ImageUploadConfig {
     remote_path: String,
     base_url: String,
 }
+
+fn default_true() -> bool { true }
 
 fn theme_json(theme: tauri::Theme) -> serde_json::Value {
     let (theme_name, bg_color) = match theme {
@@ -960,6 +966,44 @@ fn delete_export_config(app: tauri::AppHandle, id: String) -> Result<(), String>
 }
 
 #[tauri::command]
+fn reorder_export_configs(app: tauri::AppHandle, ids: Vec<String>) -> Result<(), String> {
+    let configs: Vec<ExportConfig> = load_list(&app, "exportConfigs");
+    let mut ordered: Vec<ExportConfig> = Vec::with_capacity(configs.len());
+    for id in &ids {
+        if let Some(config) = configs.iter().find(|c| &c.id == id) {
+            ordered.push(config.clone());
+        }
+    }
+    for config in configs {
+        if !ordered.iter().any(|c| c.id == config.id) {
+            ordered.push(config);
+        }
+    }
+    save_list(&app, "exportConfigs", ordered)
+}
+
+#[tauri::command]
+fn get_settings_path(app: tauri::AppHandle) -> String {
+    settings_path(&app).to_string_lossy().to_string()
+}
+
+/// Open a file or folder with the platform's default handler.
+#[tauri::command]
+fn open_path(path: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let command = "open";
+    #[cfg(target_os = "windows")]
+    let command = "explorer";
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let command = "xdg-open";
+    std::process::Command::new(command)
+        .arg(&path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_image_upload_configs(app: tauri::AppHandle) -> Vec<ImageUploadConfig> {
     load_list(&app, "imageUploadConfigs")
 }
@@ -1553,6 +1597,9 @@ pub fn run() {
             get_export_configs,
             save_export_config,
             delete_export_config,
+            reorder_export_configs,
+            get_settings_path,
+            open_path,
             get_image_upload_configs,
             save_image_upload_config,
             delete_image_upload_config,

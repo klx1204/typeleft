@@ -81,6 +81,7 @@ const zhSections: Record<string, string> = {
     autoPair: '自动配对',
     extensions: '扩展',
     file: '文件',
+    advanced: '高级',
     theme: '主题与图表',
     image: '图片',
     other: '其他',
@@ -224,6 +225,11 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: 'Advanced',
+    key: 'advanced',
+    fields: [],
+  },
+  {
     title: 'Theme & Diagrams',
     key: 'theme',
     fields: [
@@ -268,6 +274,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
   const [activeSection, setActiveSection] = useState('editor');
   const [customThemes, setCustomThemes] = useState<string[]>([]);
   const [themeDir, setThemeDir] = useState('');
+  const [settingsPath, setSettingsPath] = useState('');
 
   const loadCustomThemes = async () => {
     try {
@@ -295,6 +302,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
         setSettings(merged);
       });
       loadCustomThemes();
+      remote.getSettingsPath().then((p: string) => setSettingsPath(p)).catch(() => {});
     }
   }, [open]);
 
@@ -413,6 +421,44 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
               </div>
             );
           })}
+
+          {activeSection === 'advanced' && (
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--editorColor60)' }}>
+                {isZh ? '配置文件' : 'Settings File'}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--editorColor40)', wordBreak: 'break-all', marginBottom: 10 }}>
+                {settingsPath || '…'}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => settingsPath && remote.openPath({ path: settingsPath }).catch(() => {})}
+                  style={{
+                    padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                    border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                    backgroundColor: 'var(--editorColor04)',
+                  }}
+                >{isZh ? '打开 settings.json' : 'Open settings.json'}</button>
+                <button
+                  onClick={() => remote.getSettings().then((s: any) => {
+                    const merged = { ...defaultSettings };
+                    for (const k in s) if (k !== 'basePath' && k !== 'markdown') (merged as any)[k] = s[k];
+                    setSettings(merged);
+                  }).catch(() => {})}
+                  style={{
+                    padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                    border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                    backgroundColor: 'var(--editorColor04)',
+                  }}
+                >{isZh ? '重新载入' : 'Reload'}</button>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginTop: 12 }}>
+                {isZh
+                  ? '所有设置都保存在上面的 JSON 文件里，界面上的开关只是它的可视化编辑器。键名与含义见仓库 docs/settings.md；修改后回到这里点“重新载入”即可生效（部分项需重启）。'
+                  : 'Every setting lives in the JSON file above; the UI is just a visual editor for it. See docs/settings.md for the key reference. After editing, press Reload here (some entries need a restart).'}
+              </div>
+            </div>
+          )}
 
           {activeSection === 'theme' && (
             <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--editorColor10)' }}>

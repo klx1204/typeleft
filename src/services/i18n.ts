@@ -24,6 +24,7 @@ const KEYS = [
     'Compact Mode', 'Toggle Compact Mode', 'Always on Top', 'Toggle Always on Top',
 
     'words', 'chars', 'Files', 'Outline', 'Open Folder', 'No headings',
+    'Filter outline...', 'Pinned Folders', 'Recent Folders', 'Pin Folder', 'Unpin Folder',
     'Type a command...', 'No commands found', 'Search...', 'Replace...', 'Previous', 'Next',
     'Replace', 'Replace All', 'Close', 'Search',
 

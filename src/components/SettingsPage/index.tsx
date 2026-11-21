@@ -55,6 +55,9 @@ const defaultSettings = {
   animationEnable: true,
   fileStartupAction: 'none',
   folderStartupAction: 'openLast',
+  defaultFileExtension: 'md',
+  dragDropAction: 'open',
+  recentFilesLimit: 10,
 };
 
 type Settings = Record<string, any>;
@@ -77,6 +80,7 @@ const zhSections: Record<string, string> = {
     markdown: 'Markdown',
     autoPair: '自动配对',
     extensions: '扩展',
+    file: '文件',
     theme: '主题与图表',
     image: '图片',
     other: '其他',
@@ -128,6 +132,9 @@ const zhLabels: Record<string, string> = {
     sidePaneWidth: '侧边栏宽度',
     fileStartupAction: '启动时（文件）',
     folderStartupAction: '启动时（文件夹）',
+    defaultFileExtension: '默认扩展名',
+    dragDropAction: '拖入文件行为',
+    recentFilesLimit: '最近文件数量',
     textDirection: '文字方向',
     headingNumbering: '标题自动编号',
     justifyText: '正文两端对齐',
@@ -205,6 +212,15 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
     key: 'extensions',
     fields: [
       { key: 'superSubScript', label: 'Super/Sub Script', type: 'checkbox' },
+    ],
+  },
+  {
+    title: 'Files',
+    key: 'file',
+    fields: [
+      { key: 'defaultFileExtension', label: 'Default Extension', type: 'text', placeholder: 'md' },
+      { key: 'dragDropAction', label: 'Drop Files', type: 'select', options: ['open', 'insert-link', 'ignore'] },
+      { key: 'recentFilesLimit', label: 'Recent Files Limit', type: 'number', min: 1, max: 30, step: 1 },
     ],
   },
   {

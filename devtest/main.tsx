@@ -4,6 +4,7 @@ import MilkdownEditor from '../src/components/MilkdownEditor';
 import { applyCustomTheme } from '../src/services/customTheme';
 import themeCss from './typora-theme.css?raw';
 import CodeMirror6 from '../src/components/CodeMirror6';
+import Sidebar from '../src/components/Sidebar';
 
 const fixture = `---
 title: Devtest
@@ -71,6 +72,8 @@ const layoutMode = location.search.includes('layout');
 const noPairMode = location.search.includes('nopair');
 const noMarksMode = location.search.includes('nomarks');
 const codeBlockMode = location.search.includes('codeblock');
+const sidebarMode = location.search.includes('sidebar');
+const foldersMode = location.search.includes('folders');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -134,6 +137,8 @@ const Harness: React.FC = () => {
           onSearchOpenChange={setSearchOpen}
         />
       </div>}
+      {sidebarMode && <Sidebar open section="toc" onClose={() => {}} />}
+      {foldersMode && <Sidebar open section="filetree" onClose={() => {}} />}
       <div id="cm6-test" style={{ marginTop: onlyCm6 ? 24 : 80, borderTop: onlyCm6 ? 'none' : '2px solid #444' }}>
         <CodeMirror6
           markdown={fixture}
@@ -403,6 +408,16 @@ const runPickerChecks = async () => {
 };
 
 // Let Milkdown create, KaTeX render and Mermaid draw before asserting.
+if (sidebarMode) {
+  setTimeout(() => {
+    const input = document.querySelector('#typora-sidebar input') as HTMLInputElement | null;
+    if (!input) return;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    setter.call(input, '二级');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, 2200);
+}
+
 if (isStatic) {
   setTimeout(() => finish(), 3000);
 } else if (isPickers) {

@@ -16,6 +16,7 @@
     bulletListMarker: '-',
     lang: 'zh',
     sourceCode: false,
+    pinnedFolders: ['/tmp/notes'],
   };
 
   var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
@@ -76,6 +77,8 @@
         return Promise.resolve({ text: window.__FIXTURE__ || '', base_path: '', file_path: '/tmp/fixture.md' });
       }
       if (cmd === 'get_current_theme') return Promise.resolve('dark');
+      if (cmd === 'list_recent_folders') return Promise.resolve(['/tmp/recent-notes']);
+      if (cmd === 'list_directory') return Promise.resolve([]);
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);
       if (cmd === 'get_theme_dir') return Promise.resolve('/devtest/');

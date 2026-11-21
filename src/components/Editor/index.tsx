@@ -323,6 +323,13 @@ const Editor: React.FC = () => {
         const unsub = appWindow.listen<{ paths: string[] }>('tauri://drag-drop', (event) => {
             const path = event.payload.paths?.[0];
             if (!path) return;
+            const action = optionsRef.current?.dragDropAction ?? 'open';
+            if (action === 'ignore') return;
+            if (action === 'insert-link') {
+                const name = path.split(/[\\/]/).pop() || path;
+                transport.postMessage('InsertFileLink', { path, name });
+                return;
+            }
             remote.readTextFile({ path }).then((text: string) => {
                 const basePath = path.substring(0, path.lastIndexOf('/'));
                 transport.postMessage('LoadFile', { text, basePath, filePath: path });

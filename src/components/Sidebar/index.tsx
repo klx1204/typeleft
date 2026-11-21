@@ -55,6 +55,10 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
   const [folderPath, setFolderPath] = useState('');
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [toc, setToc] = useState<TocEntry[]>([]);
+  const [tocQuery, setTocQuery] = useState('');
+  const [recentFolders, setRecentFolders] = useState<string[]>([]);
+  const [pinnedFolders, setPinnedFolders] = useState<string[]>([]);
+  const [defaultExt, setDefaultExt] = useState('md');
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -64,6 +68,11 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
   useEffect(() => {
     remote.getSettings().then(async (s: any) => {
       if (typeof s?.sidePaneWidth === 'number') setWidth(s.sidePaneWidth);
+      if (Array.isArray(s?.pinnedFolders)) setPinnedFolders(s.pinnedFolders.filter((x: unknown) => typeof x === 'string'));
+      if (typeof s?.defaultFileExtension === 'string' && s.defaultFileExtension.trim()) {
+        setDefaultExt(s.defaultFileExtension.trim().replace(/^\./, ''));
+      }
+      remote.listRecentFolders().then((list: string[]) => setRecentFolders(Array.isArray(list) ? list : [])).catch(() => {});
       if (s?.folderStartupAction === 'openLast' && Array.isArray(s?.recentFolders) && s.recentFolders[0]) {
         const dir = s.recentFolders[0];
         try {
@@ -89,6 +98,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
       setExpandedDirs(new Set());
       allFilesRef.current.clear();
       loadDir(path);
+      remote.listRecentFolders().then((list: string[]) => setRecentFolders(Array.isArray(list) ? list : [])).catch(() => {});
     });
     return () => unsub();
   }, []);
@@ -121,6 +131,31 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     } catch {
       return [];
     }
+  };
+
+  const openFolderByPath = async (dir: string) => {
+    try {
+      setFolderPath(dir);
+      setExpandedDirs(new Set());
+      allFilesRef.current.clear();
+      await loadDir(dir);
+      await remote.saveRecentFolder({ path: dir }).catch(() => {});
+      remote.listRecentFolders().then((list: string[]) => setRecentFolders(Array.isArray(list) ? list : [])).catch(() => {});
+    } catch {
+      setError(t('Operation failed'));
+    }
+  };
+
+  const togglePin = async () => {
+    if (!folderPath) return;
+    const next = pinnedFolders.includes(folderPath)
+      ? pinnedFolders.filter(p => p !== folderPath)
+      : [folderPath, ...pinnedFolders].slice(0, 12);
+    setPinnedFolders(next);
+    try {
+      const settings: any = await remote.getSettings();
+      await remote.saveSettings({ ...settings, pinnedFolders: next });
+    } catch { /* ignore */ }
   };
 
   const refreshAll = async () => {
@@ -283,6 +318,11 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     whiteSpace: 'nowrap',
   };
 
+  const normalizedQuery = tocQuery.trim().toLowerCase();
+  const filteredToc = normalizedQuery
+    ? toc.filter(item => item.text.toLowerCase().includes(normalizedQuery))
+    : toc;
+
   if (!open) return null;
 
   return (
@@ -302,6 +342,13 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
           {section === 'filetree' ? (folderPath ? folderPath.split('/').pop() : t('Files')) : t('Outline')}
         </span>
         <span style={{ display: 'flex', gap: 6 }}>
+          {section === 'filetree' && folderPath && (
+            <button
+              onClick={() => togglePin()}
+              title={pinnedFolders.includes(folderPath) ? t('Unpin Folder') : t('Pin Folder')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: pinnedFolders.includes(folderPath) ? 'var(--themeColor)' : 'var(--editorColor60)', fontSize: 13, padding: 0 }}
+            >{pinnedFolders.includes(folderPath) ? '★' : '☆'}</button>
+          )}
           {section === 'filetree' && folderPath && (
             <button
               onClick={() => refreshAll()}
@@ -334,16 +381,54 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
               {folderPath}
             </div>
           )}
+          {!folderPath && pinnedFolders.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--editorColor40)', padding: '2px 4px', textTransform: 'uppercase' }}>{t('Pinned Folders')}</div>
+              {pinnedFolders.map(dir => (
+                <div
+                  key={dir}
+                  onClick={() => openFolderByPath(dir)}
+                  title={dir}
+                  style={{ cursor: 'pointer', padding: '2px 4px', fontSize: 13, color: 'var(--editorColor60)', display: 'flex', gap: 4 }}
+                >
+                  <span>★</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName(dir)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!folderPath && recentFolders.length > 0 && (
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--editorColor40)', padding: '2px 4px', textTransform: 'uppercase' }}>{t('Recent Folders')}</div>
+              {recentFolders.slice(0, 8).map(dir => (
+                <div
+                  key={dir}
+                  onClick={() => openFolderByPath(dir)}
+                  title={dir}
+                  style={{ cursor: 'pointer', padding: '2px 4px', fontSize: 13, color: 'var(--editorColor60)', display: 'flex', gap: 4 }}
+                >
+                  <span>🗀</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName(dir)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {renderEntries(files)}
         </div>
       ) : (
         <div style={{ padding: 8 }}>
-          {toc.length === 0 && (
+          <input
+            value={tocQuery}
+            onChange={e => setTocQuery(e.target.value)}
+            placeholder={t('Filter outline...')}
+            style={{ ...inputStyle, marginBottom: 6 }}
+          />
+          {filteredToc.length === 0 && (
             <div style={{ fontSize: 13, color: 'var(--editorColor40)', padding: 8, textAlign: 'center' }}>
-              {t('No headings')}
+              {toc.length === 0 ? t('No headings') : t('No result')}
             </div>
           )}
-          {toc.map((item, i) => (
+          {filteredToc.map((item, i) => (
             <div
               key={item.slug || i}
               onClick={() => {
@@ -386,7 +471,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
             </>
           ) : (
             <>
-              <div style={contextMenuItemStyle} onClick={() => { setDialog({ type: 'newFile', dir: contextMenu.dirPath, value: 'untitled.md' }); setError(''); setContextMenu(null); }}>{t('New File')}</div>
+              <div style={contextMenuItemStyle} onClick={() => { setDialog({ type: 'newFile', dir: contextMenu.dirPath, value: `untitled.${defaultExt}` }); setError(''); setContextMenu(null); }}>{t('New File')}</div>
               <div style={contextMenuItemStyle} onClick={() => { setDialog({ type: 'newFolder', dir: contextMenu.dirPath, value: 'new-folder' }); setError(''); setContextMenu(null); }}>{t('New Folder')}</div>
               <div style={contextMenuItemStyle} onClick={() => { setContextMenu(null); refreshAll(); }}>{t('Refresh')}</div>
             </>

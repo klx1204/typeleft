@@ -794,5 +794,25 @@
   "Divider": {
     "en": "Divider",
     "zh": "分割线"
+  },
+  "Filter outline...": {
+    "en": "Filter outline...",
+    "zh": "过滤大纲..."
+  },
+  "Pinned Folders": {
+    "en": "Pinned Folders",
+    "zh": "固定文件夹"
+  },
+  "Recent Folders": {
+    "en": "Recent Folders",
+    "zh": "最近文件夹"
+  },
+  "Pin Folder": {
+    "en": "Pin Folder",
+    "zh": "固定当前文件夹"
+  },
+  "Unpin Folder": {
+    "en": "Unpin Folder",
+    "zh": "取消固定"
   }
 }

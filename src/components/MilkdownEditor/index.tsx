@@ -28,7 +28,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { prism } from '@milkdown/plugin-prism';
 import { $prose, $remark } from '@milkdown/kit/utils';
 import { getMarkdown, replaceAll, callCommand } from '@milkdown/kit/utils';
-import { Plugin, PluginKey, NodeSelection, Selection } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, NodeSelection, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import {
   addRowAfter,
@@ -734,6 +734,21 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       insertImageFromFile();
     }
   }), [run, insertImageFromFile]);
+
+  useEffect(() => transport.addListener<{ path: string; name: string }>('InsertFileLink', ({ path, name }) => {
+    withView((view) => {
+      const { state } = view;
+      const link = state.schema.marks.link;
+      if (!link) return;
+      const label = name || path;
+      const href = /^[a-z]+:/i.test(path) ? path : `file://${encodeURI(path)}`;
+      const from = state.selection.from;
+      const tr = state.tr.insertText(label, from).addMark(from, from + label.length, link.create({ href }));
+      tr.setSelection(TextSelection.create(tr.doc, from + label.length));
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+    });
+  }), [withView]);
 
   useEffect(() => transport.addListener('CopyCodeBlock', () => {
     withView(view => { copyCodeBlock(view); });

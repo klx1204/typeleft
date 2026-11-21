@@ -464,14 +464,22 @@ fn unhandled_exception(message: String) {
         });
 }
 
+fn recent_files_limit(settings: &HashMap<String, serde_json::Value>) -> usize {
+    settings.get("recentFilesLimit")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(10)
+        .clamp(1, 30) as usize
+}
+
 fn add_recent_file(app: &tauri::AppHandle, path: &str) {
     let mut settings = load_settings_raw(app);
+    let limit = recent_files_limit(&settings);
     let mut recent: Vec<String> = settings.get("recentFiles")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
         .unwrap_or_default();
     recent.retain(|p| p != path);
     recent.insert(0, path.to_string());
-    if recent.len() > 10 { recent.truncate(10); }
+    if recent.len() > limit { recent.truncate(limit); }
     settings.insert("recentFiles".into(), serde_json::to_value(&recent).unwrap_or_default());
     let _ = save_settings_raw(app, settings);
     let _ = app.emit("RecentFilesUpdated", serde_json::json!({"files": recent}));
@@ -1168,11 +1176,12 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 
     let recent_menu = Submenu::with_items(app, tr("Recent Files"), true, &[])?;
     let recent_files: Vec<String> = load_list(app, "recentFiles");
+    let recent_limit = recent_files_limit(&load_settings_raw(app));
     if recent_files.is_empty() {
         let empty = MenuItem::with_id(app, "recent_empty", tr("(empty)"), false, None::<&str>)?;
         recent_menu.append(&empty)?;
     } else {
-        for (i, path) in recent_files.iter().take(10).enumerate() {
+        for (i, path) in recent_files.iter().take(recent_limit).enumerate() {
             let label = std::path::Path::new(path)
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())

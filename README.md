@@ -23,6 +23,7 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 - **Recent files** menu
 - **Export** configurations (HTML, CSS / front matter toggles) and **direct printing**
 - **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
+- **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background
 - **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes
 - **Bilingual UI**: English and 简体中文, switchable at runtime
 - Native menus, keyboard shortcuts, auto-save and backups

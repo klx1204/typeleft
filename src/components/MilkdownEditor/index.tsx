@@ -59,6 +59,7 @@ import { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWi
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
+import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
 import {
   searchPlugin,
@@ -461,6 +462,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     const write = document.getElementById('write');
     if (write) write.classList.toggle('focus-mode', !!props.options?.focusMode);
     (window as any).typeleftEditorOptions = props.options;
+    applyLayoutCss(props.options);
     const view = getView();
     if (view) {
       view.dom.setAttribute('spellcheck', String(!!props.options?.spellcheckEnabled));

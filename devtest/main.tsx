@@ -63,7 +63,19 @@ $$
 [^1]: 脚注内容。
 `;
 
+const layoutMode = location.search.includes('layout');
+
 const options: any = {
+  ...(layoutMode ? {
+    textDirection: 'rtl',
+    headingNumbering: true,
+    justifyText: true,
+    listMarker: 'square',
+    orderedMarker: 'lower-roman',
+    bodyFont: 'Georgia, serif',
+    codeFont: '"Courier New", monospace',
+    editorBackground: '#123456',
+  } : {}),
   fontSize: 16,
   lineHeight: 1.6,
   editorAreaWidth: '860px',
@@ -172,6 +184,25 @@ const finish = (extraCheck?: () => void) => {
   check('milkdown themed heading color', !!h1 && getComputedStyle(h1).color !== 'rgb(0, 0, 0)');
 
   (window as any).__THEME_CSS__ = themeCss;
+
+  if (layoutMode) {
+    const write = ml.querySelector('#write') as HTMLElement | null;
+    const writeStyle = write ? getComputedStyle(write) : null;
+    check('layout rtl', writeStyle?.direction === 'rtl', writeStyle?.direction || 'n/a');
+    check('layout body font', (writeStyle?.fontFamily || '').toLowerCase().includes('georgia'), writeStyle?.fontFamily || '');
+    check('layout background', writeStyle?.backgroundColor === 'rgb(18, 52, 86)', writeStyle?.backgroundColor || '');
+    const p = ml.querySelector('#write .ProseMirror p') as HTMLElement | null;
+    check('layout justify', !!p && getComputedStyle(p).textAlign === 'justify', p ? getComputedStyle(p).textAlign : 'n/a');
+    const ul = ml.querySelector('#write .ProseMirror ul') as HTMLElement | null;
+    check('layout bullet marker', !!ul && getComputedStyle(ul).listStyleType === 'square', ul ? getComputedStyle(ul).listStyleType : 'n/a');
+    const ol = ml.querySelector('#write .ProseMirror ol') as HTMLElement | null;
+    check('layout ordered marker', !!ol && getComputedStyle(ol).listStyleType === 'lower-roman', ol ? getComputedStyle(ol).listStyleType : 'n/a');
+    const h1 = ml.querySelector('#write .ProseMirror h1') as HTMLElement | null;
+    const before = h1 ? getComputedStyle(h1, '::before').content : '';
+    check('layout heading numbering', (before || '').includes('counter(h1)'), before);
+    const code = ml.querySelector('#write .ProseMirror code') as HTMLElement | null;
+    check('layout code font', !!code && getComputedStyle(code).fontFamily.toLowerCase().includes('courier'), code ? getComputedStyle(code).fontFamily : 'n/a');
+  }
 
 if (location.search.includes('theme')) {
     const write = ml.querySelector('#write') as HTMLElement | null;

@@ -41,25 +41,40 @@ if [ ! -x "$CHROME" ]; then
   exit 1
 fi
 
-PROFILE="$(mktemp -d)"
-OUT="$(mktemp)"
-"$CHROME" --headless=new --disable-gpu --no-sandbox \
-  --user-data-dir="$PROFILE" --window-size=1400,2000 \
-  --virtual-time-budget=15000 --run-all-compositor-stages-before-draw \
-  --dump-dom "$URL" > "$OUT" 2>/dev/null
-STATUS=$?
+FAILED=0
 
-grep -o 'PASS [^<]*\|FAIL [^<]*' "$OUT" | sed 's/&gt;/>/g'
-echo
-if [ $STATUS -ne 0 ]; then
-  echo "web smoke: chrome exited with $STATUS"
-  rm -rf "$PROFILE" "$OUT"
-  exit 1
-fi
-if grep -q 'FAIL ' "$OUT"; then
+run_mode() {
+  local label="$1"
+  local query="$2"
+  local budget="$3"
+  local profile out status
+  profile="$(mktemp -d)"
+  out="$(mktemp)"
+  "$CHROME" --headless=new --disable-gpu --no-sandbox \
+    --user-data-dir="$profile" --window-size=1400,2000 \
+    --virtual-time-budget="$budget" --run-all-compositor-stages-before-draw \
+    --dump-dom "$URL?$query" > "$out" 2>/dev/null
+  status=$?
+  echo "--- $label ---"
+  grep -o 'PASS [^<]*\|FAIL [^<]*' "$out" | sed 's/&gt;/>/g'
+  echo
+  if [ $status -ne 0 ]; then
+    echo "web smoke: $label — chrome exited with $status"
+    FAILED=1
+  elif grep -q 'FAIL ' "$out"; then
+    echo "web smoke: $label — FAILED"
+    FAILED=1
+  fi
+  rm -rf "$profile" "$out"
+}
+
+run_mode "default" "" 15000
+run_mode "theme" "static=1&theme=1" 12000
+run_mode "layout" "static=1&layout=1" 12000
+run_mode "pickers" "pickers=1" 30000
+
+if [ $FAILED -ne 0 ]; then
   echo "web smoke: FAILED"
-  rm -rf "$PROFILE" "$OUT"
   exit 1
 fi
 echo "web smoke: PASSED"
-rm -rf "$PROFILE" "$OUT"

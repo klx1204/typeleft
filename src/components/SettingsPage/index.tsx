@@ -73,6 +73,7 @@ interface FieldDef {
 
 const zhSections: Record<string, string> = {
     editor: '编辑器',
+    typography: '排版',
     search: '搜索',
     markdown: 'Markdown',
     autoPair: '自动配对',
@@ -127,6 +128,14 @@ const zhLabels: Record<string, string> = {
     sidePaneWidth: '侧边栏宽度',
     fileStartupAction: '启动时（文件）',
     folderStartupAction: '启动时（文件夹）',
+    textDirection: '文字方向',
+    headingNumbering: '标题自动编号',
+    justifyText: '正文两端对齐',
+    listMarker: '无序列表符号',
+    orderedMarker: '有序列表编号',
+    bodyFont: '正文字体',
+    codeFont: '代码字体',
+    editorBackground: '编辑区背景色',
 };
 
 const sections: { title: string; key: string; fields: FieldDef[] }[] = [
@@ -142,6 +151,20 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'focusMode', label: 'Focus Mode', type: 'checkbox' },
       { key: 'hideQuickInsertHint', label: 'Hide Quick Insert Hint', type: 'checkbox' },
       { key: 'hideLinkPopup', label: 'Hide Link Popup', type: 'checkbox' },
+    ],
+  },
+  {
+    title: 'Typography',
+    key: 'typography',
+    fields: [
+      { key: 'textDirection', label: 'Text Direction', type: 'select', options: ['ltr', 'rtl'] },
+      { key: 'headingNumbering', label: 'Heading Auto Numbering', type: 'checkbox' },
+      { key: 'justifyText', label: 'Justify Text', type: 'checkbox' },
+      { key: 'listMarker', label: 'Bullet Marker', type: 'select', options: ['default', 'disc', 'circle', 'square'] },
+      { key: 'orderedMarker', label: 'Ordered Marker', type: 'select', options: ['decimal', 'lower-alpha', 'lower-roman', 'upper-alpha', 'upper-roman'] },
+      { key: 'bodyFont', label: 'Body Font', type: 'text', placeholder: 'e.g. "LXGW WenKai", serif' },
+      { key: 'codeFont', label: 'Code Font', type: 'text', placeholder: 'e.g. "JetBrains Mono", monospace' },
+      { key: 'editorBackground', label: 'Editor Background', type: 'text', placeholder: '#fdf6e3 or rgb(250, 246, 227)' },
     ],
   },
   {

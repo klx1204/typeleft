@@ -535,6 +535,33 @@
   min-width: 0;
 }
 
+/* Spell checking (#21 / #174) */
+#write.milkdown-write .tl-spell-error {
+  text-decoration: underline wavy #e05555;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+
+/* Page break (#62) */
+#write.milkdown-write .page-break {
+  border-top: 1px dashed var(--tl-border);
+  margin: 22px 0;
+  height: 0;
+  position: relative;
+}
+
+#write.milkdown-write .page-break::after {
+  content: 'Page break';
+  position: absolute;
+  right: 0;
+  top: -9px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--editorColor40);
+  background: var(--tl-surface);
+}
+
 /* Settings → Editor: code block display (#33 / #34) */
 body.code-block-no-line-numbers #write.milkdown-write .md-fences-gutter {
   display: none;

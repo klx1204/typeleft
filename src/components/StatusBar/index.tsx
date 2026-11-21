@@ -8,6 +8,7 @@ interface IStateChange {
     wordCount?: { character?: number; word?: number; characters?: number; words?: number };
     toc?: string;
     cur?: number;
+    frontmatter?: Record<string, any>;
   };
 }
 
@@ -18,6 +19,7 @@ const StatusBar: React.FC = () => {
   const [saveState, setSaveState] = useState('');
   const [visible, setVisible] = useState(true);
   const [wordCountMethod, setWordCountMethod] = useState(0);
+  const [meta, setMeta] = useState<Record<string, any> | null>(null);
 
   useEffect(() => {
     const unsub = transport.addListener<IStateChange>('StateChange', (payload) => {
@@ -26,6 +28,7 @@ const StatusBar: React.FC = () => {
         setWords(wc.word ?? wc.words ?? 0);
         setChars(wc.character ?? wc.characters ?? 0);
       }
+      if (payload.state?.frontmatter) setMeta(payload.state.frontmatter);
     });
     return () => unsub();
   }, []);
@@ -77,6 +80,18 @@ const StatusBar: React.FC = () => {
           : `${words} ${t('words')} / ${chars} ${t('chars')}`}
       </div>
       {saveLabel && <div>{saveLabel}</div>}
+      {meta && (meta.title || meta.tags || meta.author) && (
+        <div
+          title={JSON.stringify(meta, null, 2)}
+          style={{ marginLeft: 'auto', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        >
+          {meta.title ? String(meta.title) : ''}
+          {meta.title && (meta.author || meta.tags) ? ' · ' : ''}
+          {meta.author ? String(meta.author) : ''}
+          {meta.author && meta.tags ? ' · ' : ''}
+          {meta.tags && Array.isArray(meta.tags) ? meta.tags.join(', ') : (meta.tags ? String(meta.tags) : '')}
+        </div>
+      )}
     </div>
   );
 };

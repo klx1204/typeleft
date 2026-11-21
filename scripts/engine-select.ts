@@ -5,6 +5,14 @@
 import { LARGE_DOC_LIMIT, resolveView } from '../src/components/Editor/engine';
 import { parseDocumentExport } from '../src/services/docExport';
 import { buildSearchUrl } from '../src/services/searchWeb';
+import { applyListIndentation } from '../src/services/markdown/listFormat';
+import { parseFrontmatter } from '../src/services/frontmatter';
+import { extractWords } from '../src/components/MilkdownEditor/spellcheck';
+
+const nestedList = `- a
+  - b
+    - c
+- d`;
 
 const withExport = parseDocumentExport(`---
 title: Release\nexport:
@@ -50,6 +58,35 @@ const cases: [string, boolean][] = [
   ['search URL replaces %s', buildSearchUrl('a b', 'https://example.com?q=%s') === 'https://example.com?q=a%20b'],
   ['search URL appends without %s', buildSearchUrl('a b', 'https://example.com?q=') === 'https://example.com?q=a%20b'],
   ['search URL falls back to the default', buildSearchUrl('x', '') === 'https://www.google.com/search?q=x'],
+  ['list indentation 1 keeps the output', applyListIndentation(nestedList, 1) === nestedList],
+  ['list indentation 3 adds two spaces per level', applyListIndentation(nestedList, 3) === `- a
+    - b
+        - c
+- d`],
+  ['list indentation leaves fenced code alone', applyListIndentation('- a\n  ```\n  - not a list\n  ```', 3) === '- a\n  ```\n  - not a list\n  ```'],
+  ['dfm indentation targets four columns', applyListIndentation(nestedList, 'dfm') === `- a
+    - b
+        - c
+- d`],
+  ['YAML front matter is read', (() => {
+    const info = parseFrontmatter('---\ntitle: "Notes"\ntags: [a, b]\ndraft: true\n---\n# Body');
+    return info.format === 'yaml' && info.data.title === 'Notes' && info.data.draft === true
+      && Array.isArray(info.data.tags) && info.data.tags.length === 2;
+  })()],
+  ['YAML lists are collected', (() => {
+    const info = parseFrontmatter('---\naliases:\n  - one\n  - two\n---\n');
+    return Array.isArray(info.data.aliases) && info.data.aliases.join(',') === 'one,two';
+  })()],
+  ['TOML front matter is read', (() => {
+    const info = parseFrontmatter('+++\ntitle = "Toml"\ncount = 3\n+++\n');
+    return info.format === 'toml' && info.data.title === 'Toml' && info.data.count === 3;
+  })()],
+  ['documents without front matter are empty', parseFrontmatter('# Body').format === 'none'],
+  ['spellcheck extracts unique words', (() => {
+    const words = extractWords('teh quikc teh Typeleft — done');
+    return words.includes('teh') && words.includes('quikc') && words.includes('Typeleft')
+      && words.filter(w => w === 'teh').length === 1;
+  })()],
 ];
 
 let failed = 0;

@@ -77,6 +77,7 @@ const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('..
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
 const { createImageView, imageLayoutSchema, imageHtmlRemark } = await import('../src/components/MilkdownEditor/nodes/image');
 const { marksRemark, highlightMark, superscriptMark, subscriptMark } = await import('../src/components/MilkdownEditor/nodes/marks');
+const { pageBreakRemark, pageBreakNode } = await import('../src/components/MilkdownEditor/nodes/pagebreak');
 const { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } = await import('../src/components/MilkdownEditor/nodes/table');
 const { searchPlugin, setSearchQuery, findNextMatch, replaceAllMatches } = await import('../src/components/MilkdownEditor/search');
 
@@ -123,6 +124,8 @@ for (const file of files) {
     .use(highlightMark)
     .use(superscriptMark)
     .use(subscriptMark)
+    .use(pageBreakRemark)
+    .use(pageBreakNode)
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
@@ -139,6 +142,8 @@ for (const file of files) {
     .use(highlightMark)
     .use(superscriptMark)
     .use(subscriptMark)
+    .use(pageBreakRemark)
+    .use(pageBreakNode)
     .use(searchPlugin)
     .create();
 
@@ -190,6 +195,8 @@ for (const file of files) {
     .use(highlightMark)
     .use(superscriptMark)
     .use(subscriptMark)
+    .use(pageBreakRemark)
+    .use(pageBreakNode)
     .use(searchPlugin)
     .create();
   const secondOutput = second.action(getMarkdown());

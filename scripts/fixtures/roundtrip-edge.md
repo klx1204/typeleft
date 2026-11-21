@@ -106,3 +106,11 @@ Text with a footnote[^note] and another[^long].
 ## Escapes and entities
 
 \*not italic\* &amp; &lt;tag&gt; 5 < 6 & 7 > 6
+
+## Page break
+
+Before.
+
+<div style="page-break-after: always;"></div>
+
+After.

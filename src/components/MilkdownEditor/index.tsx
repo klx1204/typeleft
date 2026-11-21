@@ -50,6 +50,8 @@ import transport from 'services/transport';
 import remote from 'services/remote/common';
 import { processImage } from 'services/imageAction';
 import { LARGE_DOC_LIMIT } from 'components/Editor/engine';
+import { applyListIndentation } from 'services/markdown/listFormat';
+import { parseFrontmatter } from 'services/frontmatter';
 import { createApplicationMenuState } from 'services/menuState';
 import { useI18n, t as translate } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
@@ -64,6 +66,8 @@ import { smartPunctuationPlugin, setSmartPunctuationOptions } from './smartPunct
 import { deleteRangePlugin } from './deleteRange';
 import { autoLinkPlugin, autoLinkRemark, setAutoLinkEnabled } from './autoLink';
 import { softBreakRemark, setSoftBreakEnabled } from './softBreak';
+import { pageBreakRemark, pageBreakNode, pageBreakView } from './nodes/pagebreak';
+import { spellcheckPlugin, runSpellcheck, setCustomDictionary } from './spellcheck';
 import { codeBlockDefaultsPlugin, codeBlockKeysPlugin, applyCodeBlockOptions, copyCodeBlock } from './codeblockExtras';
 import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
@@ -158,6 +162,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   const [emojiPicker, setEmojiPicker] = useState<{ top: number; left: number } | null>(null);
   const [tablePicker, setTablePicker] = useState<{ top: number; left: number } | null>(null);
   const [linkPopover, setLinkPopover] = useState<{ top: number; left: number; href: string; text: string } | null>(null);
+  const [footnotePreview, setFootnotePreview] = useState<{ top: number; left: number; html: string } | null>(null);
 
   const getView = useCallback((): EditorView | null => {
     try {
@@ -192,9 +197,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
             if (el.getBoundingClientRect().top <= caretTop + 4) cur = index;
           });
         }
-        transport.postMessage('StateChange', { state: { wordCount, toc, cur }, milkdown: true });
+        const frontmatter = parseFrontmatter(markdown).data;
+        transport.postMessage('StateChange', { state: { wordCount, toc, cur, frontmatter }, milkdown: true });
       } catch {
-        transport.postMessage('StateChange', { state: { wordCount, toc: [], cur: 0 }, milkdown: true });
+        transport.postMessage('StateChange', { state: { wordCount, toc: [], cur: 0, frontmatter: {} }, milkdown: true });
       }
     });
   }, [getView]);
@@ -325,14 +331,16 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         ctx.update(remarkStringifyOptionsCtx, (prev: any) => ({
           ...prev,
           bullet: propsRef.current.options?.bulletListMarker || '-',
+          bulletOrdered: propsRef.current.options?.orderListDelimiter || '.',
           rule: '-',
           fence: '`',
           listItemIndent: 'one',
         }));
         ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-          markdownRef.current = markdown;
-          propsRef.current.onMarkdownChange(markdown);
-          emitState(markdown);
+          const formatted = applyListIndentation(markdown, propsRef.current.options?.listIndentation);
+          markdownRef.current = formatted;
+          propsRef.current.onMarkdownChange(formatted);
+          emitState(formatted);
         });
       })
       .use(commonmark)
@@ -374,6 +382,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(autoLinkRemark)
       .use(autoLinkPlugin)
       .use(softBreakRemark)
+      .use(pageBreakRemark)
+      .use(pageBreakNode)
+      .use(pageBreakView)
+      .use(spellcheckPlugin)
       .use(codeBlockDefaultsPlugin)
       .use(codeBlockKeysPlugin)
       .use(placeholderPlugin)
@@ -489,12 +501,52 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setAutoLinkEnabled(props.options?.autoLink);
     setSoftBreakEnabled(props.options?.preserveSoftLineBreaks);
     setSuperSubEnabled(props.options?.superSubScript !== false);
+    setCustomDictionary(props.options?.customDictionary);
     const view = getView();
     if (view) {
-      view.dom.setAttribute('spellcheck', String(!!props.options?.spellcheckEnabled));
+      // The bundled dictionary drives the decorations; native underlines would
+      // duplicate them and cannot use the custom word list.
+      view.dom.setAttribute('spellcheck', 'false');
       view.dom.setAttribute('lang', props.options?.spellcheckLang || '');
     }
   }, [props.options, getView]);
+
+  // ------------------------------------------------------------- spellcheck
+  useEffect(() => {
+    let cancelled = false;
+    let timer: number | undefined;
+    let attempts = 0;
+
+    const start = () => {
+      if (cancelled) return;
+      const view = getView();
+      if (!view) {
+        if (attempts < 40) {
+          attempts += 1;
+          timer = window.setTimeout(start, 250);
+        }
+        return;
+      }
+      if (!props.options?.spellcheckEnabled) {
+        import('./spellcheck').then(({ spellcheckKey }) => {
+          if (!cancelled && view.dom.isConnected) view.dispatch(view.state.tr.setMeta(spellcheckKey, null));
+        }).catch(() => {});
+        return;
+      }
+      timer = window.setTimeout(() => { void runSpellcheck(view); }, 600);
+    };
+
+    start();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [
+    props.markdown,
+    props.options?.spellcheckEnabled,
+    props.options?.customDictionary,
+    getView,
+  ]);
 
   // -------------------------------------------------------------- scroll sync
   useEffect(() => {
@@ -646,6 +698,26 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setLinkPopover(null);
   }, [withView]);
 
+  const insertPageBreak = useCallback(() => {
+    withView((view) => {
+      const { state } = view;
+      const type = state.schema.nodes.page_break;
+      const paragraph = state.schema.nodes.paragraph;
+      if (!type || !paragraph) return;
+      const { $from } = state.selection;
+      const pos = $from.depth > 0 ? $from.after($from.depth) : state.selection.to;
+      const node = type.create();
+      let tr = state.tr.insert(pos, node);
+      const afterBreak = pos + node.nodeSize;
+      if (!tr.doc.nodeAt(afterBreak)) {
+        tr = tr.insert(afterBreak, paragraph.create());
+      }
+      tr = tr.setSelection(TextSelection.near(tr.doc.resolve(afterBreak + 1)));
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+    });
+  }, [withView]);
+
   const insertBlockMath = useCallback(() => {
     withView((view, editor) => {
       const type = editor.action((ctx) => ctx.get(schemaCtx).nodes['block_math']);
@@ -743,7 +815,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
 
   useEffect(() => transport.addListener<string>('InsertParagraph', (pos) => {
     if (pos === 'hr') run(insertHrCommand);
-  }), [run]);
+    if (pos === 'pagebreak') insertPageBreak();
+  }), [run, insertPageBreak]);
 
   useEffect(() => transport.addListener('InsertImage', (arg: any) => {
     if (arg && typeof arg === 'string') {
@@ -825,7 +898,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     };
     const markdown = () => {
       try {
-        return editorRef.current?.action(getMarkdown({ from, to })) || text;
+        const value = editorRef.current?.action(getMarkdown({ from, to })) || text;
+        return applyListIndentation(value, propsRef.current.options?.listIndentation);
       } catch {
         return text;
       }
@@ -1088,11 +1162,12 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         case 'footnote': insertFootnote(); break;
         case 'math': insertBlockMath(); break;
         case 'hr': run(insertHrCommand); break;
+        case 'pagebreak': insertPageBreak(); break;
         case 'image': insertImageFromFile(); break;
         default: break;
       }
     });
-  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile, openTablePicker, openEmojiPicker, insertFootnote]);
+  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile, openTablePicker, openEmojiPicker, insertFootnote, insertPageBreak]);
 
   // ------------------------------------------------------------------ render
   const searchBarStyle: React.CSSProperties = {
@@ -1216,7 +1291,64 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         />
       )}
 
-      <div id="write" className={`milkdown-write${props.options?.typewriter ? ' typewriter' : ''}`}>
+      {footnotePreview && (
+        <div
+          className="footnote-preview"
+          style={{
+            position: 'fixed', top: footnotePreview.top, left: footnotePreview.left, zIndex: 9500,
+            maxWidth: 420, padding: '6px 10px', fontSize: 13, lineHeight: 1.6,
+            backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor70)',
+            border: '1px solid var(--editorColor10)', borderRadius: 6,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.2)', pointerEvents: 'none',
+          }}
+          dangerouslySetInnerHTML={{ __html: footnotePreview.html }}
+        />
+      )}
+
+      <div
+        id="write"
+        className={`milkdown-write${props.options?.typewriter ? ' typewriter' : ''}`}
+        onClick={(e) => {
+          const anchor = (e.target as HTMLElement).closest('a');
+          if (!anchor) return;
+          const href = anchor.getAttribute('href') || '';
+          if (!href) return;
+          if (href.startsWith('#')) {
+            e.preventDefault();
+            const id = decodeURIComponent(href.slice(1));
+            const target = document.getElementById(id)
+              || (containerRef.current?.querySelector(`[id="${CSS.escape(id)}"]`) as HTMLElement | null);
+            target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+          // External links open only with Cmd/Ctrl so a plain click still edits.
+          if ((e.metaKey || e.ctrlKey) && /^(https?:|mailto:)/i.test(href)) {
+            e.preventDefault();
+            remote.openUrl({ url: href }).catch(() => {});
+          }
+        }}
+        onMouseOver={(e) => {
+          const ref = (e.target as HTMLElement).closest('sup[data-type="footnote_reference"]') as HTMLElement | null;
+          if (!ref) return;
+          const label = ref.getAttribute('data-label') || '';
+          const definition = document.querySelector(
+            `dl[data-type="footnote_definition"][data-label="${CSS.escape(label)}"] dd`
+          );
+          if (!definition) return;
+          const rect = ref.getBoundingClientRect();
+          setFootnotePreview({
+            top: rect.bottom + 6,
+            left: Math.max(8, Math.min(rect.left, window.innerWidth - 440)),
+            html: definition.innerHTML,
+          });
+        }}
+        onMouseOut={(e) => {
+          const ref = (e.target as HTMLElement).closest('sup[data-type="footnote_reference"]');
+          if (!ref) return;
+          const next = e.relatedTarget as HTMLElement | null;
+          if (!next || !next.closest?.('sup[data-type="footnote_reference"]')) setFootnotePreview(null);
+        }}
+      >
         <div ref={containerRef} className="milkdown-host" />
       </div>
     </div>

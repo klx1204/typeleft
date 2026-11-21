@@ -18,7 +18,7 @@ const KEYS = [
 
     'Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Heading 5', 'Heading 6',
     'Quote Block', 'Code Block', 'Ordered List', 'Bullet List', 'Task List', 'Table', 'Insert Table',
-    'Math Block', 'Horizontal Rule', 'Horizontal Line',
+    'Math Block', 'Horizontal Rule', 'Horizontal Line', 'Page Break',
 
     'Source Code', 'Toggle Source Code', 'Toggle Sidebar', 'Show Outline',
     'Compact Mode', 'Toggle Compact Mode', 'Always on Top', 'Toggle Always on Top',

@@ -26,6 +26,7 @@ import {
   SearchQuery,
 } from '@codemirror/search';
 import transport from 'services/transport';
+import { parseFrontmatter } from 'services/frontmatter';
 import remote from 'services/remote/common';
 import { useI18n } from 'services/i18n';
 import { getTOC } from 'services/common';
@@ -64,7 +65,10 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
     // A 1 MB document can contain thousands of headings; sending them all over
     // IPC and into the sidebar is slower than it is useful.
     const { toc } = getTOC(value);
-    transport.postMessage('StateChange', { state: { wordCount, toc: toc.slice(0, MAX_TOC), cur: toc[0] }, codeMirror: true });
+    transport.postMessage('StateChange', {
+      state: { wordCount, toc: toc.slice(0, MAX_TOC), cur: toc[0], frontmatter: parseFrontmatter(value).data },
+      codeMirror: true,
+    });
   }, []);
 
   const emitSelection = useCallback((view: EditorView) => {

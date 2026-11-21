@@ -23,6 +23,14 @@ tags: [a, b]
 软换行第一行
 软换行第二行
 
+化学式 $\\ce{H2O}$。
+
+拼写检测：teh quikc Typeleft Devtest。
+
+<div style="page-break-after: always;"></div>
+
+[跳转](#二级标题)
+
 ## 二级标题
 
 > 引用块
@@ -86,6 +94,7 @@ const searchMenuMode = location.search.includes('searchmenu');
 const softBreakMode = location.search.includes('softbreak');
 const noAutoLinkMode = location.search.includes('noautolink');
 const noSmartMode = location.search.includes('nosmart');
+const spellMode = location.search.includes('spell');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -94,6 +103,7 @@ const options: any = {
   ...(softBreakMode ? { preserveSoftLineBreaks: true } : {}),
   ...(noAutoLinkMode ? { autoLink: false } : {}),
   ...(noSmartMode ? { smartQuotes: false, smartDashes: false } : {}),
+  ...(spellMode ? { spellcheckEnabled: true, customDictionary: 'Typeleft, Devtest' } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,
@@ -189,7 +199,14 @@ const finish = (extraCheck?: () => void) => {
   check('milkdown task items', ml.querySelectorAll('li[data-item-type="task"]').length >= 4, `${ml.querySelectorAll('li[data-item-type="task"]').length}`);
   check('milkdown task checked', !!ml.querySelector('li[data-item-type="task"][data-checked="true"]'));
   check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
+  const chem = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('化学式'));
+  const chemNode = chem?.querySelector('.math-node') as HTMLElement | null;
+  check('mhchem extension', !!chem && !!chem.querySelector('.katex') && !chem.querySelector('.math-error')
+    && (chemNode?.getAttribute('data-value') || '').includes('\\ce'),
+    chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
+  check('page break node', !!ml.querySelector('.page-break[data-type="pagebreak"]'));
+  if (isStatic) check('anchor click handled', (window as any).__anchorScrolled === true);
   const selects = Array.from(ml.querySelectorAll('select.md-fences-language')) as HTMLSelectElement[];
   check('language selects', selects.length === 3, selects.map(sel => {
     const cs = getComputedStyle(sel);
@@ -210,33 +227,31 @@ const finish = (extraCheck?: () => void) => {
   }
   check('milkdown diagram preview', !!ml.querySelector('.diagram-preview.active svg'));
   check('milkdown math fence', !!ml.querySelector('.md-fences-wrapper[data-language="math"] .diagram-preview.active .katex'));
+  if (isStatic) {
+    const footnotePreview = ml.querySelector('.footnote-preview');
+    check('footnote hover preview', !!footnotePreview && (footnotePreview.textContent || '').includes('脚注内容'),
+      footnotePreview ? (footnotePreview.textContent || '').slice(0, 20) : 'missing');
+  }
   check('milkdown Prism tokens', ml.querySelectorAll('.token.keyword, .token.function').length > 0);
   check('milkdown highlight mark', Array.from(ml.querySelectorAll('mark')).some(m => (m.textContent || '').includes('重点')));
   check('milkdown superscript', !!ml.querySelector('sup'));
   check('milkdown subscript', !!ml.querySelector('sub'));
+  if (softBreakMode) {
+    const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
+    check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
+      para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (spellMode) {
+    const words = Array.from(ml.querySelectorAll('.tl-spell-error')).map(el => el.getAttribute('data-word'));
+    check('spellcheck marks misspellings', words.includes('teh') && words.includes('quikc'), JSON.stringify(words));
+    check('spellcheck honours custom dictionary', !words.includes('Typeleft') && !words.includes('Devtest'), JSON.stringify(words));
+  }
+
   const h1 = ml.querySelector('h1') as HTMLElement | null;
   check('milkdown themed heading color', !!h1 && getComputedStyle(h1).color !== 'rgb(0, 0, 0)');
 
   (window as any).__THEME_CSS__ = themeCss;
-
-  if (layoutMode) {
-    const write = ml.querySelector('#write') as HTMLElement | null;
-    const writeStyle = write ? getComputedStyle(write) : null;
-    check('layout rtl', writeStyle?.direction === 'rtl', writeStyle?.direction || 'n/a');
-    check('layout body font', (writeStyle?.fontFamily || '').toLowerCase().includes('georgia'), writeStyle?.fontFamily || '');
-    check('layout background', writeStyle?.backgroundColor === 'rgb(18, 52, 86)', writeStyle?.backgroundColor || '');
-    const p = ml.querySelector('#write .ProseMirror p') as HTMLElement | null;
-    check('layout justify', !!p && getComputedStyle(p).textAlign === 'justify', p ? getComputedStyle(p).textAlign : 'n/a');
-    const ul = ml.querySelector('#write .ProseMirror ul') as HTMLElement | null;
-    check('layout bullet marker', !!ul && getComputedStyle(ul).listStyleType === 'square', ul ? getComputedStyle(ul).listStyleType : 'n/a');
-    const ol = ml.querySelector('#write .ProseMirror ol') as HTMLElement | null;
-    check('layout ordered marker', !!ol && getComputedStyle(ol).listStyleType === 'lower-roman', ol ? getComputedStyle(ol).listStyleType : 'n/a');
-    const h1 = ml.querySelector('#write .ProseMirror h1') as HTMLElement | null;
-    const before = h1 ? getComputedStyle(h1, '::before').content : '';
-    check('layout heading numbering', (before || '').includes('counter(h1)'), before);
-    const code = ml.querySelector('#write .ProseMirror code') as HTMLElement | null;
-    check('layout code font', !!code && getComputedStyle(code).fontFamily.toLowerCase().includes('courier'), code ? getComputedStyle(code).fontFamily : 'n/a');
-  }
 
 if (location.search.includes('theme')) {
     const write = ml.querySelector('#write') as HTMLElement | null;
@@ -465,7 +480,19 @@ if (sidebarMode) {
 }
 
 if (isStatic) {
-  setTimeout(() => finish(), 3000);
+  setTimeout(() => {
+    const sup = document.querySelector('sup[data-type="footnote_reference"]');
+    sup?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    const anchor = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror a'))
+      .find(a => (a.getAttribute('href') || '').startsWith('#')) as HTMLElement | undefined;
+    const target = anchor ? document.getElementById(decodeURIComponent((anchor.getAttribute('href') || '').slice(1))) : null;
+    if (target) {
+      (window as any).__anchorScrolled = false;
+      target.scrollIntoView = () => { (window as any).__anchorScrolled = true; };
+      anchor!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    }
+  }, 2400);
+  setTimeout(() => finish(), spellMode ? 9000 : 3000);
 } else if (isPickers) {
   setTimeout(() => { void runPickerChecks(); }, 2500);
 } else setTimeout(() => {

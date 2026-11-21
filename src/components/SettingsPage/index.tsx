@@ -64,6 +64,7 @@ const defaultSettings = {
   preserveSoftLineBreaks: false,
   autoLink: true,
   defaultCopyFormat: 'rich',
+  customDictionary: '',
 };
 
 type Settings = Record<string, any>;
@@ -121,6 +122,7 @@ const zhLabels: Record<string, string> = {
     preserveSoftLineBreaks: '保留软换行',
     autoLink: '自动链接网址',
     defaultCopyFormat: '默认复制格式',
+    customDictionary: '自定义词典（逗号分隔）',
     superSubScript: '上标/下标',
     codeBlockLineNumbers: '代码块显示行号',
     codeBlockWrap: '代码块自动换行',
@@ -478,6 +480,24 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                   ? '所有设置都保存在上面的 JSON 文件里，界面上的开关只是它的可视化编辑器。键名与含义见仓库 docs/settings.md；修改后回到这里点“重新载入”即可生效（部分项需重启）。'
                   : 'Every setting lives in the JSON file above; the UI is just a visual editor for it. See docs/settings.md for the key reference. After editing, press Reload here (some entries need a restart).'}
               </div>
+
+              {/Mac/i.test(navigator.userAgent) && (
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    onClick={() => remote.openUrl({ url: 'x-apple.systempreferences:com.apple.Keyboard-Settings.extension' }).catch(() => {})}
+                    style={{
+                      padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                      border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                      backgroundColor: 'var(--editorColor04)',
+                    }}
+                  >{isZh ? '系统拼写与语法设置' : 'System Spelling & Grammar'}</button>
+                  <div style={{ fontSize: 11, color: 'var(--editorColor40)', marginTop: 6 }}>
+                    {isZh
+                      ? 'Typeleft 使用内置英文词典并对自定义词表生效；系统语法检查仍由 macOS 的键盘设置控制。'
+                      : 'Typeleft uses its bundled English dictionary and honours the custom word list; system grammar checking is still controlled by the macOS keyboard settings.'}
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--editorColor10)' }}>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: 'var(--editorColor60)' }}>

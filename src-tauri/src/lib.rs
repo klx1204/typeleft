@@ -1279,6 +1279,7 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Table" => "表格",
         "Math Block" => "数学块",
         "Horizontal Rule" => "分隔线",
+        "Page Break" => "分页",
         "View" => "视图",
         "Source Code" => "源码模式",
         "Toggle Sidebar" => "切换侧边栏",
@@ -1397,11 +1398,12 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let table = MenuItem::with_id(app, "table", tr("Table"), true, None::<&str>)?;
     let math = MenuItem::with_id(app, "math_block", tr("Math Block"), true, None::<&str>)?;
     let hr = MenuItem::with_id(app, "horizontal_rule", tr("Horizontal Rule"), true, None::<&str>)?;
+    let page_break = MenuItem::with_id(app, "insert_pagebreak", tr("Page Break"), true, None::<&str>)?;
 
     let paragraph_menu = Submenu::with_items(app, tr("Paragraph"), true, &[
         &h1, &h2, &h3, &h4, &h5, &h6, &sep4,
         &quote, &code_block, &ordered_list, &bullet_list, &task_list,
-        &table, &math, &hr,
+        &table, &math, &hr, &page_break,
     ])?;
 
     let view_source = MenuItem::with_id(app, "view_source", tr("Source Code"), true, None::<&str>)?;
@@ -1653,6 +1655,7 @@ pub fn run() {
                 "table" => { let _ = app.emit("UpdateParagraph", "table"); }
                 "math_block" => { let _ = app.emit("UpdateParagraph", "mathblock"); }
                 "horizontal_rule" => { let _ = app.emit("InsertParagraph", "hr"); }
+                "insert_pagebreak" => { let _ = app.emit("InsertParagraph", "pagebreak"); }
                 "view_source" => { let _ = app.emit("ToggleSourceCode", ()); }
                 "view_sidebar" => { let _ = app.emit("SidebarToggle", ()); }
                 "view_outline" => { let _ = app.emit("SidebarSection", serde_json::json!({"section": "toc"})); }

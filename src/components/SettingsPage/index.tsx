@@ -59,6 +59,11 @@ const defaultSettings = {
   dragDropAction: 'open',
   recentFilesLimit: 10,
   searchServiceUrl: 'https://www.google.com/search?q=%s',
+  smartQuotes: true,
+  smartDashes: true,
+  preserveSoftLineBreaks: false,
+  autoLink: true,
+  defaultCopyFormat: 'rich',
 };
 
 type Settings = Record<string, any>;
@@ -111,6 +116,11 @@ const zhLabels: Record<string, string> = {
     autoPairBracket: '自动配对括号',
     autoPairMarkdownSyntax: '自动配对 Markdown 语法',
     autoPairQuote: '自动配对引号',
+    smartQuotes: '智能引号',
+    smartDashes: '智能破折号/省略号',
+    preserveSoftLineBreaks: '保留软换行',
+    autoLink: '自动链接网址',
+    defaultCopyFormat: '默认复制格式',
     superSubScript: '上标/下标',
     codeBlockLineNumbers: '代码块显示行号',
     codeBlockWrap: '代码块自动换行',
@@ -200,6 +210,11 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'frontmatterType', label: 'Front Matter Type', type: 'select', options: ['-', '+'] },
       { key: 'preferLooseListItem', label: 'Prefer Loose List Items', type: 'checkbox' },
       { key: 'trimUnnecessaryCodeBlockEmptyLines', label: 'Trim Code Block Empty Lines', type: 'checkbox' },
+      { key: 'smartQuotes', label: 'Smart Quotes', type: 'checkbox' },
+      { key: 'smartDashes', label: 'Smart Dashes and Ellipsis', type: 'checkbox' },
+      { key: 'preserveSoftLineBreaks', label: 'Preserve Single Line Breaks', type: 'checkbox' },
+      { key: 'autoLink', label: 'Auto Link URLs', type: 'checkbox' },
+      { key: 'defaultCopyFormat', label: 'Default Copy Format', type: 'select', options: ['rich', 'markdown', 'text'] },
     ],
   },
   {
@@ -406,6 +421,8 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                       <option key={String(o)} value={String(o)}>
                         {field.key === 'lang'
                           ? (o === 'zh' ? '中文' : 'English')
+                          : field.key === 'defaultCopyFormat'
+                            ? (o === 'rich' ? (isZh ? 'HTML + 纯文本' : 'HTML + plain text') : o === 'markdown' ? 'Markdown' : (isZh ? '纯文本' : 'Plain text'))
                           : field.key === 'wordCountMethod'
                             ? (o === 1 ? (isZh ? '按字符' : 'Characters') : (isZh ? '按词' : 'Words'))
                             : String(o)}

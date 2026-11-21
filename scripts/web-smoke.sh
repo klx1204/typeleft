@@ -77,6 +77,7 @@ run_mode "folders" "static=1&folders=1" 12000
 run_mode "export" "static=1&exportdialog=1" 12000
 run_mode "settings" "static=1&settings=1" 12000
 run_mode "searchmenu" "static=1&searchmenu=1" 12000
+run_mode "softbreak" "static=1&softbreak=1" 12000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

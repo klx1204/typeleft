@@ -172,6 +172,20 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
     if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
   }), []);
 
+  useEffect(() => transport.addListener<string>('CopyAs', (format) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const range = view.state.selection.main;
+    const text = view.state.sliceDoc(range.from, range.to);
+    if (!text) return;
+    if (format === 'rich') {
+      const escaped = text.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c] as string));
+      remote.setClipboardRich({ text, html: escaped.replace(/\n/g, '<br>') }).catch(() => {});
+    } else {
+      remote.setClipboard({ type: 'text', data: text }).catch(() => {});
+    }
+  }), []);
+
   useEffect(() => transport.addListener('Cut', () => {
     const view = viewRef.current;
     if (!view) return;

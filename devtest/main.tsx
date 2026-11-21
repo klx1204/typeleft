@@ -20,6 +20,9 @@ tags: [a, b]
 
 高亮 ==重点==，上标 mc^2^，下标 H~2~O。
 
+软换行第一行
+软换行第二行
+
 ## 二级标题
 
 > 引用块
@@ -80,11 +83,17 @@ const foldersMode = location.search.includes('folders');
 const exportMode = location.search.includes('exportdialog');
 const settingsMode = location.search.includes('settings');
 const searchMenuMode = location.search.includes('searchmenu');
+const softBreakMode = location.search.includes('softbreak');
+const noAutoLinkMode = location.search.includes('noautolink');
+const noSmartMode = location.search.includes('nosmart');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
   ...(noMarksMode ? { superSubScript: false } : {}),
   ...(codeBlockMode ? { codeBlockLineNumbers: false, codeBlockWrap: true, codeBlockDefaultLanguage: 'javascript' } : {}),
+  ...(softBreakMode ? { preserveSoftLineBreaks: true } : {}),
+  ...(noAutoLinkMode ? { autoLink: false } : {}),
+  ...(noSmartMode ? { smartQuotes: false, smartDashes: false } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,

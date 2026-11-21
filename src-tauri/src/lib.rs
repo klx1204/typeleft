@@ -1291,6 +1291,8 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Full Screen" => "全屏",
         "Toggle Developer Tools" => "开发者工具",
         "Copy Code Block" => "复制代码块",
+        "Copy As" => "复制为",
+        "Plain Text" => "纯文本",
         "Window" => "窗口",
         "Compact Mode" => "紧凑模式",
         "Always on Top" => "窗口置顶",
@@ -1355,12 +1357,16 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let paste = MenuItem::with_id(app, "paste", tr("Paste"), true, Some("CmdOrCtrl+V"))?;
     let select_all = MenuItem::with_id(app, "select_all", tr("Select All"), true, Some("CmdOrCtrl+A"))?;
     let copy_code = MenuItem::with_id(app, "copy_code", tr("Copy Code Block"), true, None::<&str>)?;
+    let copy_as_markdown = MenuItem::with_id(app, "copy_as_markdown", "Markdown", true, None::<&str>)?;
+    let copy_as_html = MenuItem::with_id(app, "copy_as_html", "HTML", true, None::<&str>)?;
+    let copy_as_text = MenuItem::with_id(app, "copy_as_text", tr("Plain Text"), true, None::<&str>)?;
+    let copy_as = Submenu::with_items(app, tr("Copy As"), true, &[&copy_as_markdown, &copy_as_html, &copy_as_text])?;
     let sep3 = PredefinedMenuItem::separator(app)?;
     let find = MenuItem::with_id(app, "find", tr("Find..."), true, Some("CmdOrCtrl+F"))?;
     let replace = MenuItem::with_id(app, "replace", tr("Replace..."), true, Some("CmdOrCtrl+H"))?;
 
     let edit_menu = Submenu::with_items(app, tr("Edit"), true, &[
-        &undo, &redo, &sep2, &cut, &copy, &paste, &select_all, &copy_code, &sep3, &find, &replace,
+        &undo, &redo, &sep2, &cut, &copy, &copy_as, &paste, &select_all, &copy_code, &sep3, &find, &replace,
     ])?;
 
     let bold = MenuItem::with_id(app, "bold", tr("Bold"), true, Some("CmdOrCtrl+B"))?;
@@ -1661,6 +1667,9 @@ pub fn run() {
                     }
                 }
                 "copy_code" => { let _ = app.emit("CopyCodeBlock", ()); }
+                "copy_as_markdown" => { let _ = app.emit("CopyAs", "markdown"); }
+                "copy_as_html" => { let _ = app.emit("CopyAs", "rich"); }
+                "copy_as_text" => { let _ = app.emit("CopyAs", "text"); }
                 "devtools" => {
                     if let Some(window) = app.get_webview_window("main") {
                         if window.is_devtools_open() {

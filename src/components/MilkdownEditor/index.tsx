@@ -60,6 +60,10 @@ import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/ima
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
 import { autoPairPlugin, setAutoPairOptions } from './autoPair';
+import { smartPunctuationPlugin, setSmartPunctuationOptions } from './smartPunctuation';
+import { deleteRangePlugin } from './deleteRange';
+import { autoLinkPlugin, autoLinkRemark, setAutoLinkEnabled } from './autoLink';
+import { softBreakRemark, setSoftBreakEnabled } from './softBreak';
 import { codeBlockDefaultsPlugin, codeBlockKeysPlugin, applyCodeBlockOptions, copyCodeBlock } from './codeblockExtras';
 import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
@@ -307,6 +311,12 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     let cancelled = false;
     let editor: Editor | null = null;
 
+    // Parsing happens here, before the options-sync effect runs.
+    setAutoPairOptions(propsRef.current.options);
+    setSmartPunctuationOptions(propsRef.current.options);
+    setAutoLinkEnabled(propsRef.current.options?.autoLink);
+    setSoftBreakEnabled(propsRef.current.options?.preserveSoftLineBreaks);
+
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, el);
@@ -358,7 +368,12 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(createCodeBlockView)
       .use(searchPlugin)
       .use(slashPlugin)
+      .use(smartPunctuationPlugin)
       .use(autoPairPlugin)
+      .use(deleteRangePlugin)
+      .use(autoLinkRemark)
+      .use(autoLinkPlugin)
+      .use(softBreakRemark)
       .use(codeBlockDefaultsPlugin)
       .use(codeBlockKeysPlugin)
       .use(placeholderPlugin)
@@ -470,6 +485,9 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     applyLayoutCss(props.options);
     applyCodeBlockOptions(props.options);
     setAutoPairOptions(props.options);
+    setSmartPunctuationOptions(props.options);
+    setAutoLinkEnabled(props.options?.autoLink);
+    setSoftBreakEnabled(props.options?.preserveSoftLineBreaks);
     setSuperSubEnabled(props.options?.superSubScript !== false);
     const view = getView();
     if (view) {
@@ -788,11 +806,12 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     }
   }), [run, withView]);
 
-  const copySelection = useCallback((cut: boolean) => {
+  const copySelection = useCallback((cut: boolean, forcedFormat?: string) => {
     const view = getView();
     if (!view) return;
     const { from, to } = view.state.selection;
     const text = view.state.doc.textBetween(from, to, '\n');
+    const format = forcedFormat || propsRef.current.options?.defaultCopyFormat || 'rich';
     let html = '';
     const selection = window.getSelection();
     if (selection && selection.rangeCount && !selection.isCollapsed) {
@@ -804,7 +823,18 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       if (cut && from !== to) view.dispatch(view.state.tr.delete(from, to));
       view.focus();
     };
-    if (html) {
+    const markdown = () => {
+      try {
+        return editorRef.current?.action(getMarkdown({ from, to })) || text;
+      } catch {
+        return text;
+      }
+    };
+    if (format === 'markdown') {
+      remote.setClipboard({ type: 'text', data: markdown() }).then(finish).catch(finish);
+    } else if (format === 'text') {
+      remote.setClipboard({ type: 'text', data: text }).then(finish).catch(finish);
+    } else if (html) {
       remote.setClipboardRich({ text, html }).then(finish).catch(finish);
     } else if (text) {
       remote.setClipboard({ type: 'text', data: text }).then(finish).catch(finish);
@@ -816,6 +846,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   useEffect(() => transport.addListener('Copy', () => copySelection(false)), [copySelection]);
 
   useEffect(() => transport.addListener('Cut', () => copySelection(true)), [copySelection]);
+
+  useEffect(() => transport.addListener<string>('CopyAs', (format) => copySelection(false, format)), [copySelection]);
 
   useEffect(() => transport.addListener<{ slug: string }>('ScrollTo', ({ slug }) => {
     const el = document.getElementById(slug);

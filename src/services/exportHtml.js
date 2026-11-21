@@ -129,6 +129,7 @@ class ExportHtml {
   async renderHtml(toc) {
     this.mathRendererCalled = false
     let html = marked(this.markdown, {
+      breaks: this.options?.preserveSoftLineBreaks === true,
       superSubScript: this.options?.superSubScript ?? false,
       footnote: this.options?.footnote ?? false,
       isGitlabCompatibilityEnabled: this.options?.isGitlabCompatibilityEnabled ?? false,

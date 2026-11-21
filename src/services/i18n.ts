@@ -48,7 +48,13 @@ const KEYS = [
     'Export Now', 'Delete Configuration', 'Select output directory', 'Browse', 'Exported to',
     'Export failed', 'New Configuration', 'Configurations',
 
-    'Large document: opened in source mode (Shift+F forces rich text)'
+    'Large document: opened in source mode (Shift+F forces rich text)',
+
+    'Emoji', 'Text', 'Search emoji', 'No matching emoji', 'Link text', 'Remove link', 'Apply',
+    'Insert hint', 'Footnote text', 'Add row', 'Delete row', 'Add column', 'Delete column',
+    'Align left', 'Align center', 'Align right', 'Delete table', 'Toggle line wrap',
+    'Toggle preview', 'Original size', 'Drag to resize', 'Line {n} may be invalid',
+    'Heading', 'Numbered list', 'Quote', 'Divider'
 ]
 
 let lang = 'en'

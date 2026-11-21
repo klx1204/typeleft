@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from 'services/i18n';
 
 const EMOJIS = [
   '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰',
@@ -18,6 +19,7 @@ export const EmojiPicker: React.FC<{
   onPick: (emoji: string) => void;
   onClose: () => void;
 }> = ({ top, left, onPick, onClose }) => {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +49,7 @@ export const EmojiPicker: React.FC<{
       <input
         autoFocus
         className="tl-popover-input"
-        placeholder="搜索 emoji"
+        placeholder={t('Search emoji')}
         value={query}
         onChange={e => setQuery(e.target.value)}
         onKeyDown={e => {
@@ -61,7 +63,7 @@ export const EmojiPicker: React.FC<{
           </button>
         ))}
       </div>
-      {!list.length && <div className="tl-popover-empty">没有匹配的 emoji</div>}
+      {!list.length && <div className="tl-popover-empty">{t('No matching emoji')}</div>}
     </div>
   );
 };
@@ -123,6 +125,7 @@ export const LinkPopover: React.FC<{
   onRemove: () => void;
   onClose: () => void;
 }> = ({ top, left, initialHref, initialText, onApply, onRemove, onClose }) => {
+  const { t } = useI18n();
   const [href, setHref] = useState(initialHref);
   const [text, setText] = useState(initialText);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -153,15 +156,15 @@ export const LinkPopover: React.FC<{
       {initialText && (
         <input
           className="tl-popover-input"
-          placeholder="链接文字"
+          placeholder={t('Link text')}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') apply(); }}
         />
       )}
       <div className="link-popover-actions">
-        <button type="button" onMouseDown={e => { e.preventDefault(); onRemove(); }}>移除链接</button>
-        <button type="button" className="primary" onMouseDown={e => { e.preventDefault(); apply(); }}>应用</button>
+        <button type="button" onMouseDown={e => { e.preventDefault(); onRemove(); }}>{t('Remove link')}</button>
+        <button type="button" className="primary" onMouseDown={e => { e.preventDefault(); apply(); }}>{t('Apply')}</button>
       </div>
     </div>
   );

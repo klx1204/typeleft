@@ -51,7 +51,7 @@ import remote from 'services/remote/common';
 import { processImage } from 'services/imageAction';
 import { LARGE_DOC_LIMIT } from 'components/Editor/engine';
 import { createApplicationMenuState } from 'services/menuState';
-import { useI18n } from 'services/i18n';
+import { useI18n, t as translate } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
 import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule } from './nodes/marks';
@@ -97,7 +97,7 @@ const placeholderPlugin = $prose(() => new Plugin({
         if (node.type.name === 'paragraph' && node.content.size === 0) {
           decorations.push(Decoration.node(offset, offset + node.nodeSize, {
             class: 'is-empty',
-            'data-placeholder': '输入 / 插入内容',
+            'data-placeholder': translate('Insert hint'),
           }));
         }
       });
@@ -577,7 +577,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       });
       const label = String(max + 1);
       const tr = view.state.tr.replaceSelectionWith(refType.create({ label }));
-      const paragraph = schema.nodes.paragraph.create(null, schema.text('脚注内容'));
+      const paragraph = schema.nodes.paragraph.create(null, schema.text(translate('Footnote text')));
       const definition = defType.create({ label }, paragraph);
       const insertPos = tr.doc.content.size;
       tr.insert(insertPos, definition);
@@ -1111,14 +1111,14 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
           style={{ position: 'absolute', top: tableBar.top, left: tableBar.left }}
           onMouseDown={e => e.preventDefault()}
         >
-          <button onMouseDown={e => { e.preventDefault(); tableCommand(addRowAfter); }} title="Add row">+行</button>
-          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteRow); }} title="Delete row">-行</button>
-          <button onMouseDown={e => { e.preventDefault(); tableCommand(addColumnAfter); }} title="Add column">+列</button>
-          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteColumn); }} title="Delete column">-列</button>
-          <button onMouseDown={e => { e.preventDefault(); alignCell('left'); }} title="Align left">左</button>
-          <button onMouseDown={e => { e.preventDefault(); alignCell('center'); }} title="Align center">中</button>
-          <button onMouseDown={e => { e.preventDefault(); alignCell('right'); }} title="Align right">右</button>
-          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteTable); }} title="Delete table">×</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(addRowAfter); }} title={t('Add row')}>+</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteRow); }} title={t('Delete row')}>−</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(addColumnAfter); }} title={t('Add column')}>+</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteColumn); }} title={t('Delete column')}>−</button>
+          <button onMouseDown={e => { e.preventDefault(); alignCell('left'); }} title={t('Align left')}>←</button>
+          <button onMouseDown={e => { e.preventDefault(); alignCell('center'); }} title={t('Align center')}>↔</button>
+          <button onMouseDown={e => { e.preventDefault(); alignCell('right'); }} title={t('Align right')}>→</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteTable); }} title={t('Delete table')}>×</button>
         </div>
       )}
 

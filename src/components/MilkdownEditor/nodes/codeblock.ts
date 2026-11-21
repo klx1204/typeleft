@@ -1,6 +1,7 @@
 import { $view } from '@milkdown/kit/utils';
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
 import loadRenderer from 'services/renderers';
+import { t } from 'services/i18n';
 
 const DIAGRAM_LANGS = ['mermaid', 'flowchart', 'sequence', 'plantuml', 'vega-lite', 'vega'] as const;
 type DiagramLang = typeof DIAGRAM_LANGS[number];
@@ -92,7 +93,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
     for (const lang of languageOptions(current)) {
       const option = document.createElement('option');
       option.value = lang;
-      option.textContent = lang || 'text';
+      option.textContent = lang || t('Text');
       select.appendChild(option);
     }
     select.value = current || '';
@@ -129,7 +130,7 @@ export const createCodeBlockView = $view(codeBlockSchema.node, () => (node, view
   const copyBtn = document.createElement('button');
   copyBtn.type = 'button';
   copyBtn.textContent = '⧉';
-  copyBtn.title = 'Copy';
+  copyBtn.title = t('Copy');
   copyBtn.addEventListener('click', () => {
     navigator.clipboard?.writeText(currentNode.textContent).catch(() => {});
   });

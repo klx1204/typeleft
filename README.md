@@ -8,7 +8,7 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 
 ## Features
 
-- **WYSIWYG Markdown editing** powered by Milkdown (ProseMirror + remark); the legacy Muya engine is still selectable in Settings
+- **WYSIWYG Markdown editing** powered by Milkdown (ProseMirror + remark)
 - **Cross-platform**: macOS (Intel / Apple Silicon), Windows, Linux
 - **Source mode** with CodeMirror 6 and its own search bar
 - **Math** (KaTeX, inline and block), **diagrams** (Mermaid / Flowchart / Sequence / PlantUML / Vega) and **front matter** (YAML / TOML)
@@ -72,6 +72,8 @@ bun run test:roundtrip # markdown parse ↔ serialize fidelity
 bun run test:cm6       # CodeMirror 6 smoke test
 bun run test:web       # real components in headless Chrome
 ```
+
+CI runs these suites on every push and pull request (`.github/workflows/test.yml`).
 
 `test:web` serves `devtest/`, mounts the actual `MilkdownEditor` and
 `CodeMirror6` components with a stubbed Tauri IPC layer, checks the rendered

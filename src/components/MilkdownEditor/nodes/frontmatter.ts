@@ -1,4 +1,5 @@
 import { $node, $remark, $view } from '@milkdown/kit/utils';
+import { t } from 'services/i18n';
 import remarkFrontmatter from 'remark-frontmatter';
 
 /**
@@ -127,7 +128,7 @@ export const frontmatterView = $view(frontmatterNode, () => (node, view, getPos)
       highlight.innerHTML = html;
       highlight.scrollTop = textarea!.scrollTop;
       error.hidden = invalid === 0;
-      error.textContent = invalid ? `第 ${invalid} 行格式可能无效` : '';
+      error.textContent = invalid ? t('Line {n} may be invalid').replace('{n}', String(invalid)) : '';
     };
     refresh();
 

@@ -1,3 +1,5 @@
+> **状态说明（v0.6.0）**：Muya 引擎已删除，文中涉及 MUYA 的 DOM/主题细节仅作历史参考；当前实现见 `src/components/MilkdownEditor/theme.css` 与 `src/services/customTheme.ts`。
+
 # Typora 自定义样式能力与 Typeleft 兼容方案
 
 - 整理日期：2026-11-14

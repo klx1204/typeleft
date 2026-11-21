@@ -1,0 +1,54 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Engine / source-mode decision
+        run: bun run test:engine
+
+      - name: Markdown round-trip
+        run: bun run test:roundtrip
+
+      - name: CodeMirror 6 smoke
+        run: bun run test:cm6
+
+      - name: Search / replace
+        run: bun run test:search
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Browser regression (real components)
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: bash scripts/web-smoke.sh

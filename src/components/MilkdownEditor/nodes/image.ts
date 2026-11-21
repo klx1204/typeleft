@@ -2,6 +2,7 @@ import { $remark, $view } from '@milkdown/kit/utils';
 import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { visit } from 'unist-util-visit';
+import { t } from 'services/i18n';
 
 type Align = 'left' | 'center' | 'right' | null;
 
@@ -179,10 +180,10 @@ export const createImageView = $view(imageLayoutSchema.node, () => (node, view, 
   const toolbar = document.createElement('span');
   toolbar.className = 'image-toolbar';
   const alignButtons: [Align, string, string][] = [
-    ['left', '⟸', 'Align left'],
-    ['center', '⇔', 'Center'],
-    ['right', '⟹', 'Align right'],
-    [null, '⤢', 'Original size'],
+    ['left', '⟸', t('Align left')],
+    ['center', '⇔', t('Align center')],
+    ['right', '⟹', t('Align right')],
+    [null, '⤢', t('Original size')],
   ];
   alignButtons.forEach(([align, glyph, title]) => {
     const button = document.createElement('button');
@@ -198,7 +199,7 @@ export const createImageView = $view(imageLayoutSchema.node, () => (node, view, 
 
   const handle = document.createElement('span');
   handle.className = 'image-resize-handle';
-  handle.title = 'Drag to resize';
+  handle.title = t('Drag to resize');
 
   wrapper.appendChild(img);
   wrapper.appendChild(toolbar);

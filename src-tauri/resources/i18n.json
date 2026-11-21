@@ -690,5 +690,109 @@
   "Large document: opened in source mode (Shift+F forces rich text)": {
     "en": "Large document: opened in source mode (Shift+F forces rich text)",
     "zh": "大文档：已用源码模式打开（Shift+F 可强制切换富文本）"
+  },
+  "Emoji": {
+    "en": "Emoji",
+    "zh": "表情"
+  },
+  "Text": {
+    "en": "Text",
+    "zh": "文本"
+  },
+  "Search emoji": {
+    "en": "Search emoji",
+    "zh": "搜索 emoji"
+  },
+  "No matching emoji": {
+    "en": "No matching emoji",
+    "zh": "没有匹配的 emoji"
+  },
+  "Link text": {
+    "en": "Link text",
+    "zh": "链接文字"
+  },
+  "Remove link": {
+    "en": "Remove link",
+    "zh": "移除链接"
+  },
+  "Apply": {
+    "en": "Apply",
+    "zh": "应用"
+  },
+  "Insert hint": {
+    "en": "Insert hint",
+    "zh": "输入 / 插入内容"
+  },
+  "Footnote text": {
+    "en": "Footnote text",
+    "zh": "脚注内容"
+  },
+  "Add row": {
+    "en": "Add row",
+    "zh": "增加行"
+  },
+  "Delete row": {
+    "en": "Delete row",
+    "zh": "删除行"
+  },
+  "Add column": {
+    "en": "Add column",
+    "zh": "增加列"
+  },
+  "Delete column": {
+    "en": "Delete column",
+    "zh": "删除列"
+  },
+  "Align left": {
+    "en": "Align left",
+    "zh": "左对齐"
+  },
+  "Align center": {
+    "en": "Align center",
+    "zh": "居中"
+  },
+  "Align right": {
+    "en": "Align right",
+    "zh": "右对齐"
+  },
+  "Delete table": {
+    "en": "Delete table",
+    "zh": "删除表格"
+  },
+  "Toggle line wrap": {
+    "en": "Toggle line wrap",
+    "zh": "自动换行"
+  },
+  "Toggle preview": {
+    "en": "Toggle preview",
+    "zh": "预览开关"
+  },
+  "Original size": {
+    "en": "Original size",
+    "zh": "原始大小"
+  },
+  "Drag to resize": {
+    "en": "Drag to resize",
+    "zh": "拖拽调整大小"
+  },
+  "Line {n} may be invalid": {
+    "en": "Line {n} may be invalid",
+    "zh": "第 {n} 行格式可能无效"
+  },
+  "Heading": {
+    "en": "Heading",
+    "zh": "标题"
+  },
+  "Numbered list": {
+    "en": "Numbered list",
+    "zh": "有序列表"
+  },
+  "Quote": {
+    "en": "Quote",
+    "zh": "引用"
+  },
+  "Divider": {
+    "en": "Divider",
+    "zh": "分割线"
   }
 }

@@ -1,9 +1,11 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { t } from 'services/i18n';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 export interface SlashItem {
   id: string;
+  /** i18n key for the visible label. */
   label: string;
   hint?: string;
   keywords: string;
@@ -13,16 +15,16 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'h1', label: 'Heading 1', hint: '#', keywords: 'heading h1 title 标题' },
   { id: 'h2', label: 'Heading 2', hint: '##', keywords: 'heading h2 标题' },
   { id: 'h3', label: 'Heading 3', hint: '###', keywords: 'heading h3 标题' },
-  { id: 'bullet', label: 'Bullet list', hint: '-', keywords: 'bullet list ul 无序 列表' },
-  { id: 'ordered', label: 'Numbered list', hint: '1.', keywords: 'ordered list ol 有序 编号' },
-  { id: 'task', label: 'Task list', hint: '[ ]', keywords: 'task todo checkbox 任务 待办' },
-  { id: 'quote', label: 'Quote', hint: '>', keywords: 'quote blockquote 引用' },
-  { id: 'code', label: 'Code block', hint: '```', keywords: 'code fence 代码' },
+  { id: 'bullet', label: 'Bullet List', hint: '-', keywords: 'bullet list ul 无序 列表' },
+  { id: 'ordered', label: 'Ordered List', hint: '1.', keywords: 'ordered list ol 有序 编号' },
+  { id: 'task', label: 'Task List', hint: '[ ]', keywords: 'task todo checkbox 任务 待办' },
+  { id: 'quote', label: 'Quote Block', hint: '>', keywords: 'quote blockquote 引用' },
+  { id: 'code', label: 'Code Block', hint: '```', keywords: 'code fence 代码' },
   { id: 'table', label: 'Table', hint: 'grid', keywords: 'table 表格' },
   { id: 'emoji', label: 'Emoji', hint: '😀', keywords: 'emoji smile 表情' },
   { id: 'footnote', label: 'Footnote', hint: '[^1]', keywords: 'footnote 脚注' },
-  { id: 'math', label: 'Math block', hint: '$$', keywords: 'math latex formula 公式 数学' },
-  { id: 'hr', label: 'Divider', hint: '---', keywords: 'hr divider 分割线' },
+  { id: 'math', label: 'Math Block', hint: '$$', keywords: 'math latex formula 公式 数学' },
+  { id: 'hr', label: 'Horizontal Rule', hint: '---', keywords: 'hr divider 分割线' },
   { id: 'image', label: 'Image', hint: '🖼', keywords: 'image picture 图片' },
 ];
 
@@ -72,7 +74,7 @@ export const slashPlugin = $prose(() => {
     const q = query.trim().toLowerCase();
     if (!q) return SLASH_ITEMS;
     return SLASH_ITEMS.filter(item =>
-      item.id.includes(q) || item.label.toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
+      item.id.includes(q) || t(item.label).toLowerCase().includes(q) || item.keywords.toLowerCase().includes(q)
     );
   };
 
@@ -82,7 +84,7 @@ export const slashPlugin = $prose(() => {
     current.items.forEach((item, index) => {
       const row = document.createElement('div');
       row.className = 'slash-menu-item' + (index === current!.active ? ' active' : '');
-      row.innerHTML = `<span class="slash-menu-label">${item.label}</span><span class="slash-menu-hint">${item.hint ?? ''}</span>`;
+      row.innerHTML = `<span class="slash-menu-label">${t(item.label)}</span><span class="slash-menu-hint">${item.hint ?? ''}</span>`;
       row.addEventListener('mousedown', (event) => {
         event.preventDefault();
         applyItem(item.id);

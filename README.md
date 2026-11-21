@@ -4,6 +4,8 @@
   <p align="center">A lightweight, cross-platform Markdown editor built with Rust + Tauri.</p>
 </p>
 
+<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
+
 Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/Typedown) (originally a Windows-only WinUI editor). The name is a nod to *copyleft*: open, hackable, and no longer tied to a single platform.
 
 ## Features
@@ -32,8 +34,8 @@ Typeleft loads Typora `.css` themes directly.
 - **Theme folder**: `~/Library/Application Support/com.typeleft.desktop/themes` on macOS, `%APPDATA%\com.typeleft.desktop\themes` on Windows, `~/.local/share/com.typeleft.desktop/themes` on Linux.
 - Open it from **View → Themes...** (or Settings → Theme & Diagrams), copy the theme `.css` files (plus any fonts/images), refresh and select.
 - Load order: theme CSS → `base.user.css` → `{theme}.user.css`.
-- Supported: typography, colours, headings, lists, tables, blockquotes, code blocks, task lists, background images, `@font-face` fonts, CSS counters (auto numbering), side bar colours.
-- Not supported: native menu styling (drawn by the OS), `#write > p` direct-child selectors, TOC blocks.
+- Supported: typography, colours, headings, lists, tables, blockquotes, code blocks, task lists, background images, `@font-face` fonts, CSS counters (auto numbering), side bar colours, `#write > …` direct-child selectors.
+- Not supported: native menu styling (drawn by the OS), TOC blocks.
 - Relative `url()` and `@import` references are inlined (assets as `data:` URLs, imported CSS as text) and cannot escape the theme folder; external `http(s)` references are blocked.
 
 ## Download
@@ -70,6 +72,7 @@ bun run test           # everything below
 bun run test:engine    # engine / source-mode decision (incl. the 200K limit)
 bun run test:roundtrip # markdown parse ↔ serialize fidelity
 bun run test:cm6       # CodeMirror 6 smoke test
+bun run test:search    # cross-node search and $1 replacements
 bun run test:web       # real components in headless Chrome
 ```
 

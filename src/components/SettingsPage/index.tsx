@@ -65,6 +65,8 @@ const defaultSettings = {
   autoLink: true,
   defaultCopyFormat: 'rich',
   customDictionary: '',
+  imageCopyDir: 'images',
+  dotSlashImagePaths: true,
 };
 
 type Settings = Record<string, any>;
@@ -136,6 +138,8 @@ const zhLabels: Record<string, string> = {
     insertClipboardImageAction: '剪贴板图片操作',
     preferRelativeImagePaths: '优先使用相对路径',
     autoEncodeImageURL: '自动编码图片 URL',
+    imageCopyDir: '图片复制目录',
+    dotSlashImagePaths: '相对路径使用 ./',
     autoSave: '自动保存',
     statusBarOpen: '显示状态栏',
     animationEnable: '启用动画',
@@ -267,6 +271,8 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'insertWebImageAction', label: 'Web Image Action', type: 'select', options: ['none', 'copyToPath', 'upload'] },
       { key: 'insertClipboardImageAction', label: 'Clipboard Image Action', type: 'select', options: ['none', 'copyToPath', 'upload'] },
       { key: 'preferRelativeImagePaths', label: 'Prefer Relative Image Paths', type: 'checkbox' },
+      { key: 'dotSlashImagePaths', label: 'Prefix Relative Paths with ./', type: 'checkbox' },
+      { key: 'imageCopyDir', label: 'Image Copy Directory', type: 'text', placeholder: 'images or /absolute/path' },
       { key: 'autoEncodeImageURL', label: 'Auto Encode Image URLs', type: 'checkbox' },
     ],
   },
@@ -283,7 +289,7 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'lang', label: 'Language', type: 'select', options: ['en', 'zh'] },
       { key: 'wordCountMethod', label: 'Word Count Method', type: 'select', options: [0, 1] },
       { key: 'sidePaneWidth', label: 'Sidebar Width (px)', type: 'number', min: 180, max: 600 },
-      { key: 'fileStartupAction', label: 'On Startup (File)', type: 'select', options: ['', 'openLast'] },
+      { key: 'fileStartupAction', label: 'On Startup (File)', type: 'select', options: ['', 'openLast', 'new'] },
       { key: 'folderStartupAction', label: 'On Startup (Folder)', type: 'select', options: ['none', 'openLast'] },
     ],
   },
@@ -423,6 +429,10 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                       <option key={String(o)} value={String(o)}>
                         {field.key === 'lang'
                           ? (o === 'zh' ? '中文' : 'English')
+                          : field.key === 'fileStartupAction'
+                            ? (o === '' ? (isZh ? '空白页' : 'Blank page') : o === 'openLast' ? (isZh ? '恢复上次文件' : 'Restore last file') : (isZh ? '新建文档' : 'New document'))
+                          : field.key === 'folderStartupAction'
+                            ? (o === 'none' ? (isZh ? '不打开' : 'Do not open') : (isZh ? '恢复上次文件夹' : 'Restore last folder'))
                           : field.key === 'defaultCopyFormat'
                             ? (o === 'rich' ? (isZh ? 'HTML + 纯文本' : 'HTML + plain text') : o === 'markdown' ? 'Markdown' : (isZh ? '纯文本' : 'Plain text'))
                           : field.key === 'wordCountMethod'

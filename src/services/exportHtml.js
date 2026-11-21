@@ -175,6 +175,17 @@ class ExportHtml {
     exportContainer.innerHTML = html
     document.body.appendChild(exportContainer)
 
+    // `typora-root-url` prefixes relative media paths (#114).
+    const rootUrl = this.options?.typoraRootUrl
+    if (rootUrl) {
+      const root = String(rootUrl).replace(/\/+$/, '')
+      exportContainer.querySelectorAll('img[src]').forEach(img => {
+        const src = img.getAttribute('src') || ''
+        if (/^(https?:|data:|asset:|blob:|\/\/)/i.test(src)) return
+        img.setAttribute('src', `${root}/${src.replace(/^\.?\//, '')}`)
+      })
+    }
+
     // render only render the light theme of mermaid and diragram...
     await this.renderMermaid()
     await this.renderDiagram()

@@ -12,6 +12,7 @@ import SelectionSearchMenu from '../src/components/SelectionSearchMenu';
 const fixture = `---
 title: Devtest
 tags: [a, b]
+typora-root-url: assets
 ---
 
 # 一级标题
@@ -206,6 +207,7 @@ const finish = (extraCheck?: () => void) => {
     chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
   check('page break node', !!ml.querySelector('.page-break[data-type="pagebreak"]'));
+  check('typora-root-url read from frontmatter', (window as any).typoraRootUrl === 'assets', String((window as any).typoraRootUrl));
   if (isStatic) check('anchor click handled', (window as any).__anchorScrolled === true);
   const selects = Array.from(ml.querySelectorAll('select.md-fences-language')) as HTMLSelectElement[];
   check('language selects', selects.length === 3, selects.map(sel => {

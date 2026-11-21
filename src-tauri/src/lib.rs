@@ -1568,6 +1568,12 @@ pub fn run() {
                             load_and_queue_file(app.handle(), p);
                         }
                     }
+                } else if file_action == "new" {
+                    app.state::<PendingFiles>().0.lock().unwrap().push(PendingFile {
+                        text: String::new(),
+                        file_path: String::new(),
+                        base_path: String::new(),
+                    });
                 }
                 if folder_action == "openLast" {
                     if let Some(recent) = settings.get("recentFolders")

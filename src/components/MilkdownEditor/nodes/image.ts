@@ -3,6 +3,7 @@ import { imageSchema } from '@milkdown/kit/preset/commonmark';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { visit } from 'unist-util-visit';
 import { t } from 'services/i18n';
+import { resolveMediaPath } from 'services/imagePaths';
 
 type Align = 'left' | 'center' | 'right' | null;
 
@@ -32,6 +33,11 @@ export const resolveImageSrc = (src: string): string => {
   const basePath: string = (window as any).basePath || '';
   if (isAbsolute(raw)) {
     return toAssetUrl(raw.replace(/\\/g, '/'));
+  }
+  const rooted = resolveMediaPath(raw, basePath, (window as any).typoraRootUrl);
+  if (rooted !== raw) {
+    if (/^(https?:|\/\/)/i.test(rooted)) return rooted;
+    return toAssetUrl(rooted.replace(/^\.\//, ''));
   }
   if (!basePath) return raw;
   const joined = `${basePath.replace(/\\/g, '/')}/${raw.replace(/^\.\//, '')}`;

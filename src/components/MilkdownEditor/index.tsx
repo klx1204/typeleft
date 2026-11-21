@@ -176,6 +176,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   const emitState = useCallback((markdown: string) => {
     const editor = editorRef.current;
     if (!editor) return;
+    const meta = parseFrontmatter(markdown).data;
+    (window as any).typoraRootUrl = typeof meta['typora-root-url'] === 'string' ? meta['typora-root-url'] : '';
     const wordCount = countWords(markdown);
     // Read heading ids from the rendered DOM: Milkdown generates them at render
     // time, so the schema attributes alone are empty.
@@ -322,6 +324,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setSmartPunctuationOptions(propsRef.current.options);
     setAutoLinkEnabled(propsRef.current.options?.autoLink);
     setSoftBreakEnabled(propsRef.current.options?.preserveSoftLineBreaks);
+    const initialMeta = parseFrontmatter(propsRef.current.markdown || '').data;
+    (window as any).typoraRootUrl = typeof initialMeta['typora-root-url'] === 'string' ? initialMeta['typora-root-url'] : '';
 
     Editor.make()
       .config((ctx) => {

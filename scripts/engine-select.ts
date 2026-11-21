@@ -8,6 +8,7 @@ import { buildSearchUrl } from '../src/services/searchWeb';
 import { applyListIndentation } from '../src/services/markdown/listFormat';
 import { parseFrontmatter } from '../src/services/frontmatter';
 import { extractWords } from '../src/components/MilkdownEditor/spellcheck';
+import { finalizeImagePath, resolveMediaPath, imageDirectory } from '../src/services/imagePaths';
 
 const nestedList = `- a
   - b
@@ -82,6 +83,20 @@ const cases: [string, boolean][] = [
     return info.format === 'toml' && info.data.title === 'Toml' && info.data.count === 3;
   })()],
   ['documents without front matter are empty', parseFrontmatter('# Body').format === 'none'],
+  ['image paths become relative with ./', finalizeImagePath('/docs/notes/images/a.png', '/docs/notes', {
+    preferRelativeImagePaths: true, dotSlashImagePaths: true,
+  }) === './images/a.png'],
+  ['image paths can omit ./', finalizeImagePath('/docs/notes/images/a.png', '/docs/notes', {
+    preferRelativeImagePaths: true, dotSlashImagePaths: false,
+  }) === 'images/a.png'],
+  ['image paths encode spaces', finalizeImagePath('/docs/notes/my image.png', '/docs/notes', {
+    preferRelativeImagePaths: true, autoEncodeImageURL: true,
+  }) === './my%20image.png'],
+  ['image copy directory honours an absolute path', imageDirectory('/docs/notes', '/var/pics') === '/var/pics'],
+  ['image copy directory defaults to images', imageDirectory('/docs/notes', '') === '/docs/notes/images'],
+  ['typora-root-url resolves against the document folder', resolveMediaPath('pic.png', '/docs/notes', 'assets') === '/docs/notes/assets/pic.png'],
+  ['typora-root-url accepts a URL root', resolveMediaPath('pic.png', '/docs/notes', 'https://cdn.example.com/img') === 'https://cdn.example.com/img/pic.png'],
+  ['absolute sources ignore typora-root-url', resolveMediaPath('https://x.test/a.png', '/docs', 'assets') === 'https://x.test/a.png'],
   ['spellcheck extracts unique words', (() => {
     const words = extractWords('teh quikc teh Typeleft — done');
     return words.includes('teh') && words.includes('quikc') && words.includes('Typeleft')

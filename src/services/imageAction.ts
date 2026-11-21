@@ -1,4 +1,5 @@
 import remote from 'services/remote/common';
+import { finalizeImagePath, imageDirectory } from 'services/imagePaths';
 
 const readFileAsBase64 = (file: Blob): Promise<string> =>
   new Promise<string>((resolve, reject) => {
@@ -26,22 +27,13 @@ export const processImage = async (
   const opts = options ?? {};
   const basePath = (window as any).basePath || '';
 
-  const finalize = (path: string) => {
-    let result = path;
-    if (opts.preferRelativeImagePaths && basePath && result.startsWith(basePath)) {
-      result = '.' + result.slice(basePath.length);
-    }
-    if (opts.autoEncodeImageURL && /^https?:\/\//.test(result)) {
-      try { result = encodeURI(result); } catch { /* ignore */ }
-    }
-    return result;
-  };
+  const finalize = (path: string) => finalizeImagePath(path, basePath, opts);
 
   const saveBase64 = async (base64Data: string, fileName: string) =>
     finalize(await remote.saveImage({
       fileName,
       base64Data,
-      subDir: 'images',
+      subDir: opts.imageCopyDir || 'images',
       basePath: basePath || undefined,
     }));
 
@@ -82,7 +74,7 @@ export const processImage = async (
       if (opts.insertLocalImageAction === 'copyToPath' && basePath) {
         return finalize(await remote.copyImage({
           sourcePath: image,
-          destDir: `${basePath}/images`,
+          destDir: imageDirectory(basePath, opts.imageCopyDir),
         }));
       }
       return finalize(image);

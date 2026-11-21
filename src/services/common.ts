@@ -1,6 +1,6 @@
-import { EXPORT_DOMPURIFY_CONFIG } from 'components/Muya/lib/config';
-import Slugger from 'components/Muya/lib/parser/marked/slugger';
-import { sanitize } from 'components/Muya/lib/utils';
+import { EXPORT_DOMPURIFY_CONFIG } from 'services/markdown/config';
+import Slugger from 'services/markdown/marked/slugger';
+import { sanitize } from 'services/markdown/sanitize';
 import execAll from 'execall'
 
 export const getTOC = (markdown: string) => {

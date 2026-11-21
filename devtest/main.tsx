@@ -64,7 +64,6 @@ $$
 `;
 
 const options: any = {
-  editorEngine: 'milkdown',
   fontSize: 16,
   lineHeight: 1.6,
   editorAreaWidth: '860px',

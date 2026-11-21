@@ -9,7 +9,6 @@
   var clipboard = { text: '', html: null };
 
   var settings = {
-    editorEngine: 'milkdown',
     autoSave: false,
     fontSize: 16,
     lineHeight: 1.6,

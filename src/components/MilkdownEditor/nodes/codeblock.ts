@@ -1,6 +1,6 @@
 import { $view } from '@milkdown/kit/utils';
 import { codeBlockSchema } from '@milkdown/kit/preset/commonmark';
-import loadRenderer from 'components/Muya/lib/renderers';
+import loadRenderer from 'services/renderers';
 
 const DIAGRAM_LANGS = ['mermaid', 'flowchart', 'sequence', 'plantuml', 'vega-lite', 'vega'] as const;
 type DiagramLang = typeof DIAGRAM_LANGS[number];

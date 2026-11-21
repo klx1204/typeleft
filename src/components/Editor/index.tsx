@@ -1,5 +1,4 @@
 import CodeMirror from "components/CodeMirror6";
-import MuyaEditor from "components/Muya";
 import MilkdownEditor from "components/MilkdownEditor";
 import Sidebar from "components/Sidebar";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -10,7 +9,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import './index.scss'
 import ExportHtml from "services/exportHtml";
 import { htmlToMarkdown } from "services/importHtml";
-import { DEFAULT_TURNDOWN_CONFIG } from "components/Muya/lib/config";
+import { DEFAULT_TURNDOWN_CONFIG } from "services/markdown/config";
 import { getHtmlToc, getTOC } from "services/common";
 import { useI18n } from "services/i18n";
 import { LARGE_DOC_LIMIT, resolveView } from "./engine";
@@ -358,8 +357,7 @@ const Editor: React.FC = () => {
     }), []);
 
     const toggleSourceCode = useCallback(() => {
-        const isLarge = docLength > LARGE_DOC_LIMIT
-        if (optionsRef.current?.editorEngine !== 'muya' && isLarge) {
+        if (docLength > LARGE_DOC_LIMIT) {
             setForceWysiwyg(prev => !prev)
             return
         }
@@ -412,7 +410,7 @@ const Editor: React.FC = () => {
         return <></>
     }
 
-    const view = resolveView(options.editorEngine, docLength, !!options.sourceCode, forceWysiwyg)
+    const view = resolveView(docLength, !!options.sourceCode, forceWysiwyg)
 
     return (
         <>
@@ -504,25 +502,12 @@ const Editor: React.FC = () => {
                         onSearchArgChange={setSearchArg}
                         onSearchOpenChange={setSearchOpen}
                     />
-                ) : view.engine === 'milkdown' ? (
+                ) : (
                     <MilkdownEditor
                         key={filePath ?? 'new'}
                         markdown={markdown ?? ''}
                         cursor={cursor}
                         options={options}
-                        searchOpen={searchOpen}
-                        searchArg={searchArg}
-                        scrollTopRef={muyaScrollTopRef}
-                        onMarkdownChange={setMarkdown}
-                        onCursorChange={setCursor}
-                        onSearchArgChange={setSearchArg}
-                        onSearchOpenChange={setSearchOpen}
-                    />
-                ) : (
-                    <MuyaEditor
-                        options={options}
-                        cursor={cursor}
-                        markdown={markdown ?? ''}
                         searchOpen={searchOpen}
                         searchArg={searchArg}
                         scrollTopRef={muyaScrollTopRef}

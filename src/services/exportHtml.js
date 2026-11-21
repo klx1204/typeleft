@@ -1,17 +1,17 @@
-import marked from '../components/Muya/lib/parser/marked'
+import marked from './markdown/marked'
 import Prism from 'prismjs'
 import katex from 'katex'
 import 'katex/dist/contrib/mhchem.min.js'
-import loadRenderer from '../components/Muya/lib/renderers'
+import loadRenderer from './renderers'
 import githubMarkdownCss from 'github-markdown-css/github-markdown.css?raw'
 import exportStyle from '../assets/styles/exportStyle.css?raw'
 import highlightCss from 'prismjs/themes/prism.css?raw'
 import katexCss from 'katex/dist/katex.css?raw'
 import footerHeaderCss from '../assets/styles/headerFooterStyle.css?raw'
-import { EXPORT_DOMPURIFY_CONFIG } from '../components/Muya/lib/config'
-import { sanitize, unescapeHTML } from '../components/Muya/lib/utils'
-import { validEmoji } from '../components/Muya/lib/ui/emojis'
-import { alias } from '../components/Muya/lib/prism/loadLanguage'
+import { EXPORT_DOMPURIFY_CONFIG } from './markdown/config'
+import { sanitize, unescapeHTML } from './markdown/sanitize'
+import { validEmoji } from './markdown/emojis'
+import { alias } from './markdown/prismAlias'
 
 const DIAGRAM_TYPE = [
   'mermaid',

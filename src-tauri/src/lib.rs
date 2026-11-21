@@ -167,7 +167,6 @@ fn default_settings() -> HashMap<String, serde_json::Value> {
     s.insert("basePath".into(), serde_json::json!(""));
     s.insert("markdown".into(), serde_json::json!("# Hello Typeleft\n\nStart typing..."));
     s.insert("autoSave".into(), serde_json::json!(true));
-    s.insert("editorEngine".into(), serde_json::json!("milkdown"));
     s
 }
 

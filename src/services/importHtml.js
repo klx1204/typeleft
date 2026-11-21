@@ -1,4 +1,4 @@
-import TurndownService, { usePluginAddRules } from '../components/Muya/lib/utils/turndownService'
+import TurndownService, { usePluginAddRules } from './markdown/turndown'
 
 // Just because turndown change `\n`(soft line break) to space, So we add `span.ag-soft-line-break` to workaround.
 const turnSoftBreakToSpan = html => {

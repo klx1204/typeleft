@@ -846,5 +846,29 @@
   "Page Break": {
     "en": "Page Break",
     "zh": "分页"
+  },
+  "Move row up": {
+    "en": "Move row up",
+    "zh": "上移行"
+  },
+  "Move row down": {
+    "en": "Move row down",
+    "zh": "下移行"
+  },
+  "Move column left": {
+    "en": "Move column left",
+    "zh": "左移列"
+  },
+  "Move column right": {
+    "en": "Move column right",
+    "zh": "右移列"
+  },
+  "Drag to reorder rows": {
+    "en": "Drag to reorder rows",
+    "zh": "拖动调整行顺序"
+  },
+  "Drag to reorder columns": {
+    "en": "Drag to reorder columns",
+    "zh": "拖动调整列顺序"
   }
 }

@@ -26,7 +26,8 @@ const KEYS = [
     'words', 'chars', 'Files', 'Outline', 'Open Folder', 'No headings',
     'Filter outline...', 'Pinned Folders', 'Recent Folders', 'Pin Folder', 'Unpin Folder',
     'Include Outline', 'After Export', 'Do Nothing', 'Open File', 'Move Up', 'Move Down',
-    'Search the Web for',
+    'Search the Web for', 'Move row up', 'Move row down', 'Move column left', 'Move column right',
+    'Drag to reorder rows', 'Drag to reorder columns',
     'Type a command...', 'No commands found', 'Search...', 'Replace...', 'Previous', 'Next',
     'Replace', 'Replace All', 'Close', 'Search',
 

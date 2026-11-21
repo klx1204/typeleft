@@ -38,6 +38,7 @@ import {
   deleteTable,
   setCellAttr,
   isInTable,
+  selectionCell,
 } from '@milkdown/kit/prose/tables';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -68,6 +69,7 @@ import { autoLinkPlugin, autoLinkRemark, setAutoLinkEnabled } from './autoLink';
 import { softBreakRemark, setSoftBreakEnabled } from './softBreak';
 import { pageBreakRemark, pageBreakNode, pageBreakView } from './nodes/pagebreak';
 import { spellcheckPlugin, runSpellcheck, setCustomDictionary } from './spellcheck';
+import { moveRowBy, moveColumnBy, moveRowTo, moveColumnTo, tableMovesPlugin } from './tableMoves';
 import { htmlRemark, htmlBlockNode, htmlInlineNode, htmlBlockView, htmlInlineView } from './nodes/html';
 import { codeBlockDefaultsPlugin, codeBlockKeysPlugin, applyCodeBlockOptions, copyCodeBlock } from './codeblockExtras';
 import { applyLayoutCss } from 'services/layoutCss';
@@ -160,6 +162,18 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   const [toolbar, setToolbar] = useState<{ top: number; left: number } | null>(null);
   const [formatState, setFormatState] = useState<Record<string, boolean>>({});
   const [tableBar, setTableBar] = useState<{ top: number; left: number } | null>(null);
+  const [tableHandles, setTableHandles] = useState<{
+    row: { top: number; left: number };
+    col: { top: number; left: number };
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
+  const [tableDrag, setTableDrag] = useState<{
+    type: 'row' | 'col';
+    from: number;
+    target: number;
+    rect: { top: number; left: number; width: number; height: number };
+  } | null>(null);
   const [emojiPicker, setEmojiPicker] = useState<{ top: number; left: number } | null>(null);
   const [tablePicker, setTablePicker] = useState<{ top: number; left: number } | null>(null);
   const [linkPopover, setLinkPopover] = useState<{ top: number; left: number; href: string; text: string } | null>(null);
@@ -286,11 +300,34 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       try {
         const start = view.coordsAtPos(sel.from);
         setTableBar({ top: start.top + window.scrollY - 44, left: start.left });
+        const selected = selectionCell(view.state);
+        const nodeDom = selected ? view.nodeDOM(selected.pos) as HTMLElement | null : null;
+        const fallback = (() => {
+          const at = view.domAtPos(sel.from).node as Node;
+          return (at.nodeType === 3 ? at.parentElement : at) as HTMLElement | null;
+        })();
+        const cell = ((nodeDom?.matches?.('td,th') ? nodeDom : nodeDom?.closest?.('td,th'))
+          ?? fallback?.closest?.('td,th')) as HTMLTableCellElement | null;
+        const tr = cell?.closest('tr') as HTMLTableRowElement | null;
+        if (cell && tr && tr.parentElement) {
+          const cr = cell.getBoundingClientRect();
+          const rr = tr.getBoundingClientRect();
+          setTableHandles({
+            row: { top: rr.top + window.scrollY + rr.height / 2, left: rr.left + window.scrollX - 16 },
+            col: { top: cr.top + window.scrollY - 16, left: cr.left + window.scrollX + cr.width / 2 },
+            rowIndex: Array.from(tr.parentElement.children).indexOf(tr),
+            colIndex: cell.cellIndex,
+          });
+        } else {
+          setTableHandles(null);
+        }
       } catch {
         setTableBar(null);
+        setTableHandles(null);
       }
     } else {
       setTableBar(null);
+      setTableHandles(null);
     }
     if (sel.empty) {
       setToolbar(null);
@@ -397,6 +434,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(htmlBlockView)
       .use(htmlInlineView)
       .use(spellcheckPlugin)
+      .use(tableMovesPlugin)
       .use(codeBlockDefaultsPlugin)
       .use(codeBlockKeysPlugin)
       .use(placeholderPlugin)
@@ -1173,6 +1211,45 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     });
   }, [withView]);
 
+  const startTableHandleDrag = useCallback((type: 'row' | 'col', from: number, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const view = getView();
+    if (!view) return;
+    let target = from;
+    let rect: { top: number; left: number; width: number; height: number } | null = null;
+
+    const onMove = (ev: MouseEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+      const cell = el?.closest('td,th') as HTMLTableCellElement | null;
+      const tr = cell?.closest('tr') as HTMLTableRowElement | null;
+      if (!cell || !tr || !tr.parentElement) return;
+      target = type === 'row' ? Array.from(tr.parentElement.children).indexOf(tr) : cell.cellIndex;
+      const box = (type === 'row' ? tr : cell).getBoundingClientRect();
+      rect = {
+        top: box.top + window.scrollY,
+        left: box.left + window.scrollX,
+        width: box.width,
+        height: box.height,
+      };
+      setTableDrag({ type, from, target, rect });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      setTableDrag(null);
+      if (target === from) return;
+      withView((current) => {
+        const command = type === 'row' ? moveRowTo(from, target) : moveColumnTo(from, target);
+        command(current.state, current.dispatch);
+        current.focus();
+      });
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp, { once: true });
+  }, [getView, withView]);
+
   const alignCell = useCallback((align: 'left' | 'center' | 'right') => {
     withView((view) => {
       setCellAttr('alignment', align)(view.state, view.dispatch);
@@ -1276,6 +1353,45 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         </div>
       )}
 
+      {tableHandles && !tableDrag && (
+        <>
+          <div
+            className="table-drag-handle"
+            title={t('Drag to reorder rows')}
+            style={{ position: 'absolute', top: tableHandles.row.top, left: tableHandles.row.left, transform: 'translateY(-50%)', zIndex: 9400, cursor: 'grab', userSelect: 'none', padding: '2px 3px', borderRadius: 3, background: 'var(--editorColor06)', color: 'var(--editorColor40)', fontSize: 12, lineHeight: 1 }}
+            onMouseDown={e => startTableHandleDrag('row', tableHandles.rowIndex, e)}
+          >⋮</div>
+          <div
+            className="table-drag-handle"
+            title={t('Drag to reorder columns')}
+            style={{ position: 'absolute', top: tableHandles.col.top, left: tableHandles.col.left, transform: 'translateX(-50%)', zIndex: 9400, cursor: 'grab', userSelect: 'none', padding: '2px 3px', borderRadius: 3, background: 'var(--editorColor06)', color: 'var(--editorColor40)', fontSize: 12, lineHeight: 1 }}
+            onMouseDown={e => startTableHandleDrag('col', tableHandles.colIndex, e)}
+          >⋯</div>
+        </>
+      )}
+
+      {tableDrag && tableDrag.rect && (
+        <div
+          className="table-drop-indicator"
+          style={{
+            position: 'absolute', zIndex: 9600, pointerEvents: 'none', background: 'var(--themeColor)',
+            ...(tableDrag.type === 'row'
+              ? {
+                left: tableDrag.rect.left,
+                top: tableDrag.rect.top + (tableDrag.target > tableDrag.from ? tableDrag.rect.height : 0),
+                width: tableDrag.rect.width,
+                height: 2,
+              }
+              : {
+                left: tableDrag.rect.left + (tableDrag.target > tableDrag.from ? tableDrag.rect.width : 0),
+                top: tableDrag.rect.top,
+                width: 2,
+                height: tableDrag.rect.height,
+              }),
+          }}
+        />
+      )}
+
       {tableBar && (
         <div
           className="milkdown-table-toolbar"
@@ -1284,8 +1400,12 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         >
           <button onMouseDown={e => { e.preventDefault(); tableCommand(addRowAfter); }} title={t('Add row')}>+</button>
           <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteRow); }} title={t('Delete row')}>−</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(moveRowBy(-1)); }} title={t('Move row up')}>⇡</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(moveRowBy(1)); }} title={t('Move row down')}>⇣</button>
           <button onMouseDown={e => { e.preventDefault(); tableCommand(addColumnAfter); }} title={t('Add column')}>+</button>
           <button onMouseDown={e => { e.preventDefault(); tableCommand(deleteColumn); }} title={t('Delete column')}>−</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(moveColumnBy(-1)); }} title={t('Move column left')}>⇠</button>
+          <button onMouseDown={e => { e.preventDefault(); tableCommand(moveColumnBy(1)); }} title={t('Move column right')}>⇢</button>
           <button onMouseDown={e => { e.preventDefault(); alignCell('left'); }} title={t('Align left')}>←</button>
           <button onMouseDown={e => { e.preventDefault(); alignCell('center'); }} title={t('Align center')}>↔</button>
           <button onMouseDown={e => { e.preventDefault(); alignCell('right'); }} title={t('Align right')}>→</button>

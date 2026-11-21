@@ -54,11 +54,12 @@ import { createApplicationMenuState } from 'services/menuState';
 import { useI18n, t as translate } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
-import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule } from './nodes/marks';
+import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule, setSuperSubEnabled } from './nodes/marks';
 import { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } from './nodes/table';
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
 import { slashPlugin, setSlashCommandHandler } from './slash';
+import { autoPairPlugin, setAutoPairOptions } from './autoPair';
 import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
 import {
@@ -356,6 +357,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(createCodeBlockView)
       .use(searchPlugin)
       .use(slashPlugin)
+      .use(autoPairPlugin)
       .use(placeholderPlugin)
       .use(focusPlugin)
       .create()
@@ -463,6 +465,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     if (write) write.classList.toggle('focus-mode', !!props.options?.focusMode);
     (window as any).typeleftEditorOptions = props.options;
     applyLayoutCss(props.options);
+    setAutoPairOptions(props.options);
+    setSuperSubEnabled(props.options?.superSubScript !== false);
     const view = getView();
     if (view) {
       view.dom.setAttribute('spellcheck', String(!!props.options?.spellcheckEnabled));

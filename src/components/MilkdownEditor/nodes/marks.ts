@@ -1,5 +1,6 @@
 import { $markSchema, $remark, $inputRule } from '@milkdown/kit/utils';
 import { markRule } from '@milkdown/kit/prose';
+import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { strikethroughSchema } from '@milkdown/kit/preset/gfm';
 import { findAndReplace } from 'mdast-util-find-and-replace';
 
@@ -10,6 +11,13 @@ import { findAndReplace } from 'mdast-util-find-and-replace';
  * matching text into custom mdast nodes and a stringify handler writes them
  * back verbatim. Marks keep the source round-trip stable.
  */
+let superSubEnabled = true;
+
+/** The `superSubScript` setting; highlight is always available. */
+export const setSuperSubEnabled = (enabled: boolean) => {
+  superSubEnabled = enabled;
+};
+
 export const marksRemark = $remark('typeleftMarks', () => function typeleftMarks(this: any) {
   const data = this.data();
   const extensions = data.toMarkdownExtensions || (data.toMarkdownExtensions = []);
@@ -25,20 +33,25 @@ export const marksRemark = $remark('typeleftMarks', () => function typeleftMarks
   });
 
   return (tree: any) => {
-    findAndReplace(tree, [
+    const rules: any[] = [
       [/==([^=\n]+)==/g, (_: string, text: string) => ({
         type: 'highlight',
         children: [{ type: 'text', value: text }],
       }) as any],
-      [/\^([^\s^\n]+)\^/g, (_: string, text: string) => ({
-        type: 'superscript',
-        children: [{ type: 'text', value: text }],
-      }) as any],
-      [/(?<!~)~([^~\s\n]+)~(?!~)/g, (_: string, text: string) => ({
-        type: 'subscript',
-        children: [{ type: 'text', value: text }],
-      }) as any],
-    ]);
+    ];
+    if (superSubEnabled) {
+      rules.push(
+        [/\^([^\s^\n]+)\^/g, (_: string, text: string) => ({
+          type: 'superscript',
+          children: [{ type: 'text', value: text }],
+        }) as any],
+        [/(?<!~)~([^~\s\n]+)~(?!~)/g, (_: string, text: string) => ({
+          type: 'subscript',
+          children: [{ type: 'text', value: text }],
+        }) as any],
+      );
+    }
+    findAndReplace(tree, rules);
   };
 });
 
@@ -65,15 +78,31 @@ export const highlightMark = markSchema('highlight', 'mark');
 export const superscriptMark = markSchema('superscript', 'sup');
 export const subscriptMark = markSchema('subscript', 'sub');
 
-export const highlightInputRule = $inputRule((ctx) =>
-  markRule(/==([^=\n]+)==$/, highlightMark.type(ctx))
+/** `markRule` wrapper that honours the `superSubScript` toggle. */
+const gatedMarkRule = (regexp: RegExp, markName: string, gate = false) => (ctx: any) => new InputRule(
+  regexp,
+  (state, match, start, end) => {
+    if (gate && !superSubEnabled) return null;
+    const group = match[match.length - 1];
+    if (!group || !group.trim()) return null;
+    const type = state.schema.marks[markName];
+    if (!type) return null;
+    if (state.doc.rangeHasMark(start, end, state.schema.marks.inlineCode)) return null;
+    const fullMatch = match[0];
+    const startSpaces = fullMatch.search(/\S/);
+    const textStart = start + fullMatch.indexOf(group);
+    const textEnd = textStart + group.length;
+    const tr = state.tr;
+    if (textEnd < end) tr.delete(textEnd, end);
+    if (textStart > start) tr.delete(start + startSpaces, textStart);
+    tr.addMark(start, start + startSpaces + group.length, type.create());
+    return tr;
+  }
 );
-export const superscriptInputRule = $inputRule((ctx) =>
-  markRule(/\^([^\s^\n]+)\^$/, superscriptMark.type(ctx))
-);
-export const subscriptInputRule = $inputRule((ctx) =>
-  markRule(/(?<!~)~([^~\s\n]+)~$/, subscriptMark.type(ctx))
-);
+
+export const highlightInputRule = $inputRule(gatedMarkRule(/==([^=\n]+)==$/, 'highlight'));
+export const superscriptInputRule = $inputRule(gatedMarkRule(/\^([^\s^\n]+)\^$/, 'superscript', true));
+export const subscriptInputRule = $inputRule(gatedMarkRule(/(?<!~)~([^~\s\n]+)~$/, 'subscript', true));
 
 // The preset's strikethrough rule also accepts a single tilde, which would
 // steal `~sub~`. Only `~~strike~~` is a strikethrough here.

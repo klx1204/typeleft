@@ -64,8 +64,12 @@ $$
 `;
 
 const layoutMode = location.search.includes('layout');
+const noPairMode = location.search.includes('nopair');
+const noMarksMode = location.search.includes('nomarks');
 
 const options: any = {
+  ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
+  ...(noMarksMode ? { superSubScript: false } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,

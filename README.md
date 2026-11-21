@@ -22,7 +22,12 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 - **Outline & file tree** sidebars (outline filter, pinned/recent folders), with file operations (rename, move, copy, delete to trash, new file/folder)
 - **Recent files** menu and a configurable recent-files limit
 - **Code fences**: line numbers, soft wrap, default language, KaTeX preview for ```` ```math ````, copy block, Tab / Shift+Tab indent
+- **Rich HTML**: raw HTML blocks and inline markup, `<u>`, `<video>`/`<audio>` and sandboxed `<iframe>` embeds, with round-trip preservation
+- **Tables**: insert/delete rows and columns, resize, align, and drag rows/columns to reorder
 - **Export** presets (reorder, CSS / outline / front-matter switches, post-export actions, per-document front-matter overrides) and **direct printing**
+- **Pandoc export**: PDF, Word, ODT, ePub, LaTeX, RST, RTF, OPML, Reveal.js, Markdown conversion and custom commands
+- **Pandoc import**: docx / odt / ePub / RST (media extracted next to the source)
+- **Writing aids**: smart quotes and dashes, auto-linking, copy as Markdown/HTML/text, spell checking with a custom dictionary
 - **Window**: zoom (menu or Cmd/Ctrl + wheel), full screen
 - **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
 - **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
@@ -39,6 +44,10 @@ typeleft --new             # start with an empty document
 typeleft --folder ~/vault  # open a folder in the sidebar
 typeleft --help
 ```
+
+Document import/export formats need [Pandoc](https://pandoc.org/installing.html); PDF also needs a TeX engine
+(`tectonic` or `xelatex`) or `weasyprint`. Set a custom path in
+Settings → Import & Export.
 
 ## Themes
 

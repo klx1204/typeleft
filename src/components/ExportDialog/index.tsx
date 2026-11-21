@@ -42,6 +42,37 @@ const primaryBtnStyle: React.CSSProperties = {
 
 const newId = () => `export-${Date.now()}`;
 
+const EXPORT_FORMATS: { value: string; label: string }[] = [
+  { value: 'html', label: 'HTML' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'docx', label: 'Word (.docx)' },
+  { value: 'odt', label: 'OpenDocument (.odt)' },
+  { value: 'epub', label: 'EPUB' },
+  { value: 'latex', label: 'LaTeX' },
+  { value: 'rst', label: 'reStructuredText' },
+  { value: 'rtf', label: 'RTF' },
+  { value: 'opml', label: 'OPML' },
+  { value: 'revealjs', label: 'Reveal.js' },
+  { value: 'markdown-gfm', label: 'Markdown (GFM)' },
+  { value: 'markdown-commonmark', label: 'Markdown (CommonMark)' },
+  { value: 'plain', label: 'Plain Text' },
+  { value: 'custom', label: 'Custom Command' },
+];
+
+const FORMAT_EXTENSION: Record<string, string> = {
+  html: 'html', pdf: 'pdf', docx: 'docx', odt: 'odt', epub: 'epub', latex: 'tex',
+  rst: 'rst', rtf: 'rtf', opml: 'opml', revealjs: 'html', 'markdown-gfm': 'md',
+  'markdown-commonmark': 'md', plain: 'txt', custom: '',
+};
+
+const extensionFor = (type: string) => FORMAT_EXTENSION[type] ?? 'html';
+
+const withExtension = (name: string, type: string): string => {
+  const ext = extensionFor(type);
+  if (!ext) return name;
+  return /\.[a-z0-9]+$/i.test(name) ? name.replace(/\.[a-z0-9]+$/i, `.${ext}`) : `${name}.${ext}`;
+};
+
 const defaultConfig = (): ExportConfig => ({
   id: newId(),
   name: 'HTML',
@@ -60,6 +91,7 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
   const [draft, setDraft] = useState<ExportConfig | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [pandoc, setPandoc] = useState<{ found: boolean; version: string; path: string } | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -72,6 +104,11 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
       setConfigs([]);
       setDraft(defaultConfig());
     });
+    remote.getSettings().then((settings: any) => {
+      remote.detectPandoc({ customPath: settings?.pandocPath || undefined })
+        .then((info: any) => setPandoc(info))
+        .catch(() => setPandoc({ found: false, version: '', path: '' }));
+    }).catch(() => {});
   }, [open]);
 
   useEffect(() => {
@@ -127,10 +164,46 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
     }
   };
 
+  const pickExportPath = (fileName: string, type: string): Promise<string | null> => new Promise((resolve) => {
+    let done = false;
+    const finish = (value: string | null) => {
+      if (done) return;
+      done = true;
+      unsubscribe();
+      resolve(value);
+    };
+    const unsubscribe = transport.addListener<string | null>('ExportPathPicked', (path) => finish(path ?? null));
+    remote.pickExportPath({ fileName, extension: extensionFor(type) }).catch(() => finish(null));
+    setTimeout(() => finish(null), 120000);
+  });
+
   const exportNow = async () => {
     setMessage('');
     setError('');
-    const fileName = draft.fileName || 'export.html';
+    const type = draft.exportType || 'html';
+    const fileName = withExtension(draft.fileName || `export.${extensionFor(type) || 'html'}`, type);
+
+    if (type !== 'html') {
+      let targetPath = draft.outputDir ? `${draft.outputDir.replace(/\/+$/, '')}/${fileName}` : null;
+      if (!targetPath) {
+        targetPath = await pickExportPath(fileName, type);
+        if (!targetPath) return;
+      }
+      transport.postMessage('Export', {
+        type,
+        context: {},
+        title: fileName.replace(/\.[^.]+$/, ''),
+        targetPath,
+        options: {
+          includeCss: draft.includeCss,
+          includeFrontmatter: draft.includeFrontmatter,
+          includeToc: draft.includeToc,
+          postAction: draft.postAction,
+        },
+      });
+      return;
+    }
+
     const targetPath = draft.outputDir ? `${draft.outputDir.replace(/\/+$/, '')}/${fileName}` : undefined;
     transport.postMessage('Export', {
       type: 'html',
@@ -222,11 +295,39 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
             <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--editorColor40)' }}>×</button>
           </div>
 
-          <div style={{ fontSize: 12, color: 'var(--editorColor40)', marginBottom: 6 }}>{t('Name')}</div>
+          <div style={{ fontSize: 12, color: 'var(--editorColor40)', marginBottom: 6 }}>{t('Format')}</div>
+          <select
+            value={draft.exportType || 'html'}
+            onChange={e => {
+              const type = e.target.value;
+              update({ exportType: type, fileName: `export.${extensionFor(type) || 'html'}` });
+            }}
+            style={{ ...inputStyle, width: 260 }}
+          >
+            {EXPORT_FORMATS.map(format => (
+              <option key={format.value} value={format.value}>{format.label}</option>
+            ))}
+          </select>
+
+          {draft.exportType !== 'html' && (
+            <div style={{ fontSize: 12, color: pandoc?.found ? 'var(--editorColor40)' : '#e05555', marginTop: 8 }}>
+              {pandoc?.found
+                ? `${pandoc.version} — ${pandoc.path}`
+                : t('Pandoc is required for this format. Configure it in Settings → Import & Export.')}
+            </div>
+          )}
+
+          <div style={{ fontSize: 12, color: 'var(--editorColor40)', margin: '12px 0 6px' }}>{t('Name')}</div>
           <input style={inputStyle} value={draft.name} onChange={e => update({ name: e.target.value })} />
 
           <div style={{ fontSize: 12, color: 'var(--editorColor40)', margin: '12px 0 6px' }}>{t('File Name')}</div>
           <input style={inputStyle} value={draft.fileName} onChange={e => update({ fileName: e.target.value })} />
+
+          {draft.exportType === 'custom' && (
+            <div style={{ fontSize: 12, color: 'var(--editorColor40)', marginTop: 6 }}>
+              {t('Custom commands are configured in Settings → Import & Export.')}
+            </div>
+          )}
 
           <div style={{ fontSize: 12, color: 'var(--editorColor40)', margin: '12px 0 6px' }}>{t('Output Directory')}</div>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -240,18 +341,22 @@ const ExportDialog: React.FC<IExportDialogProps> = ({ open, onClose }) => {
           </div>
 
           <div style={{ display: 'flex', gap: 24, marginTop: 16, flexWrap: 'wrap' }}>
+            {draft.exportType === 'html' && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               <input type="checkbox" checked={draft.includeCss} onChange={e => update({ includeCss: e.target.checked })} />
               {t('Include CSS')}
             </label>
+            )}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               <input type="checkbox" checked={draft.includeFrontmatter} onChange={e => update({ includeFrontmatter: e.target.checked })} />
               {t('Include Frontmatter')}
             </label>
+            {draft.exportType === 'html' && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
               <input type="checkbox" checked={draft.includeToc} onChange={e => update({ includeToc: e.target.checked })} />
               {t('Include Outline')}
             </label>
+            )}
           </div>
 
           <div style={{ fontSize: 12, color: 'var(--editorColor40)', margin: '12px 0 6px' }}>{t('After Export')}</div>

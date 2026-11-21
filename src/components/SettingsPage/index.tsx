@@ -67,6 +67,8 @@ const defaultSettings = {
   customDictionary: '',
   imageCopyDir: 'images',
   dotSlashImagePaths: true,
+  pandocPath: '',
+  customExportCommand: '',
 };
 
 type Settings = Record<string, any>;
@@ -90,6 +92,7 @@ const zhSections: Record<string, string> = {
     autoPair: '自动配对',
     extensions: '扩展',
     file: '文件',
+    exchange: '导入导出',
     advanced: '高级',
     theme: '主题与图表',
     image: '图片',
@@ -140,6 +143,8 @@ const zhLabels: Record<string, string> = {
     autoEncodeImageURL: '自动编码图片 URL',
     imageCopyDir: '图片复制目录',
     dotSlashImagePaths: '相对路径使用 ./',
+    pandocPath: 'Pandoc 路径',
+    customExportCommand: '自定义导出命令',
     autoSave: '自动保存',
     statusBarOpen: '显示状态栏',
     animationEnable: '启用动画',
@@ -249,6 +254,14 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
     ],
   },
   {
+    title: 'Import & Export',
+    key: 'exchange',
+    fields: [
+      { key: 'pandocPath', label: 'Pandoc Path', type: 'text', placeholder: 'auto-detect when empty' },
+      { key: 'customExportCommand', label: 'Custom Export Command', type: 'text', placeholder: 'pandoc {input} -o {output}' },
+    ],
+  },
+  {
     title: 'Advanced',
     key: 'advanced',
     fields: [],
@@ -302,6 +315,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
   const [themeDir, setThemeDir] = useState('');
   const [settingsPath, setSettingsPath] = useState('');
   const [logText, setLogText] = useState<string | null>(null);
+  const [pandocStatus, setPandocStatus] = useState<string>('');
 
   const loadCustomThemes = async () => {
     try {
@@ -454,6 +468,41 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
               </div>
             );
           })}
+
+          {activeSection === 'exchange' && (
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--editorColor10)' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <button
+                  onClick={() => {
+                    remote.detectPandoc({ customPath: settings.pandocPath || undefined })
+                      .then((info: any) => setPandocStatus(info?.found
+                        ? `${info.version} — ${info.path}`
+                        : (isZh ? '未找到 Pandoc' : 'Pandoc not found')))
+                      .catch(() => setPandocStatus(isZh ? '检测失败' : 'Detection failed'));
+                  }}
+                  style={{
+                    padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                    border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                    backgroundColor: 'var(--editorColor04)',
+                  }}
+                >{isZh ? '检测 Pandoc' : 'Detect Pandoc'}</button>
+                <button
+                  onClick={() => remote.importDocument().catch(() => {})}
+                  style={{
+                    padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                    border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                    backgroundColor: 'var(--editorColor04)',
+                  }}
+                >{isZh ? '导入文档…' : 'Import Document…'}</button>
+                {pandocStatus && <span style={{ fontSize: 12, color: 'var(--editorColor40)', wordBreak: 'break-all' }}>{pandocStatus}</span>}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginTop: 8 }}>
+                {isZh
+                  ? 'Word / ODT / ePub / LaTeX / RST / RTF / OPML / PDF / RevealJS 与文档导入都依赖 Pandoc；PDF 还需要 TeX 引擎（tectonic / xelatex）或 weasyprint。自定义命令可用 {input}、{output}、{title} 占位符。'
+                  : 'Word / ODT / ePub / LaTeX / RST / RTF / OPML / PDF / RevealJS and document import require Pandoc; PDF also needs a TeX engine (tectonic / xelatex) or weasyprint. Custom commands can use {input}, {output} and {title}.'}
+              </div>
+            </div>
+          )}
 
           {activeSection === 'advanced' && (
             <div>

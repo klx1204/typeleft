@@ -24,6 +24,7 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'new_file', label: 'New File', category: 'File', action: () => transport.postMessage('NewFile', {}) },
     { id: 'settings', label: 'Settings...', category: 'File', action: () => transport.postMessage('OpenSettings', {}) },
     { id: 'export_html', label: 'Export HTML...', category: 'File', action: () => transport.postMessage('OpenExportDialog', {}) },
+    { id: 'import_document', label: 'Import Document...', category: 'File', action: () => remote.importDocument().catch(() => {}) },
     { id: 'image_hosting', label: 'Image Hosting', category: 'File', action: () => transport.postMessage('OpenImageConfigDialog', {}) },
     { id: 'themes', label: 'Themes...', category: 'View', action: () => transport.postMessage('OpenThemeDialog', {}) },
     { id: 'print', label: 'Print...', category: 'File', action: () => transport.postMessage('Export', { type: 'print', context: {} }) },

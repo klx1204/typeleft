@@ -33,6 +33,12 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | `autoPairMarkdownSyntax` | boolean | `true` | Wrap a selection with `* _ ~ = $ ^ \``. |
 | `superSubScript` | boolean | `true` | Parse `^sup^` / `~sub~`. |
 | `sourceCode` | boolean | `false` | Start in Markdown source mode. |
+| `smartQuotes` | boolean | `true` | Convert straight quotes to curly quotes while typing. |
+| `smartDashes` | boolean | `true` | Convert `--` / `---` / `...` to en dash, em dash and ellipsis. |
+| `preserveSoftLineBreaks` | boolean | `false` | Keep single newlines as `<br>` in the editor and exports. |
+| `autoLink` | boolean | `true` | Link typed URLs automatically; when off, parsed literals stay text. |
+| `defaultCopyFormat` | `rich` / `markdown` / `text` | `rich` | What Edit → Copy writes. |
+| `customDictionary` | string | `""` | Comma-separated words the spell checker accepts. |
 
 ## Typography
 
@@ -71,6 +77,7 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
 | `defaultFileExtension` | string | `md` | Extension offered when creating a file in the sidebar. |
+| `fileStartupAction` | `""` / `openLast` / `new` | `""` | Blank page, restore the last file, or start a new document. |
 | `dragDropAction` | `open` / `insert-link` / `ignore` | `open` | What dropping a file on the window does. |
 | `recentFilesLimit` | number | `10` | Entries kept in File → Recent Files (1–30). |
 | `fileStartupAction` | string | `none` | Action applied to a single file passed on startup. |
@@ -107,6 +114,10 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | `preferRelativeImagePaths` | boolean | `false` | Write relative image paths. |
 | `autoEncodeImageURL` | boolean | `true` | Percent-encode image URLs. |
 | `exportConfigs` | array | `[]` | Saved export presets (managed by the dialog). |
+| `imageCopyDir` | string | `images` | Folder for copied/pasted images, relative to the document or absolute. |
+| `dotSlashImagePaths` | boolean | `true` | Prefix relative image paths with `./`. |
+| `pandocPath` | string | `""` | Pandoc executable; empty means auto-detect. |
+| `customExportCommand` | string | `""` | Command template for the Custom export format (`{input}`, `{output}`, `{title}`). |
 
 ## Per-document export
 
@@ -125,3 +136,15 @@ export:
 ```
 
 The values above override the selected preset for that export only.
+
+## Export formats
+
+The export dialog can produce HTML itself, or delegate to Pandoc for PDF,
+Word (`.docx`), ODT, ePub, LaTeX, RST, RTF, OPML, Reveal.js, Markdown
+(GFM/CommonMark) and plain text. PDF additionally needs a TeX engine
+(`tectonic` / `xelatex`) or `weasyprint`. Without Pandoc the dialog shows where
+to configure it; nothing fails silently.
+
+Import (File → Import Document…) uses the same Pandoc installation for docx,
+odt, ePub, RST and HTML; media is extracted to `<name>_files/` next to the
+source document.

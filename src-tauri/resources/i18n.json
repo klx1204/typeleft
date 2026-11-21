@@ -870,5 +870,37 @@
   "Drag to reorder columns": {
     "en": "Drag to reorder columns",
     "zh": "拖动调整列顺序"
+  },
+  "Pandoc is required for this format. Configure it in Settings → Import & Export.": {
+    "en": "Pandoc is required for this format. Configure it in Settings → Import & Export.",
+    "zh": "该格式需要 Pandoc，请在“设置 → 导入导出”中配置。"
+  },
+  "Choose an output folder or file first": {
+    "en": "Choose an output folder or file first",
+    "zh": "请先选择输出目录或文件"
+  },
+  "Set a custom export command in Settings → Import & Export": {
+    "en": "Set a custom export command in Settings → Import & Export",
+    "zh": "请在“设置 → 导入导出”中设置自定义导出命令"
+  },
+  "Pandoc not found. Set its path in Settings → Import & Export.": {
+    "en": "Pandoc not found. Set its path in Settings → Import & Export.",
+    "zh": "未找到 Pandoc，请在“设置 → 导入导出”中设置路径。"
+  },
+  "PDF export needs a TeX engine (tectonic / xelatex) or weasyprint.": {
+    "en": "PDF export needs a TeX engine (tectonic / xelatex) or weasyprint.",
+    "zh": "PDF 导出需要 TeX 引擎（tectonic / xelatex）或 weasyprint。"
+  },
+  "Import failed": {
+    "en": "Import failed",
+    "zh": "导入失败"
+  },
+  "Custom commands are configured in Settings → Import & Export.": {
+    "en": "Custom commands are configured in Settings → Import & Export.",
+    "zh": "自定义命令在“设置 → 导入导出”中配置。"
+  },
+  "PDF engine not found — opening the print dialog; choose \"Save as PDF\".": {
+    "en": "PDF engine not found — opening the print dialog; choose \"Save as PDF\".",
+    "zh": "未找到 PDF 引擎，已打开打印对话框；请选择“另存为 PDF”。"
   }
 }

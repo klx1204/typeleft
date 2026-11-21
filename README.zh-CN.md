@@ -22,7 +22,12 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **大纲与文件树**侧栏（大纲过滤、固定/最近文件夹），支持重命名、移动、复制、删除到回收站、新建文件/文件夹
 - **最近文件**菜单，数量可配置
 - **代码块**：行号、自动换行、默认语言、```` ```math ```` KaTeX 预览、复制代码块、Tab / Shift+Tab 缩进
+- **富 HTML**：HTML 块与行内标记、`<u>`、`<video>`/`<audio>`、沙箱 `<iframe>`，源码往返保真
+- **表格**：增删行列、列宽、对齐，以及拖动行/列排序
 - **导出配置**（排序、CSS / 大纲 / Front Matter 开关、导出后动作、文档 Front Matter 覆盖）与**直接打印**
+- **Pandoc 导出**：PDF、Word、ODT、ePub、LaTeX、RST、RTF、OPML、Reveal.js、Markdown 转换与自定义命令
+- **Pandoc 导入**：docx / odt / ePub / RST（媒体文件解压到源文件旁）
+- **写作辅助**：智能引号与破折号、自动链接、复制为 Markdown/HTML/纯文本、带自定义词典的拼写检查
 - **窗口**：缩放（菜单或 Cmd/Ctrl + 滚轮）、全屏
 - **选中文本网页搜索**、错误日志面板，以及 **CLI**（`typeleft <文件>`、`--new`、`--folder`）
 - **图片**：剪贴板粘贴、本地复制、相对路径、HTTP 图床上传
@@ -39,6 +44,9 @@ typeleft --new             # 新建空文档
 typeleft --folder ~/vault  # 在侧栏打开文件夹
 typeleft --help
 ```
+
+文档导入/导出格式需要 [Pandoc](https://pandoc.org/installing.html)；PDF 还需要 TeX 引擎
+（`tectonic` 或 `xelatex`）或 `weasyprint`。可在“设置 → 导入导出”中指定路径。
 
 ## 主题
 

@@ -427,6 +427,44 @@ fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
+fn import_document_dialog(app: tauri::AppHandle) {
+    let handle = app.clone();
+    app.dialog()
+        .file()
+        .add_filter("Documents", &["docx", "odt", "epub", "rst", "rtf", "html", "htm", "txt"])
+        .pick_file(move |file| {
+            let Some(path) = file.and_then(|f| f.as_path().map(|p| p.to_path_buf())) else {
+                return;
+            };
+            let settings = load_settings_raw(&handle);
+            let custom = settings
+                .get("pandocPath")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let file_path = path.to_string_lossy().to_string();
+            match pandoc_import(file_path.clone(), custom) {
+                Ok(markdown) => {
+                    let base = path
+                        .parent()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    let _ = handle.emit("ImportMarkdown", serde_json::json!({
+                        "markdown": markdown,
+                        "basePath": base,
+                    }));
+                }
+                Err(error) => {
+                    let _ = handle.emit("ImportFailed", serde_json::json!({ "message": error }));
+                }
+            }
+        });
+}
+
+#[tauri::command]
+fn import_document(app: tauri::AppHandle) {
+    import_document_dialog(app);
+}
+
 #[tauri::command]
 fn open_folder_dialog(app: tauri::AppHandle) {
     let handle = app.clone();
@@ -1207,6 +1245,257 @@ fn cli_usage() -> String {
     )
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PandocInfo {
+    found: bool,
+    path: String,
+    version: String,
+}
+
+fn pandoc_candidates(custom: Option<&str>) -> Vec<String> {
+    let mut candidates = Vec::new();
+    if let Some(path) = custom {
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            candidates.push(expand_tilde(trimmed));
+        }
+    }
+    candidates.push("pandoc".to_string());
+    #[cfg(target_os = "macos")]
+    {
+        candidates.push("/opt/homebrew/bin/pandoc".to_string());
+        candidates.push("/usr/local/bin/pandoc".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    {
+        candidates.push("pandoc.exe".to_string());
+    }
+    candidates
+}
+
+fn find_pandoc(custom: Option<&str>) -> Option<(String, String)> {
+    for candidate in pandoc_candidates(custom) {
+        if let Ok(output) = std::process::Command::new(&candidate).arg("--version").output() {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .next()
+                    .unwrap_or("pandoc")
+                    .trim()
+                    .to_string();
+                return Some((candidate, version));
+            }
+        }
+    }
+    None
+}
+
+fn find_pdf_engine() -> Option<String> {
+    for engine in ["tectonic", "xelatex", "weasyprint", "wkhtmltopdf"] {
+        if std::process::Command::new(engine)
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+        {
+            return Some(engine.to_string());
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn detect_pandoc(custom_path: Option<String>) -> PandocInfo {
+    match find_pandoc(custom_path.as_deref()) {
+        Some((path, version)) => PandocInfo { found: true, path, version },
+        None => PandocInfo { found: false, path: String::new(), version: String::new() },
+    }
+}
+
+/// Arguments that turn a GFM input file into `format`.
+fn pandoc_format_args(format: &str, target: &str, pdf_engine: Option<&str>) -> Result<Vec<String>, String> {
+    let mut args: Vec<String> = Vec::new();
+    match format {
+        "docx" | "odt" | "epub" | "latex" | "rst" | "rtf" | "opml" | "pptx" => {
+            args.extend(["-t".into(), format.into()]);
+        }
+        "revealjs" => {
+            args.extend([
+                "-t".into(),
+                "revealjs".into(),
+                "-s".into(),
+                "--variable".into(),
+                "revealjs-url=https://unpkg.com/reveal.js@4".into(),
+            ]);
+        }
+        "pdf" => {
+            args.extend(["-t".into(), "pdf".into()]);
+            match pdf_engine {
+                Some(engine) => args.push(format!("--pdf-engine={}", engine)),
+                None => return Err("pdf-engine-missing".into()),
+            }
+        }
+        "markdown-gfm" => args.extend(["-t".into(), "gfm".into()]),
+        "markdown-commonmark" => args.extend(["-t".into(), "commonmark".into()]),
+        "plain" => args.extend(["-t".into(), "plain".into()]),
+        other => return Err(format!("unsupported-format:{}", other)),
+    }
+    args.extend(["-o".into(), target.to_string()]);
+    Ok(args)
+}
+
+#[tauri::command]
+fn pandoc_export(
+    markdown: String,
+    format: String,
+    target_path: String,
+    base_path: Option<String>,
+    title: Option<String>,
+    pdf_engine: Option<String>,
+    custom_path: Option<String>,
+) -> Result<(), String> {
+    let (pandoc, _) = find_pandoc(custom_path.as_deref()).ok_or("pandoc-not-found")?;
+    let engine = pdf_engine
+        .filter(|value| !value.trim().is_empty())
+        .or_else(if format == "pdf" { find_pdf_engine } else { || None });
+    let args = pandoc_format_args(&format, &target_path, engine.as_deref())?;
+
+    let temp = std::env::temp_dir().join(format!(
+        "typeleft-export-{}.md",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+    std::fs::write(&temp, markdown).map_err(|e| e.to_string())?;
+
+    let mut command = std::process::Command::new(pandoc);
+    command.arg(&temp).args(["-f", "gfm"]).args(&args);
+    if let Some(title) = title.filter(|t| !t.trim().is_empty()) {
+        command.args(["--metadata", &format!("title={}", title)]);
+    }
+    if let Some(base) = base_path.filter(|b| !b.trim().is_empty()) {
+        if std::path::Path::new(&base).is_dir() {
+            command.current_dir(&base);
+            command.arg(format!("--resource-path={}", base));
+        }
+    }
+    let output = command.output().map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&temp);
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn pandoc_import(path: String, custom_path: Option<String>) -> Result<String, String> {
+    let (pandoc, _) = find_pandoc(custom_path.as_deref()).ok_or("pandoc-not-found")?;
+    let source = std::path::Path::new(&path);
+    let parent = source.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let stem = source
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| "import".into());
+    let mut command = std::process::Command::new(pandoc);
+    command.arg(&path).args(["-t", "gfm"]);
+    let ext = source
+        .extension()
+        .map(|e| e.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+    if ext != "md" && ext != "markdown" && ext != "txt" {
+        let media = parent.join(format!("{}_files", stem));
+        command.arg(format!("--extract-media={}", media.to_string_lossy()));
+    }
+    let output = command.output().map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Split a user command template, honouring single and double quotes.
+fn split_command(template: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    for ch in template.chars() {
+        match quote {
+            Some(q) if ch == q => quote = None,
+            Some(_) => current.push(ch),
+            None if ch == '\'' || ch == '"' => quote = Some(ch),
+            None if ch.is_whitespace() => {
+                if !current.is_empty() {
+                    parts.push(std::mem::take(&mut current));
+                }
+            }
+            None => current.push(ch),
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
+}
+
+#[tauri::command]
+fn run_export_command(
+    template: String,
+    markdown: String,
+    target_path: String,
+    base_path: Option<String>,
+    title: Option<String>,
+) -> Result<(), String> {
+    let parts = split_command(&template);
+    if parts.is_empty() {
+        return Err("empty-command".into());
+    }
+    let temp = std::env::temp_dir().join(format!(
+        "typeleft-custom-{}.md",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    ));
+    std::fs::write(&temp, markdown).map_err(|e| e.to_string())?;
+    let input = temp.to_string_lossy().to_string();
+    let args: Vec<String> = parts[1..]
+        .iter()
+        .map(|arg| {
+            arg.replace("{input}", &input)
+                .replace("{output}", &target_path)
+                .replace("{title}", title.as_deref().unwrap_or(""))
+        })
+        .collect();
+    let mut command = std::process::Command::new(&parts[0]);
+    command.args(&args);
+    if let Some(base) = base_path.filter(|b| !b.trim().is_empty()) {
+        if std::path::Path::new(&base).is_dir() {
+            command.current_dir(base);
+        }
+    }
+    let output = command.output().map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_file(&temp);
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn pick_export_path(app: tauri::AppHandle, file_name: String, extension: String) {
+    let handle = app.clone();
+    let mut builder = app.dialog().file();
+    if !extension.trim().is_empty() {
+        builder = builder.add_filter(extension.to_uppercase(), &[extension.as_str()]);
+    }
+    builder.set_file_name(file_name).save_file(move |file| {
+        let path = file.and_then(|f| f.as_path().map(|p| p.to_string_lossy().to_string()));
+        let _ = handle.emit("ExportPathPicked", path);
+    });
+}
+
 fn load_and_queue_file(app: &tauri::AppHandle, path: &std::path::Path) {
     let text = match std::fs::read_to_string(path) {
         Ok(c) => c,
@@ -1244,6 +1533,7 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Save" => "保存",
         "Save As..." => "另存为...",
         "Import HTML..." => "导入 HTML...",
+        "Import Document..." => "导入文档...",
         "Export HTML..." => "导出 HTML...",
         "Print..." => "打印...",
         "Close Window" => "关闭窗口",
@@ -1320,6 +1610,7 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let save = MenuItem::with_id(app, "save", tr("Save"), true, Some("CmdOrCtrl+S"))?;
     let save_as = MenuItem::with_id(app, "save_as", tr("Save As..."), true, Some("CmdOrCtrl+Shift+S"))?;
     let import_html = MenuItem::with_id(app, "import_html", tr("Import HTML..."), true, None::<&str>)?;
+    let import_document = MenuItem::with_id(app, "import_document", tr("Import Document..."), true, None::<&str>)?;
     let export_html = MenuItem::with_id(app, "export_html", tr("Export HTML..."), true, None::<&str>)?;
     let print_item = MenuItem::with_id(app, "print", tr("Print..."), true, Some("CmdOrCtrl+P"))?;
     let image_hosting = MenuItem::with_id(app, "image_hosting", tr("Image Hosting..."), true, None::<&str>)?;
@@ -1347,7 +1638,7 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     }
 
     let file_menu = Submenu::with_items(app, tr("File"), true, &[
-        &new_file, &open_file, &recent_menu, &import_html, &export_html, &print_item, &image_hosting, &sep1, &save, &save_as, &PredefinedMenuItem::separator(app)?, &close,
+        &new_file, &open_file, &recent_menu, &import_html, &import_document, &export_html, &print_item, &image_hosting, &sep1, &save, &save_as, &PredefinedMenuItem::separator(app)?, &close,
     ])?;
 
     let undo = MenuItem::with_id(app, "undo", tr("Undo"), true, None::<&str>)?;
@@ -1629,6 +1920,7 @@ pub fn run() {
                 "save_as" => { let _ = app.emit("MenuSaveAs", ()); }
                 "close_window" => { if let Some(window) = app.get_webview_window("main") { let _ = window.close(); } }
                 "import_html" => { let _ = app.emit("ImportHTMLDialog", ()); }
+                "import_document" => { import_document_dialog(app.clone()); }
                 "export_html" => { let _ = app.emit("OpenExportDialog", ()); }
                 "print" => { let _ = app.emit("Export", serde_json::json!({"type": "print", "context": {}})); }
                 "image_hosting" => { let _ = app.emit("OpenImageConfigDialog", ()); }
@@ -1758,6 +2050,12 @@ pub fn run() {
             read_log,
             clear_log,
             open_url,
+            detect_pandoc,
+            pandoc_export,
+            pandoc_import,
+            import_document,
+            run_export_command,
+            pick_export_path,
             get_image_upload_configs,
             save_image_upload_config,
             delete_image_upload_config,
@@ -1827,4 +2125,101 @@ mod tests {
         let parsed = args(&["--unknown", "notes.md"]);
         assert_eq!(parsed.file.as_deref(), Some("notes.md"));
     }
+}
+
+#[cfg(test)]
+
+#[cfg(test)]
+
+#[cfg(test)]
+
+#[cfg(test)]
+mod pandoc_tests {
+    use super::*;
+
+    #[test]
+    fn splits_quoted_commands() {
+        assert_eq!(
+            split_command("pandoc {input} -o \"{output}\""),
+            vec!["pandoc", "{input}", "-o", "{output}"]
+        );
+        assert_eq!(split_command("  my-tool 'a b' c  "), vec!["my-tool", "a b", "c"]);
+        assert_eq!(split_command(""), Vec::<String>::new());
+    }
+
+    #[test]
+    fn builds_document_formats() {
+        let args = pandoc_format_args("docx", "/tmp/out.docx", None).unwrap();
+        assert!(args.contains(&"-t".to_string()));
+        assert!(args.contains(&"docx".to_string()));
+        assert!(args.contains(&"/tmp/out.docx".to_string()));
+    }
+
+    #[test]
+    fn pdf_needs_an_engine() {
+        assert_eq!(
+            pandoc_format_args("pdf", "/tmp/out.pdf", None).unwrap_err(),
+            "pdf-engine-missing"
+        );
+        let args = pandoc_format_args("pdf", "/tmp/out.pdf", Some("tectonic")).unwrap();
+        assert!(args.contains(&"--pdf-engine=tectonic".to_string()));
+    }
+
+    #[test]
+    fn revealjs_is_a_standalone_html() {
+        let args = pandoc_format_args("revealjs", "/tmp/slides.html", None).unwrap();
+        assert!(args.contains(&"revealjs".to_string()));
+        assert!(args.contains(&"-s".to_string()));
+    }
+
+    #[test]
+    fn unknown_formats_are_rejected() {
+        assert!(pandoc_format_args("nope", "/tmp/x", None).is_err());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn export_runs_pandoc_and_creates_the_file() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("typeleft-pandoc-test-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let script = dir.join("pandoc");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'pandoc 3.0'; exit 0; fi\nout=\"\"\nwhile [ $# -gt 0 ]; do if [ \"$1\" = \"-o\" ]; then shift; out=\"$1\"; fi; shift; done\nprintf 'args:%s\\n' \"$*\" > \"$out\"\n",
+    ).unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let target = dir.join("out.docx");
+    pandoc_export(
+        "# Hi".into(),
+        "docx".into(),
+        target.to_string_lossy().into(),
+        None,
+        None,
+        None,
+        Some(script.to_string_lossy().into()),
+    ).unwrap();
+    let data = std::fs::read_to_string(&target).unwrap();
+    assert!(data.contains("args:"));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[cfg(unix)]
+#[test]
+fn import_converts_with_pandoc() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("typeleft-pandoc-import-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let script = dir.join("pandoc");
+    std::fs::write(
+        &script,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'pandoc 3.0'; exit 0; fi\necho '# Imported'\n",
+    ).unwrap();
+    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let source = dir.join("doc.docx");
+    std::fs::write(&source, b"fake").unwrap();
+    let markdown = pandoc_import(source.to_string_lossy().into(), Some(script.to_string_lossy().into())).unwrap();
+    assert!(markdown.contains("# Imported"));
+    std::fs::remove_dir_all(&dir).ok();
 }

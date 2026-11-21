@@ -161,26 +161,82 @@ const Editor: React.FC = () => {
         }).generate(generateOption)
         if (type == 'print') {
             remote.printHTML({ html, context })
-        } else if (finalTarget) {
-            try {
-                await remote.writeTextFile({ path: finalTarget, content: html })
-                transport.postMessage('ExportDone', { path: finalTarget })
-                const postAction = merged.postAction
-                if (postAction === 'open-file') remote.openPath({ path: finalTarget }).catch(() => {})
-                if (postAction === 'open-folder') {
-                    remote.openPath({ path: finalTarget.replace(/[\\/][^\\/]+$/, '') }).catch(() => {})
-                }
-            } catch (e) {
-                transport.postMessage('ExportFailed', { message: String(e) })
+            return
+        }
+        if (!finalTarget) {
+            if (type === 'html') {
+                remote.exportCallback({ html, context })
+            } else {
+                transport.postMessage('ExportFailed', { message: t('Choose an output folder or file first') })
             }
-        } else {
-            remote.exportCallback({ html, context })
+            return
+        }
+        try {
+            if (type === 'html') {
+                await remote.writeTextFile({ path: finalTarget, content: html })
+            } else if (type === 'custom') {
+                const template = String(optionsRef.current?.customExportCommand || '').trim()
+                if (!template) throw new Error(t('Set a custom export command in Settings → Import & Export'))
+                await remote.runExportCommand({
+                    template,
+                    markdown: markdownRef.current ?? '',
+                    targetPath: finalTarget,
+                    basePath,
+                    title: generateOption.title,
+                })
+            } else {
+                await remote.pandocExport({
+                    markdown: source,
+                    format: type,
+                    targetPath: finalTarget,
+                    basePath,
+                    title: generateOption.title,
+                    customPath: optionsRef.current?.pandocPath || undefined,
+                })
+            }
+            transport.postMessage('ExportDone', { path: finalTarget })
+            const postAction = merged.postAction
+            if (postAction === 'open-file') remote.openPath({ path: finalTarget }).catch(() => {})
+            if (postAction === 'open-folder') {
+                remote.openPath({ path: finalTarget.replace(/[\\/][^\\/]+$/, '') }).catch(() => {})
+            }
+        } catch (e: any) {
+            const raw = String(e?.message ?? e)
+            if (type === 'pdf' && (raw.includes('pdf-engine-missing') || raw.includes('pandoc-not-found'))) {
+                transport.postMessage('ExportFailed', {
+                    message: t('PDF engine not found — opening the print dialog; choose "Save as PDF".'),
+                })
+                remote.printHTML({ html, context })
+                return
+            }
+            const message = raw.includes('pandoc-not-found')
+                ? t('Pandoc not found. Set its path in Settings → Import & Export.')
+                : raw.includes('pdf-engine-missing')
+                    ? t('PDF export needs a TeX engine (tectonic / xelatex) or weasyprint.')
+                    : raw
+            transport.postMessage('ExportFailed', { message })
         }
     }), []);
 
     useEffect(() => transport.addListener<{ type: string, text: string }>('ImportFile', ({ text }) => {
         setMarkdown(htmlToMarkdown(text, [], DEFAULT_TURNDOWN_CONFIG))
     }), [options]);
+
+    useEffect(() => transport.addListener<{ markdown: string, basePath?: string }>('ImportMarkdown', ({ markdown, basePath }) => {
+        setFilePath(undefined)
+        setCursor(undefined)
+        setMarkdown(markdown)
+        markdownRef.current = markdown
+        window.basePath = basePath || ''
+        adoptDocSize(markdown)
+        adoptLoadedFile(markdown)
+        document.title = 'Typeleft'
+        getCurrentWebviewWindow().setTitle('Typeleft').catch(() => {});
+    }), [adoptDocSize, adoptLoadedFile]);
+
+    useEffect(() => transport.addListener<{ message: string }>('ImportFailed', ({ message }) => {
+        window.alert(`${t('Import failed')}: ${message}`)
+    }), [t]);
 
     useEffect(() => transport.addListener<{ text: string, basePath: string, filePath?: string }>('LoadFile', ({ text, basePath, filePath }) => {
         window.basePath = basePath

@@ -86,6 +86,11 @@
       if (cmd === 'get_export_configs') return Promise.resolve(exportConfigs);
       if (cmd === 'reorder_export_configs') { window.__reordered = args.ids; return Promise.resolve(null); }
       if (cmd === 'get_settings_path') return Promise.resolve('/tmp/typeleft/settings.json');
+      if (cmd === 'detect_pandoc') return Promise.resolve({ found: false, path: '', version: '' });
+      if (cmd === 'pick_export_path') return Promise.resolve(null);
+      if (cmd === 'pandoc_export') { window.__pandocExport = args; return Promise.resolve(null); }
+      if (cmd === 'pandoc_import') return Promise.resolve('# Imported');
+      if (cmd === 'run_export_command') { window.__customExport = args; return Promise.resolve(null); }
       if (cmd === 'get_log_path') return Promise.resolve('/tmp/typeleft/typeleft_errors.log');
       if (cmd === 'read_log') return Promise.resolve('[Typeleft] test log line\n');
       if (cmd === 'open_url') { window.__openedUrl = args.url; return Promise.resolve(null); }

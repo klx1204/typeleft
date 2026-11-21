@@ -28,6 +28,12 @@ const KEYS = [
     'Include Outline', 'After Export', 'Do Nothing', 'Open File', 'Move Up', 'Move Down',
     'Search the Web for', 'Move row up', 'Move row down', 'Move column left', 'Move column right',
     'Drag to reorder rows', 'Drag to reorder columns',
+    'Format', 'Pandoc is required for this format. Configure it in Settings → Import & Export.',
+    'Choose an output folder or file first', 'Set a custom export command in Settings → Import & Export',
+    'Pandoc not found. Set its path in Settings → Import & Export.',
+    'PDF export needs a TeX engine (tectonic / xelatex) or weasyprint.', 'Import failed',
+    'PDF engine not found — opening the print dialog; choose "Save as PDF".',
+    'Custom commands are configured in Settings → Import & Export.',
     'Type a command...', 'No commands found', 'Search...', 'Replace...', 'Previous', 'Next',
     'Replace', 'Replace All', 'Close', 'Search',
 

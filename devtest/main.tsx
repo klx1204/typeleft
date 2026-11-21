@@ -316,6 +316,16 @@ if (location.search.includes('theme')) {
   const errors = ((window as any).__errors || []).filter((e: string) => !/Warning: Each child|ReactDOM.render/.test(e));
   check('no console errors', errors.length === 0, errors.join(' | ').slice(0, 1200));
 
+  if (exportMode) {
+    const text = document.body.textContent || '';
+    check('export configs listed', text.includes('HTML') && text.includes('Print'));
+    check('include outline checkbox', (window as any).__exportHadOutline === true);
+    check('export formats include Word', text.includes('Word (.docx)'));
+    check('pandoc requirement shown', text.includes('Pandoc is required') || text.includes('该格式需要 Pandoc'));
+    const reordered = (window as any).__reordered;
+    check('export config reorder', Array.isArray(reordered) && reordered[0] === 'b', JSON.stringify(reordered));
+  }
+
   if (extraCheck) extraCheck();
 
   window.scrollTo(0, 0);
@@ -488,6 +498,16 @@ if (searchMenuMode) {
 
 if (exportMode) {
   setTimeout(() => {
+    (window as any).__exportHadOutline =
+      (document.body.textContent || '').includes('包含大纲') ||
+      (document.body.textContent || '').includes('Include Outline');
+    const selects = Array.from(document.querySelectorAll('select')) as HTMLSelectElement[];
+    const format = selects.find(sel => Array.from(sel.options).some(option => option.value === 'docx'));
+    if (format) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!;
+      setter.call(format, 'docx');
+      format.dispatchEvent(new Event('change', { bubbles: true }));
+    }
     const rows = Array.from(document.querySelectorAll('div')).filter(el =>
       el.querySelectorAll('button').length === 2 && (el.textContent || '').startsWith('HTML'));
     const row = rows[rows.length - 1];

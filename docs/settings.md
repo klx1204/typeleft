@@ -6,9 +6,9 @@ settings that have no UI yet.
 
 | Platform | Path |
 | --- | --- |
-| macOS | `~/Library/Application Support/com.typeleft.app/settings.json` |
-| Windows | `%APPDATA%\com.typeleft.app\settings.json` |
-| Linux | `~/.config/com.typeleft.app/settings.json` |
+| macOS | `~/Library/Application Support/com.typeleft.desktop/settings.json` |
+| Windows | `%APPDATA%\com.typeleft.desktop\settings.json` |
+| Linux | `~/.config/com.typeleft.desktop/settings.json` |
 
 Open it from **Settings → Advanced → Open settings.json**, then press
 **Reload**. A few window-related entries only apply after a restart.

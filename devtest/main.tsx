@@ -113,7 +113,7 @@ const options: any = {
   ...(softBreakMode ? { preserveSoftLineBreaks: true } : {}),
   ...(noAutoLinkMode ? { autoLink: false } : {}),
   ...(noSmartMode ? { smartQuotes: false, smartDashes: false } : {}),
-  ...(spellMode ? { spellcheckEnabled: true, customDictionary: 'Typeleft, Devtest' } : {}),
+  ...(spellMode ? { spellcheckEnabled: true, spellcheckEngine: 'builtin', customDictionary: 'Typeleft, Devtest' } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,
@@ -273,6 +273,9 @@ const finish = (extraCheck?: () => void) => {
     const words = Array.from(ml.querySelectorAll('.tl-spell-error')).map(el => el.getAttribute('data-word'));
     check('spellcheck marks misspellings', words.includes('teh') && words.includes('quikc'), JSON.stringify(words));
     check('spellcheck honours custom dictionary', !words.includes('Typeleft') && !words.includes('Devtest'), JSON.stringify(words));
+    const host = document.querySelector('#milkdown-test .ProseMirror') as HTMLElement | null;
+    check('builtin spellcheck disables native underlines', host?.getAttribute('spellcheck') === 'false',
+      host?.getAttribute('spellcheck') || 'n/a');
   }
 
   const h1 = ml.querySelector('h1') as HTMLElement | null;

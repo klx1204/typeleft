@@ -453,6 +453,9 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         // first text block instead.
         try {
           const view = instance.action((ctx) => ctx.get(editorViewCtx));
+          const opts = propsRef.current.options;
+          view.dom.setAttribute('spellcheck', String(!!opts?.spellcheckEnabled && opts?.spellcheckEngine !== 'builtin'));
+          view.dom.setAttribute('lang', opts?.spellcheckLang || '');
           if (view.state.selection instanceof NodeSelection) {
             const pos = Math.min(view.state.selection.to + 1, view.state.doc.content.size);
             const next = Selection.near(view.state.doc.resolve(pos), 1);
@@ -553,9 +556,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setCustomDictionary(props.options?.customDictionary);
     const view = getView();
     if (view) {
-      // The bundled dictionary drives the decorations; native underlines would
-      // duplicate them and cannot use the custom word list.
-      view.dom.setAttribute('spellcheck', 'false');
+      // The built-in checker drives the decorations; native underlines would
+      // duplicate them. System mode keeps the WebView checker (and macOS grammar).
+      const useSystem = props.options?.spellcheckEngine !== 'builtin';
+      view.dom.setAttribute('spellcheck', String(!!props.options?.spellcheckEnabled && useSystem));
       view.dom.setAttribute('lang', props.options?.spellcheckLang || '');
     }
   }, [props.options, getView]);
@@ -576,7 +580,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         }
         return;
       }
-      if (!props.options?.spellcheckEnabled) {
+      if (!props.options?.spellcheckEnabled || props.options?.spellcheckEngine !== 'builtin') {
         import('./spellcheck').then(({ spellcheckKey }) => {
           if (!cancelled && view.dom.isConnected) view.dispatch(view.state.tr.setMeta(spellcheckKey, null));
         }).catch(() => {});
@@ -593,6 +597,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   }, [
     props.markdown,
     props.options?.spellcheckEnabled,
+    props.options?.spellcheckEngine,
     props.options?.customDictionary,
     getView,
   ]);

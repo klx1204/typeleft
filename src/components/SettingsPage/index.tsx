@@ -65,6 +65,7 @@ const defaultSettings = {
   autoLink: true,
   defaultCopyFormat: 'rich',
   customDictionary: '',
+  spellcheckEngine: 'system',
   imageCopyDir: 'images',
   dotSlashImagePaths: true,
   pandocPath: '',
@@ -128,6 +129,7 @@ const zhLabels: Record<string, string> = {
     autoLink: '自动链接网址',
     defaultCopyFormat: '默认复制格式',
     customDictionary: '自定义词典（逗号分隔）',
+    spellcheckEngine: '拼写检查引擎',
     superSubScript: '上标/下标',
     codeBlockLineNumbers: '代码块显示行号',
     codeBlockWrap: '代码块自动换行',
@@ -443,6 +445,8 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                       <option key={String(o)} value={String(o)}>
                         {field.key === 'lang'
                           ? (o === 'zh' ? '中文' : 'English')
+                          : field.key === 'spellcheckEngine'
+                            ? (o === 'system' ? (isZh ? '系统（支持多语言与语法）' : 'System (multilingual + grammar)') : (isZh ? '内置英文词典（可自定义词表）' : 'Built-in English (custom words)'))
                           : field.key === 'fileStartupAction'
                             ? (o === '' ? (isZh ? '空白页' : 'Blank page') : o === 'openLast' ? (isZh ? '恢复上次文件' : 'Restore last file') : (isZh ? '新建文档' : 'New document'))
                           : field.key === 'folderStartupAction'

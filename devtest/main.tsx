@@ -6,6 +6,8 @@ import themeCss from './typora-theme.css?raw';
 import CodeMirror6 from '../src/components/CodeMirror6';
 import Sidebar from '../src/components/Sidebar';
 import ExportDialog from '../src/components/ExportDialog';
+import SettingsPage from '../src/components/SettingsPage';
+import SelectionSearchMenu from '../src/components/SelectionSearchMenu';
 
 const fixture = `---
 title: Devtest
@@ -76,6 +78,8 @@ const codeBlockMode = location.search.includes('codeblock');
 const sidebarMode = location.search.includes('sidebar');
 const foldersMode = location.search.includes('folders');
 const exportMode = location.search.includes('exportdialog');
+const settingsMode = location.search.includes('settings');
+const searchMenuMode = location.search.includes('searchmenu');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -142,6 +146,8 @@ const Harness: React.FC = () => {
       {sidebarMode && <Sidebar open section="toc" onClose={() => {}} />}
       {foldersMode && <Sidebar open section="filetree" onClose={() => {}} />}
       {exportMode && <ExportDialog open onClose={() => {}} />}
+      {settingsMode && <SettingsPage open initialSection="advanced" onClose={() => {}} />}
+      <SelectionSearchMenu />
       <div id="cm6-test" style={{ marginTop: onlyCm6 ? 24 : 80, borderTop: onlyCm6 ? 'none' : '2px solid #444' }}>
         <CodeMirror6
           markdown={fixture}
@@ -411,6 +417,24 @@ const runPickerChecks = async () => {
 };
 
 // Let Milkdown create, KaTeX render and Mermaid draw before asserting.
+if (searchMenuMode) {
+  setTimeout(() => {
+    const p = document.querySelector('#milkdown-test .ProseMirror p');
+    if (!p || !p.firstChild) return;
+    const range = document.createRange();
+    range.setStart(p.firstChild, 0);
+    range.setEnd(p.firstChild, 4);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    const r = p.getBoundingClientRect();
+    (p.closest('.ProseMirror') || p).dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true, cancelable: true,
+      clientX: Math.round(r.left + 30), clientY: Math.round(r.top + 10),
+    }));
+  }, 2200);
+}
+
 if (exportMode) {
   setTimeout(() => {
     const rows = Array.from(document.querySelectorAll('div')).filter(el =>

@@ -13,7 +13,8 @@
     "test": "bun run test:engine && bun run test:roundtrip && bun run test:cm6 && bun run test:search && bun run test:web",
     "test:web": "bash scripts/web-smoke.sh",
     "test:engine": "bun scripts/engine-select.ts",
-    "test:search": "bun scripts/search-smoke.ts"
+    "test:search": "bun scripts/search-smoke.ts",
+    "test:rust": "cd src-tauri && cargo test --lib"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

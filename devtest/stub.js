@@ -86,6 +86,9 @@
       if (cmd === 'get_export_configs') return Promise.resolve(exportConfigs);
       if (cmd === 'reorder_export_configs') { window.__reordered = args.ids; return Promise.resolve(null); }
       if (cmd === 'get_settings_path') return Promise.resolve('/tmp/typeleft/settings.json');
+      if (cmd === 'get_log_path') return Promise.resolve('/tmp/typeleft/typeleft_errors.log');
+      if (cmd === 'read_log') return Promise.resolve('[Typeleft] test log line\n');
+      if (cmd === 'open_url') { window.__openedUrl = args.url; return Promise.resolve(null); }
       if (cmd === 'list_directory') return Promise.resolve([]);
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);

@@ -461,13 +461,7 @@ fn pick_folder(app: tauri::AppHandle, default_path: Option<String>) {
 fn unhandled_exception(message: String) {
     let msg = &message;
     eprintln!("[Typeleft] Unhandled exception from editor: {}", msg);
-    let _ = std::fs::OpenOptions::new()
-        .append(true).create(true)
-        .open(std::env::temp_dir().join("typeleft_errors.log"))
-        .and_then(|f| {
-            use std::io::Write;
-            writeln!(&f, "[Typeleft] {}", msg)
-        });
+    append_log(msg);
 }
 
 fn recent_files_limit(settings: &HashMap<String, serde_json::Value>) -> usize {
@@ -987,6 +981,30 @@ fn get_settings_path(app: tauri::AppHandle) -> String {
     settings_path(&app).to_string_lossy().to_string()
 }
 
+/// Open a URL in the default browser.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut c = std::process::Command::new("open");
+        c.arg(&url);
+        c
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut c = std::process::Command::new("rundll32");
+        c.arg("url.dll,FileProtocolHandler").arg(&url);
+        c
+    };
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = {
+        let mut c = std::process::Command::new("xdg-open");
+        c.arg(&url);
+        c
+    };
+    command.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 /// Open a file or folder with the platform's default handler.
 #[tauri::command]
 fn open_path(path: String) -> Result<(), String> {
@@ -1100,6 +1118,84 @@ fn save_recent_folder(app: tauri::AppHandle, path: String) -> Result<(), String>
 #[tauri::command]
 fn clear_recent_folders(app: tauri::AppHandle) -> Result<(), String> {
     save_list(&app, "recentFolders", Vec::<String>::new())
+}
+
+fn log_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("typeleft_errors.log")
+}
+
+fn append_log(message: &str) {
+    let _ = std::fs::OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(log_path())
+        .and_then(|mut f| {
+            use std::io::Write;
+            writeln!(&mut f, "[Typeleft] {}", message)
+        });
+}
+
+#[tauri::command]
+fn get_log_path() -> String {
+    log_path().to_string_lossy().to_string()
+}
+
+#[tauri::command]
+fn read_log() -> String {
+    let text = std::fs::read_to_string(log_path()).unwrap_or_default();
+    // Only the tail matters; keep the UI responsive on a huge log.
+    const LIMIT: usize = 64 * 1024;
+    if text.len() > LIMIT {
+        text[text.len() - LIMIT..].to_string()
+    } else {
+        text
+    }
+}
+
+#[tauri::command]
+fn clear_log() -> Result<(), String> {
+    std::fs::write(log_path(), "").map_err(|e| e.to_string())
+}
+
+/// Minimal CLI (#169 / #170):
+/// `typeleft <file>` · `typeleft --new` · `typeleft --folder <dir>` · `--help` · `--version`
+struct CliArgs {
+    file: Option<String>,
+    folder: Option<String>,
+    new_document: bool,
+    help: bool,
+    version: bool,
+}
+
+fn parse_cli() -> CliArgs {
+    parse_cli_from(std::env::args().skip(1))
+}
+
+fn parse_cli_from<I: IntoIterator<Item = String>>(input: I) -> CliArgs {
+    let mut args = CliArgs { file: None, folder: None, new_document: false, help: false, version: false };
+    let mut iter = input.into_iter();
+    while let Some(arg) = iter.next() {
+        match arg.as_str() {
+            "--help" | "-h" => args.help = true,
+            "--version" | "-V" => args.version = true,
+            "--new" | "-n" => args.new_document = true,
+            "--folder" | "-d" => args.folder = iter.next(),
+            other if !other.starts_with('-') => {
+                if args.file.is_none() {
+                    args.file = Some(other.to_string());
+                }
+            }
+            _ => {}
+        }
+    }
+    args
+}
+
+fn cli_usage() -> String {
+    format!(
+        "Typeleft {}\n\nUsage:\n  typeleft [file]           Open a Markdown file\n  typeleft --new           Start with an empty document\n  typeleft --folder <dir>  Open a folder in the sidebar\n  typeleft --help          Show this help\n  typeleft --version       Print the version",
+        env!("CARGO_PKG_VERSION")
+    )
 }
 
 fn load_and_queue_file(app: &tauri::AppHandle, path: &std::path::Path) {
@@ -1347,8 +1443,18 @@ use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let cli = parse_cli();
+    if cli.help {
+        println!("{}", cli_usage());
+        return;
+    }
+    if cli.version {
+        println!("Typeleft {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     eprintln!("[Typeleft] Rust main() started");
-    let _ = std::fs::write(std::env::temp_dir().join("typeleft_errors.log"), "[Typeleft] Rust main() started\n");
+    append_log("Rust main() started");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -1374,8 +1480,32 @@ pub fn run() {
                 _ => {}
             }
         })
-        .setup(|app| {
+        .setup(move |app| {
             setup_menu(app.handle())?;
+
+            // CLI arguments are applied before the webview loads so the first
+            // `content_loaded` call already sees the requested document.
+            if let Some(folder) = &cli.folder {
+                let mut settings = load_settings_raw(app.handle());
+                let mut folders: Vec<String> = settings.get("recentFolders")
+                    .and_then(|v| serde_json::from_value(v.clone()).ok())
+                    .unwrap_or_default();
+                folders.retain(|f| f != folder);
+                folders.insert(0, folder.clone());
+                folders.truncate(20);
+                settings.insert("recentFolders".into(), serde_json::to_value(&folders).unwrap_or_default());
+                settings.insert("folderStartupAction".into(), serde_json::json!("openLast"));
+                let _ = save_settings_raw(app.handle(), settings);
+            }
+            if let Some(file) = &cli.file {
+                load_and_queue_file(app.handle(), std::path::Path::new(file));
+            } else if cli.new_document {
+                app.state::<PendingFiles>().0.lock().unwrap().push(PendingFile {
+                    text: String::new(),
+                    file_path: String::new(),
+                    base_path: String::new(),
+                });
+            }
 
             {
                 use tauri::Listener;
@@ -1600,6 +1730,10 @@ pub fn run() {
             reorder_export_configs,
             get_settings_path,
             open_path,
+            get_log_path,
+            read_log,
+            clear_log,
+            open_url,
             get_image_upload_configs,
             save_image_upload_config,
             delete_image_upload_config,
@@ -1627,4 +1761,46 @@ pub fn run() {
                 let _ = (app_handle, event);
             }
         });
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args(list: &[&str]) -> CliArgs {
+        parse_cli_from(list.iter().map(|s| s.to_string()))
+    }
+
+    #[test]
+    fn cli_opens_a_file() {
+        let parsed = args(&["notes.md"]);
+        assert_eq!(parsed.file.as_deref(), Some("notes.md"));
+        assert!(!parsed.new_document);
+    }
+
+    #[test]
+    fn cli_new_document() {
+        let parsed = args(&["--new"]);
+        assert!(parsed.new_document);
+        assert!(parsed.file.is_none());
+    }
+
+    #[test]
+    fn cli_folder_takes_the_next_argument() {
+        let parsed = args(&["--folder", "/tmp/vault"]);
+        assert_eq!(parsed.folder.as_deref(), Some("/tmp/vault"));
+    }
+
+    #[test]
+    fn cli_help_and_version() {
+        assert!(args(&["--help"]).help);
+        assert!(args(&["-V"]).version);
+    }
+
+    #[test]
+    fn cli_ignores_unknown_flags() {
+        let parsed = args(&["--unknown", "notes.md"]);
+        assert_eq!(parsed.file.as_deref(), Some("notes.md"));
+    }
 }

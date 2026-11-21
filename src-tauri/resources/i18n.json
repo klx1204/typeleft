@@ -838,5 +838,9 @@
   "Move Down": {
     "en": "Move Down",
     "zh": "下移"
+  },
+  "Search the Web for": {
+    "en": "Search the Web for",
+    "zh": "在网页中搜索"
   }
 }

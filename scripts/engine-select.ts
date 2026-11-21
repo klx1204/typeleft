@@ -4,6 +4,7 @@
  */
 import { LARGE_DOC_LIMIT, resolveView } from '../src/components/Editor/engine';
 import { parseDocumentExport } from '../src/services/docExport';
+import { buildSearchUrl } from '../src/services/searchWeb';
 
 const withExport = parseDocumentExport(`---
 title: Release\nexport:
@@ -46,6 +47,9 @@ const cases: [string, boolean][] = [
   ['front matter booleans keep their type', withExport.includeToc === false && withExport.includeCss === true],
   ['export keys outside the block are ignored', parseDocumentExport('---\ntitle: x\n---\n# Body').includeToc === undefined],
   ['documents without front matter have no overrides', Object.keys(parseDocumentExport('# Body')).length === 0],
+  ['search URL replaces %s', buildSearchUrl('a b', 'https://example.com?q=%s') === 'https://example.com?q=a%20b'],
+  ['search URL appends without %s', buildSearchUrl('a b', 'https://example.com?q=') === 'https://example.com?q=a%20b'],
+  ['search URL falls back to the default', buildSearchUrl('x', '') === 'https://www.google.com/search?q=x'],
 ];
 
 let failed = 0;

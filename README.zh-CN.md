@@ -19,14 +19,26 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **撤销 / 重做**、斜杠命令菜单（标题、列表、emoji、表格尺寸、脚注）、格式气泡与表格工具条
 - **表格列宽**、任务列表自动勾选、富文本剪贴板（HTML + 纯文本）
 - **高亮 / 上标 / 下标**（`==高亮==`、`^上标^`、`~下标~`）、图片对齐与拖拽缩放
-- **大纲与文件树**侧栏，支持重命名、移动、复制、删除到回收站、新建文件/文件夹
-- **最近文件**菜单
-- **导出配置**（HTML、CSS / Front Matter 开关）与**直接打印**
+- **大纲与文件树**侧栏（大纲过滤、固定/最近文件夹），支持重命名、移动、复制、删除到回收站、新建文件/文件夹
+- **最近文件**菜单，数量可配置
+- **代码块**：行号、自动换行、默认语言、```` ```math ```` KaTeX 预览、复制代码块、Tab / Shift+Tab 缩进
+- **导出配置**（排序、CSS / 大纲 / Front Matter 开关、导出后动作、文档 Front Matter 覆盖）与**直接打印**
+- **窗口**：缩放（菜单或 Cmd/Ctrl + 滚轮）、全屏
+- **选中文本网页搜索**、错误日志面板，以及 **CLI**（`typeleft <文件>`、`--new`、`--folder`）
 - **图片**：剪贴板粘贴、本地复制、相对路径、HTTP 图床上传
 - **排版选项**：文字方向（RTL）、标题自动编号、两端对齐、列表符号/编号、正文字体/代码字体、编辑区背景色
 - **主题**：明亮 / 暗色 / 跟随系统，Mermaid / Sequence / Vega 图表主题
 - **双语界面**：English 与简体中文，运行时切换
 - 原生菜单、快捷键、自动保存与备份
+
+## 命令行
+
+```bash
+typeleft notes.md          # 打开文件
+typeleft --new             # 新建空文档
+typeleft --folder ~/vault  # 在侧栏打开文件夹
+typeleft --help
+```
 
 ## 主题
 
@@ -75,12 +87,17 @@ bun run test:roundtrip # Markdown 解析 ↔ 序列化保真度
 bun run test:cm6       # CodeMirror 6 冒烟测试
 bun run test:search    # 跨节点搜索与 $1 替换
 bun run test:web       # 无头 Chrome 中挂载真实组件
+bun run test:rust      # CLI 参数解析（cargo test）
 ```
 
 每次 push 与 pull request 都会运行这些套件（`.github/workflows/test.yml`）。
 
 `test:web` 会启动 `devtest/`，用 Tauri IPC stub 挂载真实的
-`MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?light=1`、`?theme=1`、`?static=1`、`?cm6=1` 可切换到其他检查。
+`MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?theme=1`、`?layout=1`、`?codeblock=1`、
+`?sidebar=1`、`?folders=1`、`?exportdialog=1`、`?settings=1`、`?searchmenu=1`、
+`?pickers=1` 可切换到其他检查。
+
+所有偏好都保存在同一个 JSON 文件中，完整键名见 [`docs/settings.md`](docs/settings.md)（也可从“设置 → 高级”打开）。
 
 ## 许可证
 

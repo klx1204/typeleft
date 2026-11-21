@@ -6,6 +6,7 @@ import SettingsPage from 'components/SettingsPage';
 import CommandPalette from 'components/CommandPalette';
 import ExportDialog from 'components/ExportDialog';
 import ImageConfigDialog from 'components/ImageConfigDialog';
+import SelectionSearchMenu from 'components/SelectionSearchMenu';
 import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
 import { initZoom, installZoomWheel, zoomIn, zoomOut, zoomReset } from 'services/zoom';
 import { remote } from 'services/remote';
@@ -25,6 +26,7 @@ window.onunhandledrejection = (e) => {
 };
 
 function App() {
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSection, setSettingsSection] = useState<string | undefined>(undefined);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -126,6 +128,7 @@ function App() {
       <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <ImageConfigDialog open={imageConfigOpen} onClose={() => setImageConfigOpen(false)} />
+      <SelectionSearchMenu />
     </ErrorBoundary>
   );
 }

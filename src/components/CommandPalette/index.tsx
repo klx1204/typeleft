@@ -60,6 +60,7 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'zoom_reset', label: 'Actual Size', category: 'View', action: () => transport.postMessage('ZoomReset', {}) },
     { id: 'fullscreen', label: 'Full Screen', category: 'View', action: () => transport.postMessage('ToggleFullscreen', {}) },
     { id: 'copy_code', label: 'Copy Code Block', category: 'Edit', action: () => transport.postMessage('CopyCodeBlock', {}) },
+    { id: 'search_web', label: 'Search the Web for Selection', category: 'Edit', action: () => transport.postMessage('SearchSelection', {}) },
     { id: 'compact', label: 'Toggle Compact Mode', category: 'View', action: () => transport.postMessage('ToggleCompactMode', {}) },
     { id: 'ontop', label: 'Toggle Always on Top', category: 'Window', action: () => transport.postMessage('ToggleAlwaysOnTop', {}) },
   ];

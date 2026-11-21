@@ -58,6 +58,7 @@ const defaultSettings = {
   defaultFileExtension: 'md',
   dragDropAction: 'open',
   recentFilesLimit: 10,
+  searchServiceUrl: 'https://www.google.com/search?q=%s',
 };
 
 type Settings = Record<string, any>;
@@ -99,6 +100,7 @@ const zhLabels: Record<string, string> = {
     searchIsCaseSensitive: '区分大小写',
     searchIsRegexp: '正则表达式',
     searchIsWholeWord: '全词匹配',
+    searchServiceUrl: '网页搜索地址',
     bulletListMarker: '无序列表标记',
     orderListDelimiter: '有序列表分隔符',
     listIndentation: '列表缩进',
@@ -185,6 +187,7 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'searchIsCaseSensitive', label: 'Case Sensitive Search', type: 'checkbox' },
       { key: 'searchIsRegexp', label: 'Regex Search', type: 'checkbox' },
       { key: 'searchIsWholeWord', label: 'Whole Word Search', type: 'checkbox' },
+      { key: 'searchServiceUrl', label: 'Web Search URL', type: 'text', placeholder: 'https://www.google.com/search?q=%s' },
     ],
   },
   {
@@ -275,6 +278,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
   const [customThemes, setCustomThemes] = useState<string[]>([]);
   const [themeDir, setThemeDir] = useState('');
   const [settingsPath, setSettingsPath] = useState('');
+  const [logText, setLogText] = useState<string | null>(null);
 
   const loadCustomThemes = async () => {
     try {
@@ -456,6 +460,45 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                 {isZh
                   ? '所有设置都保存在上面的 JSON 文件里，界面上的开关只是它的可视化编辑器。键名与含义见仓库 docs/settings.md；修改后回到这里点“重新载入”即可生效（部分项需重启）。'
                   : 'Every setting lives in the JSON file above; the UI is just a visual editor for it. See docs/settings.md for the key reference. After editing, press Reload here (some entries need a restart).'}
+              </div>
+
+              <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--editorColor10)' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: 'var(--editorColor60)' }}>
+                  {isZh ? '错误日志' : 'Error Log'}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => remote.readLog().then((text: string) => setLogText(text || '')).catch(() => setLogText(''))}
+                    style={{
+                      padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                      border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                      backgroundColor: 'var(--editorColor04)',
+                    }}
+                  >{isZh ? '查看日志' : 'View Log'}</button>
+                  <button
+                    onClick={() => remote.getLogPath().then((p: string) => remote.openPath({ path: p })).catch(() => {})}
+                    style={{
+                      padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                      border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                      backgroundColor: 'var(--editorColor04)',
+                    }}
+                  >{isZh ? '用系统编辑器打开' : 'Open in Editor'}</button>
+                  <button
+                    onClick={() => remote.clearLog().then(() => setLogText('')).catch(() => {})}
+                    style={{
+                      padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                      border: '1px solid var(--editorColor10)', color: '#e05555',
+                      backgroundColor: 'var(--editorColor04)',
+                    }}
+                  >{isZh ? '清空' : 'Clear'}</button>
+                </div>
+                {logText !== null && (
+                  <pre style={{
+                    marginTop: 10, maxHeight: 220, overflow: 'auto', fontSize: 11, lineHeight: 1.5,
+                    background: 'var(--editorColor02)', border: '1px solid var(--editorColor10)',
+                    borderRadius: 4, padding: 8, whiteSpace: 'pre-wrap', color: 'var(--editorColor50)',
+                  }}>{logText || (isZh ? '（空）' : '(empty)')}</pre>
+                )}
               </div>
             </div>
           )}

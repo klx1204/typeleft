@@ -19,14 +19,26 @@ Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.c
 - **Undo / redo**, slash-command menu (headings, lists, emoji, table size picker, footnote), formatting bubble and table toolbar
 - **Table column widths**, auto-check task lists, rich-text clipboard (HTML + plain text)
 - **Highlight / superscript / subscript** (`==mark==`, `^sup^`, `~sub~`), image alignment and drag-to-resize
-- **Outline & file tree** sidebars, with file operations (rename, move, copy, delete to trash, new file/folder)
-- **Recent files** menu
-- **Export** configurations (HTML, CSS / front matter toggles) and **direct printing**
+- **Outline & file tree** sidebars (outline filter, pinned/recent folders), with file operations (rename, move, copy, delete to trash, new file/folder)
+- **Recent files** menu and a configurable recent-files limit
+- **Code fences**: line numbers, soft wrap, default language, KaTeX preview for ```` ```math ````, copy block, Tab / Shift+Tab indent
+- **Export** presets (reorder, CSS / outline / front-matter switches, post-export actions, per-document front-matter overrides) and **direct printing**
+- **Window**: zoom (menu or Cmd/Ctrl + wheel), full screen
+- **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
 - **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
 - **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background
 - **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes
 - **Bilingual UI**: English and 简体中文, switchable at runtime
 - Native menus, keyboard shortcuts, auto-save and backups
+
+## Command line
+
+```bash
+typeleft notes.md          # open a file
+typeleft --new             # start with an empty document
+typeleft --folder ~/vault  # open a folder in the sidebar
+typeleft --help
+```
 
 ## Themes
 
@@ -75,6 +87,7 @@ bun run test:roundtrip # markdown parse ↔ serialize fidelity
 bun run test:cm6       # CodeMirror 6 smoke test
 bun run test:search    # cross-node search and $1 replacements
 bun run test:web       # real components in headless Chrome
+bun run test:rust      # CLI argument parsing (cargo test)
 ```
 
 CI runs these suites on every push and pull request (`.github/workflows/test.yml`).
@@ -83,8 +96,12 @@ CI runs these suites on every push and pull request (`.github/workflows/test.yml
 `CodeMirror6` components with a stubbed Tauri IPC layer, checks the rendered
 DOM (front matter, tables, task lists, KaTeX, code blocks, diagrams, images,
 Prism tokens, outline, word count), drives the search panel and real typing, and
-fails on any `console.error`. `?light=1`, `?theme=1`, `?static=1` and `?cm6=1`
-switch the page into the other checks.
+fails on any `console.error`. `?theme=1`, `?layout=1`, `?codeblock=1`,
+`?sidebar=1`, `?folders=1`, `?exportdialog=1`, `?settings=1`, `?searchmenu=1`
+and `?pickers=1` switch the page into the other checks.
+
+Every preference lives in one JSON file; see [`docs/settings.md`](docs/settings.md)
+for the full key reference (also reachable from Settings → Advanced).
 
 ## License
 

@@ -1411,15 +1411,13 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
 
     let sep_view_2 = PredefinedMenuItem::separator(app)?;
     let sep_view_3 = PredefinedMenuItem::separator(app)?;
+    #[allow(unused_mut)]
     let mut view_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = vec![
         &view_source, &view_sidebar, &view_outline, &view_themes, &sep_view,
         &zoom_in, &zoom_out, &zoom_reset, &sep_view_2,
         &full_screen, &sep_view_3, &view_settings,
     ];
-    // Developer tools are only shipped in debug builds.
-    #[cfg(debug_assertions)]
     let devtools = MenuItem::with_id(app, "devtools", tr("Toggle Developer Tools"), true, None::<&str>)?;
-    #[cfg(debug_assertions)]
     view_items.push(&devtools);
 
     let view_menu = Submenu::with_items(app, tr("View"), true, &view_items)?;
@@ -1663,7 +1661,6 @@ pub fn run() {
                     }
                 }
                 "copy_code" => { let _ = app.emit("CopyCodeBlock", ()); }
-                #[cfg(debug_assertions)]
                 "devtools" => {
                     if let Some(window) = app.get_webview_window("main") {
                         if window.is_devtools_open() {

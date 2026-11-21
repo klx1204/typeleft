@@ -28,6 +28,14 @@ typora-root-url: assets
 
 拼写检测：teh quikc Typeleft Devtest。
 
+这是 <u>下划线</u> 和 <span style="color: rgb(255, 0, 0)">红色</span>。
+
+<div class="note" style="border: 1px solid #ccc; padding: 6px">HTML 块内容</div>
+
+<video src="movie.mp4" controls></video>
+
+<iframe src="https://example.com/embed"></iframe>
+
 <div style="page-break-after: always;"></div>
 
 [跳转](#二级标题)
@@ -96,6 +104,7 @@ const softBreakMode = location.search.includes('softbreak');
 const noAutoLinkMode = location.search.includes('noautolink');
 const noSmartMode = location.search.includes('nosmart');
 const spellMode = location.search.includes('spell');
+const mediaMode = location.search.includes('media');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -207,6 +216,17 @@ const finish = (extraCheck?: () => void) => {
     chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
   check('page break node', !!ml.querySelector('.page-break[data-type="pagebreak"]'));
+  const htmlBlock = Array.from(ml.querySelectorAll('.md-html-block'))
+    .find(el => (el.textContent || '').includes('HTML 块内容')) as HTMLElement | undefined;
+  check('html block rendered', !!htmlBlock && (htmlBlock.textContent || '').includes('HTML 块内容'),
+    htmlBlock ? htmlBlock.textContent?.slice(0, 20) : 'missing');
+  const htmlInline = ml.querySelector('.md-html-inline span') as HTMLElement | null;
+  check('inline html rendered', !!htmlInline && getComputedStyle(htmlInline).color === 'rgb(255, 0, 0)',
+    htmlInline ? getComputedStyle(htmlInline).color : 'missing');
+  const underline = Array.from(ml.querySelectorAll('u')).find(el => (el.textContent || '').includes('下划线'));
+  check('underline mark', !!underline, underline ? underline.textContent || '' : 'missing');
+  check('html video renders', !!ml.querySelector('video[controls]'));
+  check('html iframe is sandboxed', !!ml.querySelector('iframe[sandbox]'));
   check('typora-root-url read from frontmatter', (window as any).typoraRootUrl === 'assets', String((window as any).typoraRootUrl));
   if (isStatic) check('anchor click handled', (window as any).__anchorScrolled === true);
   const selects = Array.from(ml.querySelectorAll('select.md-fences-language')) as HTMLSelectElement[];
@@ -242,6 +262,11 @@ const finish = (extraCheck?: () => void) => {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (mediaMode) {
+    const videos = ml.querySelectorAll('.md-html-block video');
+    check('dropped media inserts a video block', videos.length >= 2, `${videos.length} videos`);
   }
 
   if (spellMode) {
@@ -478,6 +503,12 @@ if (sidebarMode) {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     setter.call(input, '二级');
     input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, 2200);
+}
+
+if (mediaMode) {
+  setTimeout(() => {
+    (window as any).__emit('InsertLocalMedia', { path: '/tmp/dropped.mp4', kind: 'video' });
   }, 2200);
 }
 

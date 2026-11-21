@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test:roundtrip": "bun scripts/milkdown-roundtrip.ts scripts/fixtures/roundtrip.md scripts/fixtures/roundtrip-edge.md scripts/fixtures/roundtrip-marks.md scripts/fixtures/roundtrip-image.md scripts/fixtures/roundtrip-table-width.md",
+    "test:roundtrip": "bun scripts/milkdown-roundtrip.ts scripts/fixtures/roundtrip.md scripts/fixtures/roundtrip-edge.md scripts/fixtures/roundtrip-marks.md scripts/fixtures/roundtrip-image.md scripts/fixtures/roundtrip-table-width.md scripts/fixtures/roundtrip-html.md",
     "test:cm6": "bun scripts/codemirror-smoke.ts",
     "test": "bun run test:engine && bun run test:roundtrip && bun run test:cm6 && bun run test:search && bun run test:web",
     "test:web": "bash scripts/web-smoke.sh",

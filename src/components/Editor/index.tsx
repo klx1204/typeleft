@@ -13,6 +13,7 @@ import { DEFAULT_TURNDOWN_CONFIG } from "services/markdown/config";
 import { getHtmlToc, getTOC } from "services/common";
 import { parseDocumentExport } from "services/docExport";
 import { parseFrontmatter } from "services/frontmatter";
+import { mediaKindForPath } from "services/media";
 import { useI18n } from "services/i18n";
 import { LARGE_DOC_LIMIT, resolveView } from "./engine";
 
@@ -348,6 +349,11 @@ const Editor: React.FC = () => {
             if (!path) return;
             const action = optionsRef.current?.dragDropAction ?? 'open';
             if (action === 'ignore') return;
+            const media = mediaKindForPath(path);
+            if (media) {
+                transport.postMessage('InsertLocalMedia', { path, kind: media });
+                return;
+            }
             if (action === 'insert-link') {
                 const name = path.split(/[\\/]/).pop() || path;
                 transport.postMessage('InsertFileLink', { path, name });

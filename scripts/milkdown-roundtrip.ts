@@ -72,12 +72,13 @@ const { $remark } = await import('@milkdown/kit/utils');
 const gfmPlugins = (gfm as any[]).filter((plugin: any) => plugin !== remarkGFMPlugin);
 const gfmRemark = $remark('remarkGFM', () => remarkGfm as any, { singleTilde: false } as any);
 const { history } = await import('@milkdown/kit/plugin/history');
-const { getMarkdown } = await import('@milkdown/kit/utils');
+const { getMarkdown, replaceAll } = await import('@milkdown/kit/utils');
 const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('../src/components/MilkdownEditor/nodes/frontmatter');
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
 const { createImageView, imageLayoutSchema, imageHtmlRemark } = await import('../src/components/MilkdownEditor/nodes/image');
-const { marksRemark, highlightMark, superscriptMark, subscriptMark } = await import('../src/components/MilkdownEditor/nodes/marks');
+const { marksRemark, highlightMark, superscriptMark, subscriptMark, underlineMark } = await import('../src/components/MilkdownEditor/nodes/marks');
 const { pageBreakRemark, pageBreakNode } = await import('../src/components/MilkdownEditor/nodes/pagebreak');
+const { htmlRemark, htmlBlockNode, htmlInlineNode } = await import('../src/components/MilkdownEditor/nodes/html');
 const { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } = await import('../src/components/MilkdownEditor/nodes/table');
 const { searchPlugin, setSearchQuery, findNextMatch, replaceAllMatches } = await import('../src/components/MilkdownEditor/search');
 
@@ -124,8 +125,12 @@ for (const file of files) {
     .use(highlightMark)
     .use(superscriptMark)
     .use(subscriptMark)
+    .use(underlineMark)
     .use(pageBreakRemark)
     .use(pageBreakNode)
+    .use(htmlRemark)
+    .use(htmlBlockNode)
+    .use(htmlInlineNode)
     .use(mathRemark)
     .use(inlineMathNode)
     .use(blockMathNode)
@@ -142,8 +147,12 @@ for (const file of files) {
     .use(highlightMark)
     .use(superscriptMark)
     .use(subscriptMark)
+    .use(underlineMark)
     .use(pageBreakRemark)
     .use(pageBreakNode)
+    .use(htmlRemark)
+    .use(htmlBlockNode)
+    .use(htmlInlineNode)
     .use(searchPlugin)
     .create();
 
@@ -158,49 +167,11 @@ for (const file of files) {
     const replaced = replaceAllMatches(view, 'X');
     console.log(`search: matches=${matches} findNext=${found} replaced=${replaced} activeDecoration=${view.dom.querySelectorAll('.typeleft-search-match').length}`);
   }
-  // Feed the serialized output back through the editor: a stable serializer
-  // must be idempotent, otherwise repeated saves keep rewriting the file.
-  const second = await Editor.make()
-    .config((ctx: any) => {
-      ctx.set(rootCtx, root);
-      ctx.set(defaultValueCtx, output);
-      ctx.update(remarkStringifyOptionsCtx, (prev: any) => ({
-        ...prev,
-        bullet: '-',
-        rule: '-',
-        fence: '`',
-        listItemIndent: 'one',
-      }));
-    })
-    .use(commonmark)
-    .use(gfmPlugins)
-    .use(columnResizingPlugin)
-    .use(gfmRemark)
-    .use(history)
-    .use(frontmatterRemark)
-    .use(frontmatterNode)
-    .use(mathRemark)
-    .use(inlineMathNode)
-    .use(blockMathNode)
-    .use(inlineMathView)
-    .use(blockMathView)
-    .use(imageHtmlRemark)
-    .use(imageLayoutSchema)
-    .use(createImageView)
-    .use(tableWidthRemark)
-    .use(tableWithWidth)
-    .use(tableCellWithWidth)
-    .use(tableHeaderWithWidth)
-    .use(marksRemark)
-    .use(highlightMark)
-    .use(superscriptMark)
-    .use(subscriptMark)
-    .use(pageBreakRemark)
-    .use(pageBreakNode)
-    .use(searchPlugin)
-    .create();
-  const secondOutput = second.action(getMarkdown());
-  await second.destroy();
+  // Feed the serialized output back through the same parser: a stable
+  // serializer must be idempotent, otherwise repeated saves keep rewriting the
+  // file. Reusing the editor avoids state leaking between two instances.
+  editor.action(replaceAll(output));
+  const secondOutput = editor.action(getMarkdown());
   await editor.destroy();
 
   const identical = output === source;

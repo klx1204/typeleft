@@ -56,7 +56,7 @@ import { createApplicationMenuState } from 'services/menuState';
 import { useI18n, t as translate } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
 import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
-import { marksRemark, highlightMark, superscriptMark, subscriptMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule, setSuperSubEnabled } from './nodes/marks';
+import { marksRemark, highlightMark, superscriptMark, subscriptMark, underlineMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule, setSuperSubEnabled } from './nodes/marks';
 import { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } from './nodes/table';
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
 import { createCodeBlockView } from './nodes/codeblock';
@@ -68,6 +68,7 @@ import { autoLinkPlugin, autoLinkRemark, setAutoLinkEnabled } from './autoLink';
 import { softBreakRemark, setSoftBreakEnabled } from './softBreak';
 import { pageBreakRemark, pageBreakNode, pageBreakView } from './nodes/pagebreak';
 import { spellcheckPlugin, runSpellcheck, setCustomDictionary } from './spellcheck';
+import { htmlRemark, htmlBlockNode, htmlInlineNode, htmlBlockView, htmlInlineView } from './nodes/html';
 import { codeBlockDefaultsPlugin, codeBlockKeysPlugin, applyCodeBlockOptions, copyCodeBlock } from './codeblockExtras';
 import { applyLayoutCss } from 'services/layoutCss';
 import { EmojiPicker, TablePicker, LinkPopover } from './Pickers';
@@ -365,6 +366,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(highlightMark)
       .use(superscriptMark)
       .use(subscriptMark)
+      .use(underlineMark)
       .use(highlightInputRule)
       .use(superscriptInputRule)
       .use(subscriptInputRule)
@@ -389,6 +391,11 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(pageBreakRemark)
       .use(pageBreakNode)
       .use(pageBreakView)
+      .use(htmlRemark)
+      .use(htmlBlockNode)
+      .use(htmlInlineNode)
+      .use(htmlBlockView)
+      .use(htmlInlineView)
       .use(spellcheckPlugin)
       .use(codeBlockDefaultsPlugin)
       .use(codeBlockKeysPlugin)
@@ -829,6 +836,30 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       insertImageFromFile();
     }
   }), [run, insertImageFromFile]);
+
+  useEffect(() => transport.addListener<{ path: string; kind: string }>('InsertLocalMedia', async ({ path, kind }) => {
+    if (kind === 'image') {
+      const src = await processImage(path, propsRef.current.options);
+      if (src) run(insertImageCommand, { src });
+      return;
+    }
+    const tag = kind === 'video' ? 'video' : 'audio';
+    withView((view) => {
+      const type = view.state.schema.nodes.html_block;
+      if (!type) return;
+      const safe = path.replace(/"/g, '&quot;');
+      const value = `<${tag} src="${safe}" controls></${tag}>`;
+      const node = type.create({ value });
+      const { $from } = view.state.selection;
+      const pos = $from.depth > 0 ? $from.after($from.depth) : view.state.selection.to;
+      let tr = view.state.tr.insert(pos, node);
+      const after = pos + node.nodeSize;
+      if (!tr.doc.nodeAt(after)) tr = tr.insert(after, view.state.schema.nodes.paragraph.create());
+      tr = tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1)));
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+    });
+  }), [run, withView]);
 
   useEffect(() => transport.addListener<{ path: string; name: string }>('InsertFileLink', ({ path, name }) => {
     withView((view) => {

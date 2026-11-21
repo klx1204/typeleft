@@ -535,6 +535,34 @@
   min-width: 0;
 }
 
+/* Raw HTML blocks and inline HTML (#54 / #74 / #60 / #61) */
+#write.milkdown-write .md-html-block {
+  margin: 1em 0;
+}
+
+#write.milkdown-write .md-html-block img,
+#write.milkdown-write .md-html-block video,
+#write.milkdown-write .md-html-block iframe {
+  max-width: 100%;
+}
+
+#write.milkdown-write .md-html-block iframe {
+  width: 100%;
+  min-height: 360px;
+  border: 0;
+  border-radius: 4px;
+}
+
+#write.milkdown-write .md-html-block video,
+#write.milkdown-write .md-html-block audio {
+  display: block;
+  margin: 0 auto;
+}
+
+#write.milkdown-write .md-html-inline {
+  white-space: pre-wrap;
+}
+
 /* Spell checking (#21 / #174) */
 #write.milkdown-write .tl-spell-error {
   text-decoration: underline wavy #e05555;

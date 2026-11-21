@@ -9,6 +9,7 @@ import { applyListIndentation } from '../src/services/markdown/listFormat';
 import { parseFrontmatter } from '../src/services/frontmatter';
 import { extractWords } from '../src/components/MilkdownEditor/spellcheck';
 import { finalizeImagePath, resolveMediaPath, imageDirectory } from '../src/services/imagePaths';
+import { mediaKindForPath } from '../src/services/media';
 
 const nestedList = `- a
   - b
@@ -97,6 +98,9 @@ const cases: [string, boolean][] = [
   ['typora-root-url resolves against the document folder', resolveMediaPath('pic.png', '/docs/notes', 'assets') === '/docs/notes/assets/pic.png'],
   ['typora-root-url accepts a URL root', resolveMediaPath('pic.png', '/docs/notes', 'https://cdn.example.com/img') === 'https://cdn.example.com/img/pic.png'],
   ['absolute sources ignore typora-root-url', resolveMediaPath('https://x.test/a.png', '/docs', 'assets') === 'https://x.test/a.png'],
+  ['media kinds come from extensions', mediaKindForPath('/tmp/a.PNG') === 'image'
+    && mediaKindForPath('/tmp/movie.mp4') === 'video' && mediaKindForPath('/tmp/song.mp3') === 'audio'],
+  ['non-media drops are not classified', mediaKindForPath('/tmp/notes.md') === null],
   ['spellcheck extracts unique words', (() => {
     const words = extractWords('teh quikc teh Typeleft — done');
     return words.includes('teh') && words.includes('quikc') && words.includes('Typeleft')

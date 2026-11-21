@@ -29,6 +29,8 @@ export const marksRemark = $remark('typeleftMarks', () => function typeleftMarks
         '^' + state.containerPhrasing(node, { before: '^', after: '^' }) + '^',
       subscript: (node: any, _parent: any, state: any) =>
         '~' + state.containerPhrasing(node, { before: '~', after: '~' }) + '~',
+      underline: (node: any, _parent: any, state: any) =>
+        '<u>' + state.containerPhrasing(node, { before: '<u>', after: '</u>' }) + '</u>',
     },
   });
 
@@ -52,6 +54,46 @@ export const marksRemark = $remark('typeleftMarks', () => function typeleftMarks
       );
     }
     findAndReplace(tree, rules);
+
+    // `<u>…</u>` / `<ins>…</ins>` become an editable underline mark. Micromark
+    // may split the open tag, text and close tag into separate html nodes.
+    const convertUnderline = (node: any) => {
+      if (!node || !Array.isArray(node.children)) return;
+      const children = node.children;
+      const out: any[] = [];
+      for (let i = 0; i < children.length; i += 1) {
+        const child = children[i];
+        if (child.type === 'html') {
+          const trimmed = (child.value || '').trim();
+          const open = /^<(u|ins)>$/i.exec(trimmed);
+          if (open) {
+            const tag = open[1].toLowerCase();
+            let close = -1;
+            for (let j = i + 1; j < children.length; j += 1) {
+              const candidate = children[j];
+              if (candidate.type === 'html' && new RegExp(`^</${tag}>$`, 'i').test((candidate.value || '').trim())) {
+                close = j;
+                break;
+              }
+            }
+            if (close !== -1) {
+              out.push({ type: 'underline', children: children.slice(i + 1, close) });
+              i = close;
+              continue;
+            }
+          }
+          const full = /^<(u|ins)>([\s\S]*)<\/\1>$/i.exec(trimmed);
+          if (full && !/[<>]/.test(full[2])) {
+            out.push({ type: 'underline', children: [{ type: 'text', value: full[2] }] });
+            continue;
+          }
+        }
+        convertUnderline(child);
+        out.push(child);
+      }
+      node.children = out;
+    };
+    convertUnderline(tree);
   };
 });
 
@@ -77,6 +119,25 @@ const markSchema = (name: string, tag: string) => $markSchema(name, () => ({
 export const highlightMark = markSchema('highlight', 'mark');
 export const superscriptMark = markSchema('superscript', 'sup');
 export const subscriptMark = markSchema('subscript', 'sub');
+
+export const underlineMark = $markSchema('underline', () => ({
+  parseDOM: [{ tag: 'u' }, { tag: 'ins' }],
+  toDOM: () => ['u', 0],
+  parseMarkdown: {
+    match: (node: any) => node.type === 'underline',
+    runner: (state: any, node: any, markType: any) => {
+      state.openMark(markType);
+      state.next(node.children);
+      state.closeMark(markType);
+    },
+  },
+  toMarkdown: {
+    match: (mark: any) => mark.type.name === 'underline',
+    runner: (state: any, mark: any) => {
+      state.withMark(mark, 'underline');
+    },
+  },
+}));
 
 /** `markRule` wrapper that honours the `superSubScript` toggle. */
 const gatedMarkRule = (regexp: RegExp, markName: string, gate = false) => (ctx: any) => new InputRule(

@@ -6,7 +6,7 @@
 
 <p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
 
-Typeleft is a from-scratch cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/Typedown) (originally a Windows-only WinUI editor). The name is a nod to *copyleft*: open, hackable, and no longer tied to a single platform.
+Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/Typedown) (originally a Windows-only WinUI editor). The name is a nod to *copyleft*: open, hackable, and no longer tied to a single platform.
 
 ## Features
 
@@ -114,4 +114,6 @@ for the full key reference (also reachable from Settings → Advanced).
 
 ## License
 
-MIT. Based on [Typedown](https://github.com/byxiaozhi/Typedown) by ZZF (MIT License, Copyright (c) 2022 ZZF).
+GPL-3.0-or-later. Typeleft is based on [Typedown](https://github.com/byxiaozhi/Typedown) by ZZF
+(MIT License, Copyright (c) 2022 ZZF); the historical MIT parts remain under
+the MIT license — see [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).

@@ -98,9 +98,9 @@ const cases: [string, boolean][] = [
   ['typora-root-url resolves against the document folder', resolveMediaPath('pic.png', '/docs/notes', 'assets') === '/docs/notes/assets/pic.png'],
   ['typora-root-url accepts a URL root', resolveMediaPath('pic.png', '/docs/notes', 'https://cdn.example.com/img') === 'https://cdn.example.com/img/pic.png'],
   ['absolute sources ignore typora-root-url', resolveMediaPath('https://x.test/a.png', '/docs', 'assets') === 'https://x.test/a.png'],
-  ['media kinds come from extensions', mediaKindForPath('/tmp/a.PNG') === 'image'
-    && mediaKindForPath('/tmp/movie.mp4') === 'video' && mediaKindForPath('/tmp/song.mp3') === 'audio'],
-  ['non-media drops are not classified', mediaKindForPath('/tmp/notes.md') === null],
+  ['media kinds come from extensions', mediaKindForPath('/example/a.PNG') === 'image'
+    && mediaKindForPath('/example/movie.mp4') === 'video' && mediaKindForPath('/example/song.mp3') === 'audio'],
+  ['non-media drops are not classified', mediaKindForPath('/example/notes.md') === null],
   ['spellcheck extracts unique words', (() => {
     const words = extractWords('teh quikc teh Typeleft — done');
     return words.includes('teh') && words.includes('quikc') && words.includes('Typeleft')

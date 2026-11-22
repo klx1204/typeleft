@@ -16,7 +16,7 @@
     bulletListMarker: '-',
     lang: 'zh',
     sourceCode: false,
-    pinnedFolders: ['/tmp/notes'],
+    pinnedFolders: ['/example/notes'],
   };
 
   var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
@@ -79,19 +79,19 @@
       }
       if (cmd === 'get_settings') return Promise.resolve(settings);
       if (cmd === 'content_loaded') {
-        return Promise.resolve({ text: window.__FIXTURE__ || '', base_path: '', file_path: '/tmp/fixture.md' });
+        return Promise.resolve({ text: window.__FIXTURE__ || '', base_path: '', file_path: '/example/fixture.md' });
       }
       if (cmd === 'get_current_theme') return Promise.resolve('dark');
-      if (cmd === 'list_recent_folders') return Promise.resolve(['/tmp/recent-notes']);
+      if (cmd === 'list_recent_folders') return Promise.resolve(['/example/recent-notes']);
       if (cmd === 'get_export_configs') return Promise.resolve(exportConfigs);
       if (cmd === 'reorder_export_configs') { window.__reordered = args.ids; return Promise.resolve(null); }
-      if (cmd === 'get_settings_path') return Promise.resolve('/tmp/typeleft/settings.json');
+      if (cmd === 'get_settings_path') return Promise.resolve('/example/typeleft/settings.json');
       if (cmd === 'detect_pandoc') return Promise.resolve({ found: false, path: '', version: '' });
       if (cmd === 'pick_export_path') return Promise.resolve(null);
       if (cmd === 'pandoc_export') { window.__pandocExport = args; return Promise.resolve(null); }
       if (cmd === 'pandoc_import') return Promise.resolve('# Imported');
       if (cmd === 'run_export_command') { window.__customExport = args; return Promise.resolve(null); }
-      if (cmd === 'get_log_path') return Promise.resolve('/tmp/typeleft/typeleft_errors.log');
+      if (cmd === 'get_log_path') return Promise.resolve('/example/typeleft/typeleft_errors.log');
       if (cmd === 'read_log') return Promise.resolve('[Typeleft] test log line\n');
       if (cmd === 'open_url') { window.__openedUrl = args.url; return Promise.resolve(null); }
       if (cmd === 'list_directory') return Promise.resolve([]);

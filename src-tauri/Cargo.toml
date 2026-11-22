@@ -3,6 +3,7 @@ name = "typeleft"
 version = "0.8.0"
 description = "Typeleft - A lightweight cross-platform Markdown editor"
 authors = ["Typeleft contributors"]
+license = "GPL-3.0-or-later"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

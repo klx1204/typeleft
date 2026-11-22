@@ -14,7 +14,8 @@
     "test:web": "bash scripts/web-smoke.sh",
     "test:engine": "bun scripts/engine-select.ts",
     "test:search": "bun scripts/search-smoke.ts",
-    "test:rust": "cd src-tauri && cargo test --lib"
+    "test:rust": "cd src-tauri && cargo test --lib",
+    "build:emoji": "bun scripts/generate-emoji-data.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -60,7 +61,10 @@
     "@types/react-dom": "^17.0.11",
     "@vitejs/plugin-react": "^4.6.0",
     "domino": "^2.1.6",
+    "emojibase-data": "^18.0.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"
-  }
+  },
+  "license": "GPL-3.0-or-later",
+  "author": "Typeleft contributors"
 }

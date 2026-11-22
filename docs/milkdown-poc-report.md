@@ -32,7 +32,7 @@
 | 中文文本 | ✅ 正常显示 |
 | 字数统计 / TOC / 搜索 / 撤销接入 | 未接入（阶段 1） |
 
-截图：`/tmp/milkdown-poc/render.png`、`render2.png`
+截图：`<tmp>/milkdown-poc/render.png`、`render2.png`
 
 ---
 

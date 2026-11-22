@@ -48,6 +48,7 @@
         "@types/react-dom": "^17.0.11",
         "@vitejs/plugin-react": "^4.6.0",
         "domino": "^2.1.6",
+        "emojibase-data": "^18.0.0",
         "typescript": "~5.8.3",
         "vite": "^7.0.4",
       },
@@ -589,6 +590,10 @@
     "electron-to-chromium": ["electron-to-chromium@1.5.389", "https://registry.npmmirror.com/electron-to-chromium/-/electron-to-chromium-1.5.389.tgz", {}, "sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "https://registry.npmmirror.com/emoji-regex/-/emoji-regex-8.0.0.tgz", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
+
+    "emojibase": ["emojibase@18.0.0", "https://registry.npmmirror.com/emojibase/-/emojibase-18.0.0.tgz", {}, "sha512-5PG+EEt5zQ9qvqdHZw61+T9iz96g+r621QS/w8jEzPg+3mjzAdjl8LPLc+e9ABv/yboNfMwEair7aK9qKnwAbQ=="],
+
+    "emojibase-data": ["emojibase-data@18.0.0", "https://registry.npmmirror.com/emojibase-data/-/emojibase-data-18.0.0.tgz", { "peerDependencies": { "emojibase": "*" } }, "sha512-TPPRRYv2zPd0jKI+pTpMquwWNZXYAsC3IVsCMeg2X8y8fEzKwOks4/5bz0YavF5r6d71aGPpb6oDnUEwSLLMoA=="],
 
     "entities": ["entities@7.0.1", "https://registry.npmmirror.com/entities/-/entities-7.0.1.tgz", {}, "sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA=="],
 

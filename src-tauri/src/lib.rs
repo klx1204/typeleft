@@ -2110,8 +2110,8 @@ mod tests {
 
     #[test]
     fn cli_folder_takes_the_next_argument() {
-        let parsed = args(&["--folder", "/tmp/vault"]);
-        assert_eq!(parsed.folder.as_deref(), Some("/tmp/vault"));
+        let parsed = args(&["--folder", "/example/vault"]);
+        assert_eq!(parsed.folder.as_deref(), Some("/example/vault"));
     }
 
     #[test]
@@ -2149,32 +2149,32 @@ mod pandoc_tests {
 
     #[test]
     fn builds_document_formats() {
-        let args = pandoc_format_args("docx", "/tmp/out.docx", None).unwrap();
+        let args = pandoc_format_args("docx", "/example/out.docx", None).unwrap();
         assert!(args.contains(&"-t".to_string()));
         assert!(args.contains(&"docx".to_string()));
-        assert!(args.contains(&"/tmp/out.docx".to_string()));
+        assert!(args.contains(&"/example/out.docx".to_string()));
     }
 
     #[test]
     fn pdf_needs_an_engine() {
         assert_eq!(
-            pandoc_format_args("pdf", "/tmp/out.pdf", None).unwrap_err(),
+            pandoc_format_args("pdf", "/example/out.pdf", None).unwrap_err(),
             "pdf-engine-missing"
         );
-        let args = pandoc_format_args("pdf", "/tmp/out.pdf", Some("tectonic")).unwrap();
+        let args = pandoc_format_args("pdf", "/example/out.pdf", Some("tectonic")).unwrap();
         assert!(args.contains(&"--pdf-engine=tectonic".to_string()));
     }
 
     #[test]
     fn revealjs_is_a_standalone_html() {
-        let args = pandoc_format_args("revealjs", "/tmp/slides.html", None).unwrap();
+        let args = pandoc_format_args("revealjs", "/example/slides.html", None).unwrap();
         assert!(args.contains(&"revealjs".to_string()));
         assert!(args.contains(&"-s".to_string()));
     }
 
     #[test]
     fn unknown_formats_are_rejected() {
-        assert!(pandoc_format_args("nope", "/tmp/x", None).is_err());
+        assert!(pandoc_format_args("nope", "/example/x", None).is_err());
     }
 }
 

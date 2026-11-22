@@ -109,4 +109,6 @@ bun run test:rust      # CLI 参数解析（cargo test）
 
 ## 许可证
 
-MIT。基于 ZZF 的 [Typedown](https://github.com/byxiaozhi/Typedown)（MIT License，Copyright (c) 2022 ZZF）。
+GPL-3.0-or-later。Typeleft 基于 ZZF 的 [Typedown](https://github.com/byxiaozhi/Typedown)
+（MIT License，Copyright (c) 2022 ZZF）；历史 MIT 部分继续按 MIT 授权，详见
+[`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md)。

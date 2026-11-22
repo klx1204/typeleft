@@ -3,10 +3,5 @@
  *  (c) 2012-2017 Andrew Brampton (bramp.net)
  *  Simplified BSD license.
  */
-@font-face {
-    font-family: 'danielbd';
-    src: url('danielbd.woff2') format('woff2'),
-         url('danielbd.woff') format('woff');
-    font-weight: normal;
-    font-style: normal;
-}
+/* The original hand theme referenced a bundled font; use the platform's
+   sans-serif stack instead so no font license has to be shipped. */

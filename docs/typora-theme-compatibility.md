@@ -440,7 +440,7 @@ Typeleft 组件大量使用 `--editorColor*`。要让 Typora 主题的 `--bg-col
 #### 禁止
 
 - `http://`、`https://`、协议相对地址 `//host/...`、`ws://`、`wss://`、`ftp://`。
-- `file://`、绝对路径（`/Users/...`、`C:\\...`）。
+- `file://`、绝对路径（`~/...`、`C:\\...`）。
 - 用 `../` 逃出主题目录的路径。
 - 远程 `@import`，以及 `@import` 再引入外部 CSS。
 - `image-set()`、`@font-face src`、`content: url()` 中的远程地址。

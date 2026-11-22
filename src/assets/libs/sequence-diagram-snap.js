@@ -1511,7 +1511,7 @@ if (typeof Snap != 'undefined') {
         _.defaults(options, {
             'css-class': 'hand',
             'font-size': 16,
-            'font-family': 'danielbd'
+            'font-family': 'Helvetica Neue, Arial, sans-serif'
           });
 
         this.init(diagram, options, resume);

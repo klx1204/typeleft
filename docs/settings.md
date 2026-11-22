@@ -127,7 +127,7 @@ A document can override the export dialog through front matter:
 ---
 export:
   fileName: release-notes.html
-  outputDir: /Users/me/site
+  outputDir: ~/site
   includeCss: true
   includeToc: false
   includeFrontmatter: false

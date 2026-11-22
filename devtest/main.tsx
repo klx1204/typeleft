@@ -531,7 +531,7 @@ if (sidebarMode) {
 
 if (mediaMode) {
   setTimeout(() => {
-    (window as any).__emit('InsertLocalMedia', { path: '/tmp/dropped.mp4', kind: 'video' });
+    (window as any).__emit('InsertLocalMedia', { path: '/example/dropped.mp4', kind: 'video' });
   }, 2200);
 }
 

@@ -11,8 +11,23 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PORT="${PORT:-5199}"
-CHROME="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
+CHROME="${CHROME:-}"
+if [ -z "$CHROME" ]; then
+  for candidate in \
+    "$(command -v google-chrome 2>/dev/null || true)" \
+    "$(command -v google-chrome-stable 2>/dev/null || true)" \
+    "$(command -v chromium 2>/dev/null || true)" \
+    "$(command -v chromium-browser 2>/dev/null || true)" \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium"; do
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+      CHROME="$candidate"
+      break
+    fi
+  done
+fi
 URL="http://localhost:${PORT}/devtest/index.html"
+LOG="${TMPDIR:-/tmp}/typeleft-web-test-vite.log"
 VITE_PID=""
 
 cleanup() {
@@ -22,7 +37,7 @@ trap cleanup EXIT
 
 if ! curl -sf "$URL" > /dev/null 2>&1; then
   echo "starting vite on :$PORT"
-  (cd "$ROOT" && npx vite --port "$PORT" --strictPort > /tmp/typeleft-web-test-vite.log 2>&1) &
+  (cd "$ROOT" && npx vite --port "$PORT" --strictPort > "$LOG" 2>&1) &
   VITE_PID=$!
   for _ in $(seq 1 60); do
     curl -sf "$URL" > /dev/null 2>&1 && break
@@ -31,12 +46,12 @@ if ! curl -sf "$URL" > /dev/null 2>&1; then
 fi
 
 if ! curl -sf "$URL" > /dev/null 2>&1; then
-  echo "vite did not start; see /tmp/typeleft-web-test-vite.log"
+  echo "vite did not start; see $LOG"
   exit 1
 fi
 
-if [ ! -x "$CHROME" ]; then
-  echo "Chrome not found at: $CHROME"
+if [ -z "$CHROME" ] || [ ! -x "$CHROME" ]; then
+  echo "Chrome not found${CHROME:+ at: $CHROME}"
   echo "Set CHROME=/path/to/chrome and retry."
   exit 1
 fi

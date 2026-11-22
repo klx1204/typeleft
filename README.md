@@ -19,7 +19,8 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Undo / redo**, slash-command menu (headings, lists, emoji, table size picker, footnote), formatting bubble and table toolbar
 - **Table column widths**, auto-check task lists, rich-text clipboard (HTML + plain text)
 - **Highlight / superscript / subscript** (`==mark==`, `^sup^`, `~sub~`), image alignment and drag-to-resize
-- **Outline & file tree** sidebars (outline filter, pinned/recent folders), with file operations (rename, move, copy, delete to trash, new file/folder)
+- **Outline & file tree** sidebars (outline filter, collapse/flat, pinned/recent folders, file filter/sort/list view, keyboard navigation, drag-to-move, undo, external change watching), with file operations (rename, move, copy, delete to trash, new file/folder)
+- **Folder search**: content search (no persistent index, honours `.gitignore`), Quick Open, tag search and fuzzy file names
 - **Recent files** menu and a configurable recent-files limit
 - **Code fences**: line numbers, soft wrap, default language, KaTeX preview for ```` ```math ````, copy block, Tab / Shift+Tab indent
 - **Rich HTML**: raw HTML blocks and inline markup, `<u>`, `<video>`/`<audio>` and sandboxed `<iframe>` embeds, with round-trip preservation
@@ -109,7 +110,8 @@ Prism tokens, outline, word count), drives the search panel and real typing, and
 fails on any `console.error`. `?theme=1`, `?layout=1`, `?codeblock=1`, `?sidebar=1`, `?folders=1`,
 `?exportdialog=1`, `?settings=1`, `?settingstype=1`, `?searchmenu=1`,
 `?softbreak=1`, `?spell=1`, `?media=1`, `?exporttheme=1`, `?strict=1`,
-`?filelink=1` and `?pickers=1` switch the page into the other checks.
+`?filelink=1`, `?foldersearch=1`, `?filelist=1` and `?pickers=1` switch the
+page into the other checks.
 
 Every preference lives in one JSON file; see [`docs/settings.md`](docs/settings.md)
 for the full key reference (also reachable from Settings → Advanced).

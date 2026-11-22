@@ -19,7 +19,8 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **撤销 / 重做**、斜杠命令菜单（标题、列表、emoji、表格尺寸、脚注）、格式气泡与表格工具条
 - **表格列宽**、任务列表自动勾选、富文本剪贴板（HTML + 纯文本）
 - **高亮 / 上标 / 下标**（`==高亮==`、`^上标^`、`~下标~`）、图片对齐与拖拽缩放
-- **大纲与文件树**侧栏（大纲过滤、固定/最近文件夹），支持重命名、移动、复制、删除到回收站、新建文件/文件夹
+- **大纲与文件树**侧栏（大纲过滤、折叠/扁平、固定/最近文件夹、文件过滤/排序/列表视图、键盘导航、拖拽移动、撤销、外部变更监听），支持重命名、移动、复制、删除到回收站、新建文件/文件夹
+- **文件夹搜索**：内容搜索（无持久索引，遵守 `.gitignore`）、Quick Open、标签搜索、文件名模糊匹配
 - **最近文件**菜单，数量可配置
 - **代码块**：行号、自动换行、默认语言、```` ```math ```` KaTeX 预览、复制代码块、Tab / Shift+Tab 缩进
 - **富 HTML**：HTML 块与行内标记、`<u>`、`<video>`/`<audio>`、沙箱 `<iframe>`，源码往返保真
@@ -105,7 +106,7 @@ bun run test:rust      # CLI 参数解析（cargo test）
 `MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?theme=1`、`?layout=1`、`?codeblock=1`、`?sidebar=1`、`?folders=1`、
 `?exportdialog=1`、`?settings=1`、`?settingstype=1`、`?searchmenu=1`、
 `?softbreak=1`、`?spell=1`、`?media=1`、`?exporttheme=1`、`?strict=1`、
-`?filelink=1`、`?pickers=1` 可切换到其他检查。
+`?filelink=1`、`?foldersearch=1`、`?filelist=1`、`?pickers=1` 可切换到其他检查。
 
 所有偏好都保存在同一个 JSON 文件中，完整键名见 [`docs/settings.md`](docs/settings.md)（也可从“设置 → 高级”打开）。
 

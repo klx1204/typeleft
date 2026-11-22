@@ -1551,6 +1551,22 @@ fn undo_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
     dir
 }
 
+fn cleanup_undo_dir(app: &tauri::AppHandle) {
+    let dir = undo_dir(app);
+    let cutoff = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(7 * 24 * 3600))
+        .unwrap_or(std::time::UNIX_EPOCH);
+    let Ok(entries) = std::fs::read_dir(&dir) else { return };
+    for entry in entries.flatten() {
+        let old = entry.metadata().and_then(|m| m.modified()).map(|t| t < cutoff).unwrap_or(false);
+        if old {
+            let path = entry.path();
+            if path.is_dir() { let _ = std::fs::remove_dir_all(path); }
+            else { let _ = std::fs::remove_file(path); }
+        }
+    }
+}
+
 fn copy_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
     if src.is_dir() {
         std::fs::create_dir_all(dst)?;
@@ -1574,6 +1590,7 @@ fn backup_for_delete(app: tauri::AppHandle, path: String) -> Result<String, Stri
     if !source.exists() {
         return Err("source-not-found".into());
     }
+    cleanup_undo_dir(&app);
     let name = source.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "item".into());
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -32,7 +32,8 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Writing aids**: smart quotes and dashes, auto-linking, copy as Markdown/HTML/text, spell checking with a custom dictionary
 - **Window**: zoom (menu or Cmd/Ctrl + wheel), full screen
 - **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
-- **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
+- **Image support**: clipboard paste, local copy, relative paths, HTTP image hosting upload, plus an Image Manager (download remote images, move/copy all, rename/move/copy one, delete with the file)
+- **Recovery & shortcuts**: crash-safe drafts with restore prompt, configurable menu/command-palette shortcuts, and a manual/startup update check that opens the release page
 - **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background; each setting follows the theme until overridden
 - **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes; Typora-compatible CSS and a [theme authoring guide](docs/theme-authoring.md)
 - **Bilingual UI**: English and 简体中文, switchable at runtime

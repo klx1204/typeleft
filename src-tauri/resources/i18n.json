@@ -986,5 +986,117 @@
   "Type": {
     "en": "Type",
     "zh": "类型"
+  },
+  "Image Manager...": {
+    "en": "Image Manager...",
+    "zh": "图片管理..."
+  },
+  "Image Manager": {
+    "en": "Image Manager",
+    "zh": "图片管理"
+  },
+  "images": {
+    "en": "images",
+    "zh": "张图片"
+  },
+  "Download remote": {
+    "en": "Download remote",
+    "zh": "下载远程图片"
+  },
+  "Copy all": {
+    "en": "Copy all",
+    "zh": "全部复制"
+  },
+  "Move all": {
+    "en": "Move all",
+    "zh": "全部移动"
+  },
+  "Downloading": {
+    "en": "Downloading",
+    "zh": "下载中"
+  },
+  "Moving": {
+    "en": "Moving",
+    "zh": "移动中"
+  },
+  "Copying": {
+    "en": "Copying",
+    "zh": "复制中"
+  },
+  "Failed": {
+    "en": "Failed",
+    "zh": "失败"
+  },
+  "Done": {
+    "en": "Done",
+    "zh": "完成"
+  },
+  "New name": {
+    "en": "New name",
+    "zh": "新文件名"
+  },
+  "Delete image file?": {
+    "en": "Delete image file?",
+    "zh": "同时删除图片文件？"
+  },
+  "Source": {
+    "en": "Source",
+    "zh": "来源"
+  },
+  "Actions": {
+    "en": "Actions",
+    "zh": "操作"
+  },
+  "missing": {
+    "en": "missing",
+    "zh": "缺失"
+  },
+  "No images": {
+    "en": "No images",
+    "zh": "没有图片"
+  },
+  "Help": {
+    "en": "Help",
+    "zh": "帮助"
+  },
+  "Check for Updates...": {
+    "en": "Check for Updates...",
+    "zh": "检查更新..."
+  },
+  "Restore draft": {
+    "en": "Restore draft",
+    "zh": "恢复草稿"
+  },
+  "An unsaved draft was found. Do you want to restore it?": {
+    "en": "An unsaved draft was found. Do you want to restore it?",
+    "zh": "发现未保存的草稿，是否恢复？"
+  },
+  "Draft restored": {
+    "en": "Draft restored",
+    "zh": "草稿已恢复"
+  },
+  "Check for Updates on Startup": {
+    "en": "Check for Updates on Startup",
+    "zh": "启动时检查更新"
+  },
+  "Check for Updates": {
+    "en": "Check for Updates",
+    "zh": "检查更新"
+  },
+  "A new version is available": {
+    "en": "A new version is available",
+    "zh": "有新版本可用"
+  },
+  "current": {
+    "en": "current",
+    "zh": "当前"
+  },
+  "You are up to date": {
+    "en": "You are up to date",
+    "zh": "已是最新版本"
+  },
+  "Download": {
+    "en": "Download",
+    "zh": "下载"
   }
 }

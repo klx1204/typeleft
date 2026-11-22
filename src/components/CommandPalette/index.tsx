@@ -35,6 +35,8 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'search_folder', label: 'Search in Folder...', category: 'Edit', action: () => transport.postMessage('OpenFolderSearch', { mode: 'content' }) },
     { id: 'quick_open', label: 'Quick Open...', category: 'File', action: () => transport.postMessage('OpenFolderSearch', { mode: 'files' }) },
     { id: 'search_tags', label: 'Search Tags...', category: 'Edit', action: () => transport.postMessage('OpenFolderSearch', { mode: 'tags' }) },
+    { id: 'image_manager', label: 'Image Manager...', category: 'Format', action: () => transport.postMessage('OpenImageManager', {}) },
+    { id: 'check_updates', label: 'Check for Updates...', category: 'Help', action: () => transport.postMessage('CheckForUpdates', {}) },
     { id: 'replace', label: 'Replace...', category: 'Edit', action: () => transport.postMessage('SearchOpenChange', { open: 2 }) },
 
     { id: 'bold', label: 'Bold', category: 'Format', action: () => transport.postMessage('Format', 'bold') },

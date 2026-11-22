@@ -39,6 +39,22 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | `autoLink` | boolean | `true` | Link typed URLs automatically; when off, parsed literals stay text. |
 | `defaultCopyFormat` | `rich` / `markdown` / `text` | `rich` | What Edit → Copy writes. |
 | `customDictionary` | string | `""` | Comma-separated words the spell checker accepts. |
+| `strictMode` | boolean | `false` | GFM only: disables TOC, alerts, emoji, math, highlight and super/subscript. |
+| `customShortcuts` | object | `{}` | Action id → Tauri accelerator; `""` disables. Menu/command-palette actions only. |
+| `checkUpdatesOnStartup` | boolean | `false` | Query GitHub's latest release once per launch. |
+
+## Drafts, shortcuts and updates
+
+- Drafts are written to `app data/drafts/latest.json` every ~1.5 s while the
+  buffer differs from the saved file. Startup offers the draft when it is
+  recent (7 days) and different; saving clears it.
+- `customShortcuts` maps stable action ids (`save`, `quick_open`,
+  `search_folder`, `bold`, `view_sidebar`, …) to Tauri accelerators such as
+  `CmdOrCtrl+Shift+P`. The native menu is updated immediately; clearing a value
+  restores the built-in accelerator.
+- Update checks call `GET /repos/klx1204/typeleft/releases/latest`, so
+  pre-releases are ignored. The dialog only opens the release page; it never
+  downloads or installs automatically.
 
 ## Typography
 
@@ -52,6 +68,13 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | `bodyFont` | string | `""` | CSS font family for body text. |
 | `codeFont` | string | `""` | CSS font family for code. |
 | `editorBackground` | string | `""` | Editor background colour (`#fdf6e3`, `rgb(...)`). |
+| `lineHeight` | number / `""` | `""` | Line height; empty follows the theme. |
+| `paragraphGap` | CSS length / `""` | `""` | Paragraph bottom margin; empty follows the theme. |
+
+Every typography value is three-state: empty/`inherit` follows the theme, a
+value overrides it, and the ↺ button in Settings restores the theme. Only
+explicit values emit CSS (as `--tl-*` tokens and `#write[data-*]`
+attributes).
 
 ## Markdown
 

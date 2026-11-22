@@ -10,8 +10,10 @@ import SelectionSearchMenu from 'components/SelectionSearchMenu';
 import FolderSearch from 'components/FolderSearch';
 import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
 import { initZoom, installZoomWheel, zoomIn, zoomOut, zoomReset } from 'services/zoom';
+import { applyCustomShortcuts } from 'services/shortcuts';
 import { remote } from 'services/remote';
 import transport from 'services/transport';
+import t from 'services/i18n';
 import 'services/theme'
 import 'services/scrollbar'
 import 'services/localization'
@@ -34,6 +36,14 @@ function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [imageConfigOpen, setImageConfigOpen] = useState(false);
   const [folderSearch, setFolderSearch] = useState<{ open: boolean; mode: 'content' | 'files' | 'tags' }>({ open: false, mode: 'content' });
+  const [updateInfo, setUpdateInfo] = useState<{ current: string; latest: string; url: string; newer: boolean } | null>(null);
+  const [updateError, setUpdateError] = useState('');
+  const checkUpdates = useCallback(() => {
+    setUpdateError('');
+    remote.checkForUpdates()
+      .then((info: any) => setUpdateInfo(info))
+      .catch((err: any) => { setUpdateInfo(null); setUpdateError(String(err)); });
+  }, []);
 
   useEffect(() => {
     const unsub = transport.addListener('OpenSettings', () => { setSettingsSection(undefined); setSettingsOpen(true); });
@@ -96,6 +106,16 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    remote.getSettings().then((s: any) => applyCustomShortcuts(s)).catch(() => {});
+    const unsub = transport.addListener<Record<string, unknown>>('SettingsChanged', (payload) => {
+      if ('customShortcuts' in payload) {
+        remote.getSettings().then((s: any) => applyCustomShortcuts(s)).catch(() => {});
+      }
+    });
+    return () => unsub();
+  }, []);
+
   useEffect(() => transport.addListener<Record<string, unknown>>('SettingsChanged', (payload) => {
     if ('customTheme' in payload) {
       applyCustomTheme(typeof payload.customTheme === 'string' ? payload.customTheme : '');
@@ -119,18 +139,18 @@ function App() {
       e.preventDefault();
       setCommandPaletteOpen(prev => !prev);
     }
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
-      e.preventDefault();
-      setFolderSearch({ open: true, mode: 'content' });
-    }
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'o') {
-      e.preventDefault();
-      setFolderSearch({ open: true, mode: 'files' });
-    }
     if (e.key === 'Escape') {
       setCommandPaletteOpen(false);
     }
   }, []);
+
+  useEffect(() => transport.addListener('CheckForUpdates', () => checkUpdates()), [checkUpdates]);
+
+  useEffect(() => {
+    remote.getSettings().then((s: any) => {
+      if (s?.checkUpdatesOnStartup) checkUpdates();
+    }).catch(() => {});
+  }, [checkUpdates]);
 
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -147,6 +167,40 @@ function App() {
       <ImageConfigDialog open={imageConfigOpen} onClose={() => setImageConfigOpen(false)} />
       <SelectionSearchMenu />
       <FolderSearch open={folderSearch.open} initialMode={folderSearch.mode} onClose={() => setFolderSearch({ ...folderSearch, open: false })} />
+      {(updateInfo || updateError) && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 10005, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' }}
+          onClick={() => { setUpdateInfo(null); setUpdateError(''); }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: 420, padding: 20, borderRadius: 8, backgroundColor: 'var(--editorColor00)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 10, color: 'var(--editorColor60)' }}>{t('Check for Updates')}</div>
+            {updateError ? (
+              <div style={{ fontSize: 13, color: '#e05555', wordBreak: 'break-word' }}>{updateError}</div>
+            ) : (
+              <div style={{ fontSize: 13, color: 'var(--editorColor50)', lineHeight: 1.7 }}>
+                {updateInfo?.newer
+                  ? <>{t('A new version is available')}: <strong>{updateInfo.latest}</strong> ({t('current')} {updateInfo.current})</>
+                  : <>{t('You are up to date')} ({updateInfo?.current})</>}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button
+                onClick={() => { setUpdateInfo(null); setUpdateError(''); }}
+                style={{ padding: '6px 14px', fontSize: 13, cursor: 'pointer', borderRadius: 4, border: '1px solid var(--editorColor10)', backgroundColor: 'var(--editorColor04)', color: 'var(--editorColor50)' }}
+              >{t('Close')}</button>
+              {updateInfo?.newer && (
+                <button
+                  onClick={() => { void remote.openUrl({ url: updateInfo.url }); setUpdateInfo(null); }}
+                  style={{ padding: '6px 14px', fontSize: 13, cursor: 'pointer', borderRadius: 4, border: 'none', backgroundColor: 'var(--themeColor)', color: '#fff' }}
+                >{t('Download')}</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </ErrorBoundary>
   );
 }

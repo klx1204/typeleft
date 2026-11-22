@@ -8,6 +8,7 @@
   var emitted = [];
   var clipboard = { text: '', html: null };
 
+  window.__downloaded = [];
   var settings = {
     autoSave: false,
     fontSize: 16,
@@ -116,6 +117,21 @@
         { name: 'b.md', path: '/example/notes/b.md', is_dir: false, modified: 1700000001000 },
         { name: 'sub', path: '/example/notes/sub', is_dir: true, modified: 1700000002000 },
       ]);
+      if (cmd === 'pick_folder') {
+        setTimeout(function () {
+          window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: 'FolderPicked', payload: '/example/docs/assets' });
+        }, 60);
+        return Promise.resolve(null);
+      }
+      if (cmd === 'download_image') { window.__downloaded.push(args.url); return Promise.resolve('/example/docs/assets/b.png'); }
+      if (cmd === 'copy_image_to_dir') { window.__copiedImage = args; return Promise.resolve('/example/docs/assets/a.png'); }
+      if (cmd === 'move_image_to_dir') { window.__movedImage = args; return Promise.resolve('/example/docs/assets/a.png'); }
+      if (cmd === 'delete_file') { window.__deletedFile = args.path; return Promise.resolve(null); }
+      if (cmd === 'save_draft') { window.__savedDraft = args; return Promise.resolve(null); }
+      if (cmd === 'load_draft') return Promise.resolve(window.__draft || null);
+      if (cmd === 'clear_draft') { window.__draftCleared = true; return Promise.resolve(null); }
+      if (cmd === 'apply_shortcuts') { window.__shortcuts = args.shortcuts; return Promise.resolve(null); }
+      if (cmd === 'check_for_updates') return Promise.resolve({ current: '0.11.0', latest: '0.12.0', url: 'https://example.test/release', newer: true });
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);
       if (cmd === 'get_theme_dir') return Promise.resolve('/devtest/');

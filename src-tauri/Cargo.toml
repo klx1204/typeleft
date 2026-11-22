@@ -1,6 +1,6 @@
 [package]
 name = "typeleft"
-version = "0.10.0"
+version = "0.11.0"
 description = "Typeleft - A lightweight cross-platform Markdown editor"
 authors = ["Typeleft contributors"]
 license = "GPL-3.0-or-later"
@@ -34,4 +34,5 @@ trash = "5"
 ignore = "0.4.34"
 regex = "1.13.2"
 notify = "9.0.0"
+ureq = "3.5.2"
 

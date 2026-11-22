@@ -344,6 +344,147 @@ fn save_image(app: tauri::AppHandle, file_name: String, base64_data: String, sub
     Ok(save_path.to_string_lossy().to_string())
 }
 
+fn default_accelerator(id: &str) -> Option<&'static str> {
+    Some(match id {
+        "new_file" => "CmdOrCtrl+N",
+        "open_file" => "CmdOrCtrl+O",
+        "save" => "CmdOrCtrl+S",
+        "save_as" => "CmdOrCtrl+Shift+S",
+        "print" => "CmdOrCtrl+P",
+        "quick_open" => "CmdOrCtrl+Shift+O",
+        "search_folder" => "CmdOrCtrl+Shift+F",
+        "find" => "CmdOrCtrl+F",
+        "replace" => "CmdOrCtrl+H",
+        "toggle_fullscreen" => "F11",
+        "undo" => "CmdOrCtrl+Z",
+        "redo" => "CmdOrCtrl+Shift+Z",
+        "cut" => "CmdOrCtrl+X",
+        "copy" => "CmdOrCtrl+C",
+        "paste" => "CmdOrCtrl+V",
+        "select_all" => "CmdOrCtrl+A",
+        "bold" => "CmdOrCtrl+B",
+        "italic" => "CmdOrCtrl+I",
+        "hyperlink" => "CmdOrCtrl+K",
+        "heading_1" => "CmdOrCtrl+1",
+        "heading_2" => "CmdOrCtrl+2",
+        "heading_3" => "CmdOrCtrl+3",
+        "heading_4" => "CmdOrCtrl+4",
+        "heading_5" => "CmdOrCtrl+5",
+        "heading_6" => "CmdOrCtrl+6",
+        "view_source" => "CmdOrCtrl+/",
+        "view_sidebar" => "CmdOrCtrl+Shift+L",
+        "zoom_in" => "CmdOrCtrl+=",
+        "zoom_out" => "CmdOrCtrl+-",
+        "zoom_reset" => "CmdOrCtrl+0",
+        _ => return None,
+    })
+}
+
+fn apply_shortcuts_to_menu<R: tauri::Runtime>(
+    items: Vec<tauri::menu::MenuItemKind<R>>,
+    map: &std::collections::HashMap<String, String>,
+) {
+    for item in items {
+        match item {
+            tauri::menu::MenuItemKind::MenuItem(entry) => {
+                let id = entry.id().0.as_str().to_string();
+                if !id.is_empty() {
+                    let accel = map.get(&id).cloned().or_else(|| default_accelerator(&id).map(|v| v.to_string()));
+                    let value = accel.filter(|v| !v.trim().is_empty());
+                    let _ = entry.set_accelerator(value.as_deref());
+                }
+            }
+            tauri::menu::MenuItemKind::Submenu(submenu) => {
+                if let Ok(children) = submenu.items() {
+                    apply_shortcuts_to_menu(children, map);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Apply user-defined accelerators (menu actions only) to the native menu.
+#[tauri::command]
+fn apply_shortcuts(app: tauri::AppHandle, shortcuts: std::collections::HashMap<String, String>) -> Result<(), String> {
+    if let Some(menu) = app.menu() {
+        if let Ok(items) = menu.items() {
+            apply_shortcuts_to_menu(items, &shortcuts);
+        }
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateInfo {
+    current: String,
+    latest: String,
+    url: String,
+    newer: bool,
+}
+
+fn version_parts(value: &str) -> Vec<u64> {
+    let mut parts: Vec<u64> = value
+        .trim_start_matches('v')
+        .split(['.', '-', '+'])
+        .take(3)
+        .map(|part| part.parse::<u64>().unwrap_or(0))
+        .collect();
+    while parts.len() < 3 {
+        parts.push(0);
+    }
+    parts
+}
+
+#[tauri::command]
+fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    let current = app.package_info().version.to_string();
+    let mut response = ureq::get("https://api.github.com/repos/klx1204/typeleft/releases/latest")
+        .header("User-Agent", "Typeleft")
+        .header("Accept", "application/vnd.github+json")
+        .call()
+        .map_err(|e| format!("request failed: {}", e))?;
+    let body = response
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| format!("read failed: {}", e))?;
+    let data: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    let latest = data.get("tag_name").and_then(|v| v.as_str()).unwrap_or("").trim_start_matches('v').to_string();
+    let url = data.get("html_url").and_then(|v| v.as_str()).unwrap_or("https://github.com/klx1204/typeleft/releases").to_string();
+    let newer = !latest.is_empty() && version_parts(&latest) > version_parts(&current);
+    Ok(UpdateInfo { current, latest, url, newer })
+}
+
+#[tauri::command]
+fn download_image(url: String, dest_dir: String, file_name: Option<String>) -> Result<String, String> {
+    let mut response = ureq::get(&url)
+        .call()
+        .map_err(|e| format!("download failed: {}", e))?;
+    let bytes = response
+        .body_mut()
+        .read_to_vec()
+        .map_err(|e| format!("download body failed: {}", e))?;
+    let dest = std::path::PathBuf::from(&dest_dir);
+    std::fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
+    let ext = detect_image_type(&bytes);
+    let fallback = url
+        .split('/')
+        .last()
+        .unwrap_or("image")
+        .split('?')
+        .next()
+        .unwrap_or("image");
+    let stem = std::path::Path::new(file_name.as_deref().unwrap_or(fallback))
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "image".into());
+    let target = ensure_unique_path(dest.join(format!("{}.{}", stem, ext)));
+    std::fs::write(&target, &bytes).map_err(|e| e.to_string())?;
+    Ok(target.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn copy_image(source_path: String, dest_dir: String) -> Result<String, String> {
     let src = std::path::Path::new(&source_path);
@@ -708,6 +849,39 @@ fn move_file(source: String, dest: String) -> Result<(), String> {
     std::fs::rename(src, dst).map_err(|e| e.to_string())
 }
 
+/// Copy an image into a directory (flat) without overwriting; returns the new path.
+#[tauri::command]
+fn copy_image_to_dir(source: String, dest_dir: String) -> Result<String, String> {
+    let src = std::path::Path::new(&source);
+    if !src.is_file() {
+        return Err("source-not-found".into());
+    }
+    let name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "image".into());
+    let dir = std::path::Path::new(&dest_dir);
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let target = ensure_unique_path(dir.join(name));
+    std::fs::copy(src, &target).map_err(|e| e.to_string())?;
+    Ok(target.to_string_lossy().to_string())
+}
+
+/// Move an image into a directory (flat) without overwriting; returns the new path.
+#[tauri::command]
+fn move_image_to_dir(source: String, dest_dir: String) -> Result<String, String> {
+    let src = std::path::Path::new(&source);
+    if !src.is_file() {
+        return Err("source-not-found".into());
+    }
+    let name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "image".into());
+    let dir = std::path::Path::new(&dest_dir);
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let target = ensure_unique_path(dir.join(name));
+    if std::fs::rename(src, &target).is_err() {
+        std::fs::copy(src, &target).map_err(|e| e.to_string())?;
+        let _ = std::fs::remove_file(src);
+    }
+    Ok(target.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn copy_file(source: String, dest: String) -> Result<(), String> {
     let src = std::path::Path::new(&source);
@@ -856,6 +1030,50 @@ fn list_backups(app: tauri::AppHandle, path: String) -> Vec<BackupMeta> {
 #[tauri::command]
 fn latest_backup(app: tauri::AppHandle, path: String) -> Option<BackupMeta> {
     list_backups(app, path).into_iter().next()
+}
+
+fn draft_file(app: &tauri::AppHandle) -> std::path::PathBuf {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("typeleft"))
+        .join("drafts");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join("latest.json")
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Draft {
+    content: String,
+    file_path: Option<String>,
+    saved_at: i64,
+}
+
+#[tauri::command]
+fn save_draft(app: tauri::AppHandle, content: String, file_path: Option<String>) -> Result<(), String> {
+    let saved_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let draft = Draft { content, file_path, saved_at };
+    let json = serde_json::to_string(&draft).map_err(|e| e.to_string())?;
+    std::fs::write(draft_file(&app), json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn load_draft(app: tauri::AppHandle) -> Option<Draft> {
+    let text = std::fs::read_to_string(draft_file(&app)).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+#[tauri::command]
+fn clear_draft(app: tauri::AppHandle) -> Result<(), String> {
+    let path = draft_file(&app);
+    if path.exists() {
+        std::fs::remove_file(path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn themes_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
@@ -1380,6 +1598,425 @@ fn pandoc_style_args(
         args.extend(["--variable".into(), "dir=rtl".into()]);
     }
     args
+}
+
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+struct PrintOptions {
+    paper: Option<String>,
+    orientation: Option<String>,
+    width_mm: Option<f64>,
+    height_mm: Option<f64>,
+    margin_top: Option<f64>,
+    margin_bottom: Option<f64>,
+    margin_left: Option<f64>,
+    margin_right: Option<f64>,
+    body_font: Option<String>,
+    heading_font: Option<String>,
+    code_font: Option<String>,
+    cjk_font: Option<String>,
+    font_size: Option<f64>,
+    line_height: Option<f64>,
+    paragraph_spacing: Option<f64>,
+    first_line_indent: Option<f64>,
+    heading_numbering: Option<bool>,
+    page_breaks: Option<bool>,
+    toc: Option<bool>,
+    toc_depth: Option<u32>,
+    cover_title: Option<String>,
+    cover_subtitle: Option<String>,
+    cover_author: Option<String>,
+    cover_date: Option<String>,
+    cover: Option<bool>,
+    header_left: Option<String>,
+    header_center: Option<String>,
+    header_right: Option<String>,
+    footer_left: Option<String>,
+    footer_center: Option<String>,
+    footer_right: Option<String>,
+    different_odd_even: Option<bool>,
+    different_first: Option<bool>,
+    page_number_format: Option<String>,
+    page_start: Option<u32>,
+    subject: Option<String>,
+    keywords: Option<String>,
+    image_max_width: Option<String>,
+    css: Option<String>,
+    cover_html: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct EngineInfo {
+    name: String,
+    found: bool,
+    path: String,
+    version: String,
+}
+
+struct PrintJob(Mutex<Option<std::process::Child>>);
+
+fn engine_binary(name: &str, overrides: Option<&HashMap<String, String>>) -> Option<(String, String)> {
+    let custom = overrides
+        .and_then(|map| map.get(name))
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    let mut candidates: Vec<String> = Vec::new();
+    if let Some(path) = custom {
+        candidates.push(path);
+    }
+    candidates.push(name.to_string());
+    for candidate in candidates {
+        if let Ok(output) = std::process::Command::new(&candidate).arg("--version").output() {
+            if output.status.success() {
+                let version = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .next()
+                    .unwrap_or(name)
+                    .trim()
+                    .to_string();
+                return Some((candidate, version));
+            }
+        }
+    }
+    None
+}
+
+fn detect_engines(overrides: Option<HashMap<String, String>>) -> Vec<EngineInfo> {
+    let mut out = Vec::new();
+    for name in ["pandoc", "xelatex", "tectonic", "weasyprint"] {
+        match engine_binary(name, overrides.as_ref()) {
+            Some((path, version)) => out.push(EngineInfo {
+                name: name.to_string(),
+                found: true,
+                path,
+                version,
+            }),
+            None => out.push(EngineInfo {
+                name: name.to_string(),
+                found: false,
+                path: String::new(),
+                version: String::new(),
+            }),
+        }
+    }
+    out
+}
+
+fn eps_escape(value: &str) -> String {
+    value
+        .replace('\\', "\\textbackslash{}")
+        .replace('&', "\\&")
+        .replace('%', "\\%")
+        .replace('$', "\\$")
+        .replace('#', "\\#")
+        .replace('_', "\\_")
+        .replace('{', "\\{")
+        .replace('}', "\\}")
+        .replace('~', "\\textasciitilde{}")
+        .replace('^', "\\textasciicircum{}")
+}
+
+fn paper_mm(options: &PrintOptions) -> (f64, f64) {
+    let name = options.paper.as_deref().unwrap_or("A4");
+    let (w, h) = match name {
+        "A3" => (297.0, 420.0),
+        "A5" => (148.0, 210.0),
+        "B5" => (176.0, 250.0),
+        "Letter" => (215.9, 279.4),
+        "custom" => (
+            options.width_mm.unwrap_or(210.0),
+            options.height_mm.unwrap_or(297.0),
+        ),
+        _ => (210.0, 297.0),
+    };
+    if options.orientation.as_deref() == Some("landscape") {
+        (h, w)
+    } else {
+        (w, h)
+    }
+}
+
+fn latex_page_args(options: &PrintOptions) -> Vec<String> {
+    let (w, h) = paper_mm(options);
+    let top = options.margin_top.unwrap_or(25.4);
+    let bottom = options.margin_bottom.unwrap_or(25.4);
+    let left = options.margin_left.unwrap_or(31.8);
+    let right = options.margin_right.unwrap_or(31.8);
+    let mut args = Vec::new();
+    for value in [
+        format!("geometry:paperwidth={:.1}mm", w),
+        format!("geometry:paperheight={:.1}mm", h),
+        format!("geometry:top={:.1}mm", top),
+        format!("geometry:bottom={:.1}mm", bottom),
+        format!("geometry:left={:.1}mm", left),
+        format!("geometry:right={:.1}mm", right),
+        "geometry:includeheadfoot".into(),
+    ] {
+        args.extend(["-V".into(), value]);
+    }
+    let size = options.font_size.unwrap_or(11.0);
+    let size = if size <= 10.5 { "10pt" } else if size >= 11.5 { "12pt" } else { "11pt" };
+    args.extend(["-V".into(), format!("fontsize:{}", size)]);
+    if let Some(line) = options.line_height {
+        args.extend(["-V".into(), format!("linestretch:{:.2}", line)]);
+    }
+    if options.first_line_indent.unwrap_or(0.0) > 0.0 {
+        args.extend(["-V".into(), "indent:true".into()]);
+    }
+    args
+}
+
+fn latex_header(options: &PrintOptions) -> String {
+    let mut header = String::from("\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n");
+    let odd_even = options.different_odd_even.unwrap_or(false);
+    let mut put = |slot: &str, value: &Option<String>| {
+        if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
+            let replaced = text
+                .replace("{page}", "\\thepage{}")
+                .replace("{total}", "\\pageref{LastPage}")
+                .replace("{title}", &eps_escape(options.cover_title.as_deref().unwrap_or("")))
+                .replace("{author}", &eps_escape(options.cover_author.as_deref().unwrap_or("")))
+                .replace("{date}", &eps_escape(options.cover_date.as_deref().unwrap_or("")));
+            header.push_str(&format!("\\fancyhead[{}]{{{}}}\n", slot, replaced));
+        }
+    };
+    put("L", &options.header_left);
+    put("C", &options.header_center);
+    put("R", &options.header_right);
+    let mut foot = |slot: &str, value: &Option<String>| {
+        if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
+            let replaced = text
+                .replace("{page}", "\\thepage{}")
+                .replace("{total}", "\\pageref{LastPage}")
+                .replace("{title}", &eps_escape(options.cover_title.as_deref().unwrap_or("")))
+                .replace("{author}", &eps_escape(options.cover_author.as_deref().unwrap_or("")))
+                .replace("{date}", &eps_escape(options.cover_date.as_deref().unwrap_or("")));
+            header.push_str(&format!("\\fancyfoot[{}]{{{}}}\n", slot, replaced));
+        }
+    };
+    foot("L", &options.footer_left);
+    foot("C", &options.footer_center);
+    foot("R", &options.footer_right);
+    if odd_even {
+        header.push_str("\\fancyhead[LE,RO]{\\slshape\\thepage}\n");
+    }
+    if options.different_first.unwrap_or(false) {
+        header.push_str("\\fancypagestyle{plain}{\\fancyhf{}\\renewcommand{\\headrulewidth}{0pt}}\n");
+    }
+    let format = options.page_number_format.as_deref().unwrap_or("arabic");
+    let command = match format {
+        "roman" => "roman",
+        "Roman" => "Roman",
+        "alpha" => "alph",
+        "Alpha" => "Alph",
+        _ => "arabic",
+    };
+    header.push_str(&format!("\\pagenumbering{{{}}}\n", command));
+    if let Some(start) = options.page_start.filter(|v| *v > 0) {
+        header.push_str(&format!("\\setcounter{{page}}{{{}}}\n", start));
+    }
+    if let Some(font) = options.heading_font.as_ref().filter(|v| !v.trim().is_empty()) {
+        header.push_str("\\usepackage{sectsty}\n");
+        header.push_str(&format!("\\allsectionsfont{{\\fontspec{{{}}}}}\n", eps_escape(font)));
+    }
+    if options.page_breaks.unwrap_or(true) {
+        header.push_str("\\let\\oldsection\\section\n\\renewcommand{\\section}{\\clearpage\\oldsection}\n");
+    }
+    header
+}
+
+fn latex_cover(options: &PrintOptions) -> String {
+    let title = eps_escape(options.cover_title.as_deref().unwrap_or(""));
+    let subtitle = eps_escape(options.cover_subtitle.as_deref().unwrap_or(""));
+    let author = eps_escape(options.cover_author.as_deref().unwrap_or(""));
+    let date = eps_escape(options.cover_date.as_deref().unwrap_or(""));
+    format!(
+        "\\begin{{titlepage}}\n\\centering\n\\vspace*{{4cm}}\n{{\\Huge\\bfseries {}\\par}}\n\\vspace{{1.2cm}}\n{{\\Large {}\\par}}\n\\vfill\n{{\\large {}\\par}}\n\\vspace{{0.6cm}}\n{{\\large {}\\par}}\n\\end{{titlepage}}\n",
+        title, subtitle, author, date
+    )
+}
+
+#[tauri::command]
+fn detect_print_engines(overrides: Option<HashMap<String, String>>) -> Vec<EngineInfo> {
+    detect_engines(overrides)
+}
+
+fn resolve_engine_path(name: &str, custom: Option<&str>) -> Result<String, String> {
+    if let Some(path) = custom.map(|v| v.trim()).filter(|v| !v.is_empty()) {
+        if std::path::Path::new(path).exists() {
+            return Ok(path.to_string());
+        }
+        return Err(format!("engine-path-invalid:{}", path));
+    }
+    match engine_binary(name, None) {
+        Some((path, _)) => Ok(path),
+        None => Err(format!("engine-not-found:{}", name)),
+    }
+}
+
+#[tauri::command]
+fn cancel_print_export(state: tauri::State<PrintJob>) -> Result<(), String> {
+    if let Ok(mut guard) = state.0.lock() {
+        if let Some(child) = guard.as_mut() {
+            let _ = child.kill();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn pandoc_export_print(
+    app: tauri::AppHandle,
+    state: tauri::State<PrintJob>,
+    markdown: String,
+    target_path: String,
+    base_path: Option<String>,
+    pandoc_path: Option<String>,
+    engine: String,
+    engine_path: Option<String>,
+    options: PrintOptions,
+) -> Result<(), String> {
+    let (pandoc, _) = find_pandoc(pandoc_path.as_deref()).ok_or("pandoc-not-found")?;
+    let engine_name = match engine.as_str() {
+        "xelatex" | "tectonic" | "weasyprint" => engine.as_str(),
+        other => return Err(format!("unsupported-engine:{}", other)),
+    };
+    let engine_bin = resolve_engine_path(engine_name, engine_path.as_deref())?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let temp = std::env::temp_dir().join(format!("typeleft-print-{}.md", stamp));
+    std::fs::write(&temp, markdown).map_err(|e| e.to_string())?;
+
+    let mut command = std::process::Command::new(pandoc);
+    command.arg(&temp).args(["-f", "gfm", "-t", "pdf", "-o", &target_path]);
+    command.arg(format!("--pdf-engine={}", engine_bin));
+    command.args(["--standalone"]);
+    if options.toc.unwrap_or(true) {
+        command.arg("--toc");
+        command.arg(format!("--toc-depth={}", options.toc_depth.unwrap_or(3).clamp(1, 6)));
+    }
+    if options.heading_numbering.unwrap_or(false) {
+        command.arg("--number-sections");
+    }
+    let mut metadatas: Vec<(String, String)> = Vec::new();
+    if let Some(title) = options.cover_title.clone().filter(|v| !v.trim().is_empty()) {
+        metadatas.push(("title".into(), title));
+    }
+    if let Some(author) = options.cover_author.clone().filter(|v| !v.trim().is_empty()) {
+        metadatas.push(("author".into(), author));
+    }
+    if let Some(date) = options.cover_date.clone().filter(|v| !v.trim().is_empty()) {
+        metadatas.push(("date".into(), date));
+    }
+    if let Some(subject) = options.subject.clone().filter(|v| !v.trim().is_empty()) {
+        metadatas.push(("subject".into(), subject));
+    }
+    if let Some(keywords) = options.keywords.clone().filter(|v| !v.trim().is_empty()) {
+        metadatas.push(("keywords".into(), keywords));
+    }
+    for (key, value) in metadatas {
+        command.args(["--metadata", &format!("{}={}", key, value)]);
+    }
+    if let Some(base) = base_path.as_ref().filter(|b| !b.trim().is_empty()) {
+        if std::path::Path::new(base).is_dir() {
+            command.current_dir(base);
+            command.arg(format!("--resource-path={}", base));
+        }
+    }
+
+    let mut temps: Vec<std::path::PathBuf> = vec![temp.clone()];
+    if engine_name == "weasyprint" {
+        if let Some(css) = options.css.as_ref().filter(|v| !v.trim().is_empty()) {
+            let css_path = std::env::temp_dir().join(format!("typeleft-print-{}.css", stamp));
+            std::fs::write(&css_path, css).map_err(|e| e.to_string())?;
+            command.arg(format!("--css={}", css_path.to_string_lossy()));
+            temps.push(css_path);
+        }
+        if let Some(cover) = options.cover_html.as_ref().filter(|v| !v.trim().is_empty()) {
+            let cover_path = std::env::temp_dir().join(format!("typeleft-print-{}-cover.html", stamp));
+            std::fs::write(&cover_path, cover).map_err(|e| e.to_string())?;
+            command.arg(format!("--include-before-body={}", cover_path.to_string_lossy()));
+            temps.push(cover_path);
+        }
+    } else {
+        let header = latex_header(&options);
+        let header_path = std::env::temp_dir().join(format!("typeleft-print-{}-header.tex", stamp));
+        std::fs::write(&header_path, header).map_err(|e| e.to_string())?;
+        command.arg(format!("--include-in-header={}", header_path.to_string_lossy()));
+        temps.push(header_path);
+        if options.cover.unwrap_or(true) {
+            let cover_path = std::env::temp_dir().join(format!("typeleft-print-{}-cover.tex", stamp));
+            std::fs::write(&cover_path, latex_cover(&options)).map_err(|e| e.to_string())?;
+            command.arg(format!("--include-before-body={}", cover_path.to_string_lossy()));
+            temps.push(cover_path);
+        }
+        command.args(latex_page_args(&options));
+        if let Some(font) = options.body_font.as_ref().filter(|v| !v.trim().is_empty()) {
+            command.args(["-V", &format!("mainfont={}", font)]);
+        }
+        if let Some(font) = options.code_font.as_ref().filter(|v| !v.trim().is_empty()) {
+            command.args(["-V", &format!("monofont={}", font)]);
+        }
+        if let Some(font) = options.cjk_font.as_ref().filter(|v| !v.trim().is_empty()) {
+            command.args(["-V", &format!("CJKmainfont={}", font)]);
+        }
+    }
+
+    command.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
+    let mut child = command.spawn().map_err(|e| e.to_string())?;
+    let stderr = child.stderr.take();
+    {
+        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+        *guard = Some(child);
+    }
+    let _ = app.emit("PrintExportProgress", serde_json::json!({"stage": "compiling", "engine": engine_name}));
+    let result = loop {
+        {
+            let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+            let Some(child) = guard.as_mut() else {
+                break Err("canceled".to_string());
+            };
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    let _child = guard.take().unwrap();
+                    let stderr = stderr.and_then(|mut handle| {
+                        let mut text = String::new();
+                        use std::io::Read;
+                        let _ = handle.read_to_string(&mut text);
+                        Some(text)
+                    });
+                    break if status.success() {
+                        Ok(())
+                    } else {
+                        Err(stderr.unwrap_or_else(|| "print-export-failed".into()).trim().to_string())
+                    };
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    let _ = guard.take();
+                    break Err(err.to_string());
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(120));
+    };
+    for path in temps {
+        let _ = std::fs::remove_file(path);
+    }
+    match result {
+        Ok(()) => {
+            let _ = app.emit("PrintExportProgress", serde_json::json!({"stage": "done"}));
+            Ok(())
+        }
+        Err(err) if err == "canceled" => {
+            let _ = app.emit("PrintExportProgress", serde_json::json!({"stage": "canceled"}));
+            Err("canceled".into())
+        }
+        Err(err) => Err(err),
+    }
 }
 
 #[tauri::command]
@@ -1933,6 +2570,9 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Import Document..." => "导入文档...",
         "Quick Open..." => "快速打开...",
         "Search in Folder..." => "在文件夹中搜索...",
+        "Image Manager..." => "图片管理...",
+        "Help" => "帮助",
+        "Check for Updates..." => "检查更新...",
         "Export HTML..." => "导出 HTML...",
         "Print..." => "打印...",
         "Close Window" => "关闭窗口",
@@ -2069,11 +2709,12 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let strike = MenuItem::with_id(app, "strike", tr("Strikethrough"), true, None::<&str>)?;
     let hyperlink = MenuItem::with_id(app, "hyperlink", tr("Link"), true, Some("CmdOrCtrl+K"))?;
     let image = MenuItem::with_id(app, "image", tr("Image"), true, None::<&str>)?;
+    let image_manager = MenuItem::with_id(app, "image_manager", tr("Image Manager..."), true, None::<&str>)?;
     let clear = MenuItem::with_id(app, "clear_format", tr("Clear Format"), true, None::<&str>)?;
 
     let format_menu = Submenu::with_items(app, tr("Format"), true, &[
         &bold, &italic, &code, &strike, &PredefinedMenuItem::separator(app)?,
-        &hyperlink, &image, &PredefinedMenuItem::separator(app)?, &clear,
+        &hyperlink, &image, &image_manager, &PredefinedMenuItem::separator(app)?, &clear,
     ])?;
 
     let h1 = MenuItem::with_id(app, "heading_1", tr("Heading 1"), true, Some("CmdOrCtrl+1"))?;
@@ -2143,7 +2784,10 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
         &PredefinedMenuItem::quit(app, Some(tr("Quit")))?,
     ])?;
 
-    let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &format_menu, &paragraph_menu, &view_menu, &window_menu])?;
+    let check_updates = MenuItem::with_id(app, "check_updates", tr("Check for Updates..."), true, None::<&str>)?;
+    let help_menu = Submenu::with_items(app, tr("Help"), true, &[&check_updates])?;
+
+    let menu = Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &format_menu, &paragraph_menu, &view_menu, &window_menu, &help_menu])?;
     app.set_menu(menu)?;
     Ok(())
 }
@@ -2172,6 +2816,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(PendingFiles(Mutex::new(Vec::new())))
         .manage(FolderWatcher(Mutex::new(None)))
+        .manage(PrintJob(Mutex::new(None)))
         .on_window_event(|window, event| {
             match event {
                 tauri::WindowEvent::ThemeChanged(theme) => {
@@ -2337,6 +2982,8 @@ pub fn run() {
                 "find" => { let _ = app.emit("SearchOpenChange", serde_json::json!({"open": 1})); }
                 "quick_open" => { let _ = app.emit("OpenFolderSearch", serde_json::json!({"mode": "files"})); }
                 "search_folder" => { let _ = app.emit("OpenFolderSearch", serde_json::json!({"mode": "content"})); }
+                "image_manager" => { let _ = app.emit("OpenImageManager", ()); }
+                "check_updates" => { let _ = app.emit("CheckForUpdates", ()); }
                 "replace" => { let _ = app.emit("SearchOpenChange", serde_json::json!({"open": 2})); }
                 "bold" => { let _ = app.emit("Format", "bold"); }
                 "italic" => { let _ = app.emit("Format", "italic"); }
@@ -2466,6 +3113,17 @@ pub fn run() {
             watch_folder,
             backup_for_delete,
             restore_backup,
+            apply_shortcuts,
+            check_for_updates,
+            detect_print_engines,
+            pandoc_export_print,
+            cancel_print_export,
+            save_draft,
+            load_draft,
+            clear_draft,
+            download_image,
+            copy_image_to_dir,
+            move_image_to_dir,
             list_folder_files,
             search_folder,
             search_tags,
@@ -2692,5 +3350,81 @@ mod file_ops_tests {
         assert_eq!(std::fs::read_to_string(&source).unwrap(), "hello");
         assert!(!backup.exists());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+
+#[cfg(test)]
+mod update_tests {
+    use super::*;
+
+    #[test]
+    fn compares_versions() {
+        assert!(version_parts("0.12.0") > version_parts("0.11.9"));
+        assert_eq!(version_parts("v0.11.0"), vec![0, 11, 0]);
+        assert_eq!(version_parts("1.0.0-beta.1"), vec![1, 0, 0]);
+        assert_eq!(version_parts("garbage"), vec![0, 0, 0]);
+    }
+}
+
+
+#[cfg(test)]
+mod print_tests {
+    use super::*;
+
+    fn options() -> PrintOptions {
+        PrintOptions {
+            paper: Some("A4".into()),
+            orientation: Some("portrait".into()),
+            margin_top: Some(25.4),
+            margin_bottom: Some(25.4),
+            margin_left: Some(31.8),
+            margin_right: Some(31.8),
+            font_size: Some(11.0),
+            heading_numbering: Some(true),
+            toc: Some(true),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn paper_sizes_and_orientation() {
+        assert_eq!(paper_mm(&options()), (210.0, 297.0));
+        let mut landscape = options();
+        landscape.orientation = Some("landscape".into());
+        assert_eq!(paper_mm(&landscape), (297.0, 210.0));
+        let mut custom = options();
+        custom.paper = Some("custom".into());
+        custom.width_mm = Some(120.0);
+        custom.height_mm = Some(200.0);
+        assert_eq!(paper_mm(&custom), (120.0, 200.0));
+    }
+
+    #[test]
+    fn geometry_and_metadata_are_emitted() {
+        let args = latex_page_args(&options());
+        assert!(args.iter().any(|value| value.contains("paperwidth=210.0mm")));
+        assert!(args.iter().any(|value| value.contains("left=31.8mm")));
+        assert!(args.iter().any(|value| value == "fontsize:11pt"));
+        let header = latex_header(&options());
+        assert!(header.contains("fancyhdr"));
+        assert!(header.contains("pagenumbering{arabic}"));
+        assert!(header.contains("clearpage"));
+        let cover = latex_cover(&PrintOptions {
+            cover_title: Some("Title & Co".into()),
+            cover_author: Some("A".into()),
+            ..Default::default()
+        });
+        assert!(cover.contains("Title \\& Co"));
+        assert!(cover.contains("titlepage"));
+    }
+
+    #[test]
+    fn engine_paths_are_validated() {
+        assert!(resolve_engine_path("xelatex", Some("/definitely/missing")).is_err());
+        assert_eq!(
+            resolve_engine_path("xelatex", Some("/bin/sh")).unwrap(),
+            "/bin/sh"
+        );
     }
 }

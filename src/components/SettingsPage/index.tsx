@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import remote from 'services/remote/common';
 import transport from 'services/transport';
 import { applyCustomTheme, getThemeDebugInfo } from 'services/customTheme';
+import { SHORTCUT_ACTIONS, acceleratorFromEvent, defaultShortcut } from 'services/shortcuts';
 
 interface ISettingsPageProps {
   open: boolean;
@@ -80,6 +81,8 @@ const defaultSettings = {
   codeFont: '',
   editorBackground: '',
   paragraphGap: '',
+  customShortcuts: {},
+  checkUpdatesOnStartup: false,
 };
 
 type Settings = Record<string, any>;
@@ -107,6 +110,7 @@ const zhSections: Record<string, string> = {
     exchange: '导入导出',
     advanced: '高级',
     theme: '主题与图表',
+    shortcuts: '快捷键',
     image: '图片',
     other: '其他',
 };
@@ -182,6 +186,29 @@ const zhLabels: Record<string, string> = {
     codeFont: '代码字体',
     editorBackground: '编辑区背景色',
     paragraphGap: '段落间距',
+    checkUpdatesOnStartup: '启动时检查更新',
+    new_file: '新建文件',
+    open_file: '打开文件...',
+    save: '保存',
+    save_as: '另存为...',
+    export_html: '导出...',
+    print: '打印...',
+    quick_open: '快速打开...',
+    search_folder: '在文件夹中搜索...',
+    find: '查找...',
+    replace: '替换...',
+    image_manager: '图片管理...',
+    bold: '加粗',
+    italic: '斜体',
+    hyperlink: '链接',
+    heading_1: '一级标题',
+    heading_2: '二级标题',
+    view_source: '切换源码模式',
+    view_sidebar: '切换侧栏',
+    zoom_in: '放大',
+    zoom_out: '缩小',
+    zoom_reset: '实际大小',
+    shortcuts: '快捷键',
 };
 
 const sections: { title: string; key: string; fields: FieldDef[] }[] = [
@@ -216,6 +243,11 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'lineHeight', label: 'Line Height', type: 'number', min: 1.0, max: 3.0, step: 0.1, optional: true },
       { key: 'paragraphGap', label: 'Paragraph Gap', type: 'text', placeholder: 'e.g. 1em or 16px', optional: true },
     ],
+  },
+  {
+    title: 'Shortcuts',
+    key: 'shortcuts',
+    fields: [],
   },
   {
     title: 'Search',
@@ -313,6 +345,7 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
       { key: 'autoSave', label: 'Auto Save', type: 'checkbox' },
       { key: 'statusBarOpen', label: 'Show Status Bar', type: 'checkbox' },
       { key: 'animationEnable', label: 'Enable Animations', type: 'checkbox' },
+      { key: 'checkUpdatesOnStartup', label: 'Check for Updates on Startup', type: 'checkbox' },
       { key: 'spellcheckEnabled', label: 'Spell Check', type: 'checkbox' },
       { key: 'spellcheckLang', label: 'Spell Check Language', type: 'text', placeholder: 'e.g. en-US' },
       { key: 'autoCheck', label: 'Auto Check Task Lists', type: 'checkbox' },
@@ -518,6 +551,56 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
               </div>
             );
           })}
+
+          {activeSection === 'shortcuts' && (
+            <div style={{ marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginBottom: 14 }}>
+                {isZh
+                  ? '点击输入框后按下组合键即可录制；Backspace 清除，Esc 取消。只对菜单和命令面板动作生效。'
+                  : 'Click a field and press the combination to record; Backspace clears, Esc cancels. Menu and command palette actions only.'}
+              </div>
+              {SHORTCUT_ACTIONS.map(action => {
+                const custom = settings.customShortcuts?.[action.id];
+                const value = typeof custom === 'string' ? custom : action.default;
+                return (
+                  <div key={action.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                    <div style={{ width: 240, fontSize: 13, color: 'var(--editorColor50)' }}>{zhLabels[action.id] || action.label}</div>
+                    <input
+                      readOnly
+                      value={value}
+                      placeholder={isZh ? '未设置' : 'Not set'}
+                      onKeyDown={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (e.key === 'Escape') { (e.target as HTMLInputElement).blur(); return; }
+                        if (e.key === 'Backspace' || e.key === 'Delete') {
+                          update('customShortcuts', { ...(settings.customShortcuts || {}), [action.id]: '' });
+                          return;
+                        }
+                        const accel = acceleratorFromEvent(e.nativeEvent);
+                        if (accel) update('customShortcuts', { ...(settings.customShortcuts || {}), [action.id]: accel });
+                      }}
+                      style={{ width: 200, padding: '4px 8px', fontSize: 13, cursor: 'pointer',
+                        border: '1px solid var(--editorColor10)', borderRadius: 4,
+                        backgroundColor: 'var(--editorColor04)', color: 'var(--editorColor50)' }}
+                    />
+                    {custom !== undefined && (
+                      <button
+                        onClick={() => {
+                          const next = { ...(settings.customShortcuts || {}) };
+                          delete next[action.id];
+                          update('customShortcuts', next);
+                        }}
+                        title={isZh ? '恢复默认' : 'Reset to default'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor40)', fontSize: 14, padding: 0 }}
+                      >↺</button>
+                    )}
+                    {custom === '' && <span style={{ fontSize: 11, color: 'var(--editorColor30)' }}>{isZh ? '已禁用' : 'Disabled'}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {activeSection === 'exchange' && (
             <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--editorColor10)' }}>

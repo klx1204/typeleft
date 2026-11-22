@@ -9,6 +9,7 @@ import ExportDialog from '../src/components/ExportDialog';
 import SettingsPage from '../src/components/SettingsPage';
 import SelectionSearchMenu from '../src/components/SelectionSearchMenu';
 import FolderSearch from '../src/components/FolderSearch';
+import ImageManager from '../src/components/ImageManager';
 
 const fixture = `---
 title: Devtest
@@ -117,6 +118,8 @@ const strictMode = location.search.includes('strict');
 const fileLinkMode = location.search.includes('filelink');
 const folderSearchMode = location.search.includes('foldersearch');
 const fileListMode = location.search.includes('filelist');
+const imageManagerMode = location.search.includes('imagemanager');
+const shortcutsMode = location.search.includes('shortcuts');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -191,6 +194,16 @@ const Harness: React.FC = () => {
       {exportMode && <ExportDialog open onClose={() => {}} />}
       {settingsMode && <SettingsPage open initialSection="advanced" onClose={() => {}} />}
       {settingsTypeMode && <SettingsPage open initialSection="typography" onClose={() => {}} />}
+      {shortcutsMode && <SettingsPage open initialSection="shortcuts" onClose={() => {}} />}
+      {imageManagerMode && (
+        <ImageManager
+          open
+          markdown={'![local](./images/a.png)\n\n![remote](https://example.test/b.png)'}
+          basePath="/example/docs"
+          onChange={(next) => { (window as any).__imageMarkdown = next; }}
+          onClose={() => {}}
+        />
+      )}
       <SelectionSearchMenu />
       {folderSearchMode && <FolderSearch open initialMode="content" onClose={() => {}} />}
       <div id="cm6-test" style={{ marginTop: onlyCm6 ? 24 : 80, borderTop: onlyCm6 ? 'none' : '2px solid #444' }}>
@@ -301,6 +314,22 @@ const finish = (extraCheck?: () => void) => {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (shortcutsMode) {
+    const text = document.body.textContent || '';
+    check('shortcut settings section', text.includes('Shortcuts') || text.includes('快捷键'));
+    const emitted: any[] = (window as any).__emitted || [];
+    const saved = emitted.filter(e => e.event === 'SettingsChanged' && e.payload?.customShortcuts?.save === 'CmdOrCtrl+Alt+Shift+K');
+    check('shortcut recording persisted', saved.length > 0, JSON.stringify(emitted.slice(-2)));
+  }
+
+  if (imageManagerMode) {
+    check('image manager lists refs', !!(window as any).__imageRefsOk, String((window as any).__imageRefsOk));
+    check('image manager download rewrites source', ((window as any).__imageMarkdown || '').includes('./assets/b.png')
+      && (window as any).__downloaded.length === 1, (window as any).__imageMarkdown || 'n/a');
+    check('image manager delete removes file', (window as any).__deletedFile === '/example/docs/images/a.png'
+      && !((window as any).__imageMarkdown || '').includes('images/a.png'), String((window as any).__deletedFile));
   }
 
   if (fileListMode) {
@@ -609,6 +638,29 @@ if (fileLinkMode) {
       .find(a => (a.textContent || '').includes('本地文件')) as HTMLElement | undefined;
     link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));
   }, 2200);
+}
+
+if (shortcutsMode) {
+  setTimeout(() => {
+    const input = document.querySelectorAll('input')[2] as HTMLInputElement | undefined;
+    input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'K', ctrlKey: true, altKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+  }, 2000);
+}
+
+if (imageManagerMode) {
+  window.confirm = () => true;
+  setTimeout(() => {
+    const text = document.body.textContent || '';
+    (window as any).__imageRefsOk = text.includes('./images/a.png') && text.includes('https://example.test/b.png');
+    const download = Array.from(document.querySelectorAll('button')).find(b => (b.textContent || '') === 'Download remote') as HTMLElement | undefined;
+    download?.click();
+    setTimeout(() => {
+      const rows = Array.from(document.querySelectorAll('tr'));
+      const localRow = rows.find(row => (row.textContent || '').includes('./images/a.png'));
+      const del = localRow ? Array.from(localRow.querySelectorAll('button')).find(b => (b.textContent || '') === 'Delete') as HTMLElement | undefined : undefined;
+      del?.click();
+    }, 1200);
+  }, 1800);
 }
 
 if (fileListMode) {

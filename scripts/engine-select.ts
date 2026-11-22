@@ -11,6 +11,9 @@ import { extractWords } from '../src/components/MilkdownEditor/spellcheck';
 import { finalizeImagePath, resolveMediaPath, imageDirectory } from '../src/services/imagePaths';
 import { mediaKindForPath } from '../src/services/media';
 import { buildExportLayoutCss, buildLayoutCss, typographyOverrides } from '../src/services/layoutCss';
+import { extractImageRefs, replaceImageSrc, localImagePath, imageMarkdownSrc } from '../src/services/imageManager';
+import { shouldOfferDraft } from '../src/services/draft';
+import { acceleratorFromEvent, defaultShortcut } from '../src/services/shortcuts';
 
 const nestedList = `- a
   - b
@@ -113,6 +116,31 @@ const cases: [string, boolean][] = [
     const values = typographyOverrides({ headingNumbering: 'off', justifyText: 'off' });
     return values.headingNumbering === false && values.justify === false
       && buildLayoutCss({ headingNumbering: 'off' }).includes('content: none');
+  })()],
+  ['image refs are extracted and deduplicated', (() => {
+    const refs = extractImageRefs('![a](./a.png)\n![b](https://x.test/b.png)\n<img src="c.png">\n![again](./a.png)');
+    return refs.length === 3 && refs[0].kind === 'local' && refs[1].kind === 'remote';
+  })()],
+  ['image refs rewrite both syntaxes', (() => {
+    const next = replaceImageSrc('![a](old.png)\n<img src="old.png">', 'old.png', './new.png');
+    return next.includes('![a](./new.png)') && next.includes('src="./new.png"');
+  })()],
+  ['local image paths resolve against the document', localImagePath('./images/a.png', '/docs') === '/docs/images/a.png'],
+  ['image markdown path is relative', imageMarkdownSrc('/docs/images/a.png', '/docs') === './images/a.png'],
+  ['draft is offered only when recent and different', (() => {
+    const now = 1_700_000_000_000;
+    return shouldOfferDraft({ content: 'a', savedAt: now - 1000 }, 'b', now)
+      && !shouldOfferDraft({ content: 'a', savedAt: now - 1000 }, 'a', now)
+      && !shouldOfferDraft({ content: 'a', savedAt: now - 10 * 24 * 3600 * 1000 }, 'b', now)
+      && !shouldOfferDraft(null, 'b', now);
+  })()],
+  ['shortcuts build accelerators from events', (() => {
+    const event = { key: 'K', metaKey: false, ctrlKey: true, altKey: true, shiftKey: true } as KeyboardEvent;
+    return acceleratorFromEvent(event) === 'CmdOrCtrl+Alt+Shift+K'
+      && acceleratorFromEvent({ key: 'Control', ctrlKey: true } as KeyboardEvent) === ''
+      && acceleratorFromEvent({ key: 'k', ctrlKey: false, metaKey: false, altKey: false, shiftKey: false } as KeyboardEvent) === ''
+      && defaultShortcut('save') === 'CmdOrCtrl+S'
+      && defaultShortcut('nope') === '';
   })()],
   ['spellcheck extracts unique words', (() => {
     const words = extractWords('teh quikc teh Typeleft — done');

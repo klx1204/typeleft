@@ -1,6 +1,7 @@
 import CodeMirror from "components/CodeMirror6";
 import MilkdownEditor from "components/MilkdownEditor";
 import Sidebar from "components/Sidebar";
+import ImageManager from "components/ImageManager";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { remote } from "services/remote";
 import transport from "services/transport";
@@ -16,6 +17,7 @@ import { parseFrontmatter } from "services/frontmatter";
 import { getThemeCssForExport } from "services/customTheme";
 import { buildExportLayoutCss } from "services/layoutCss";
 import { mediaKindForPath } from "services/media";
+import { shouldOfferDraft } from "services/draft";
 import { useI18n } from "services/i18n";
 import { LARGE_DOC_LIMIT, resolveView } from "./engine";
 
@@ -53,6 +55,8 @@ const Editor: React.FC = () => {
     const codeMirrorScrollRef = useRef(0);
     const [filePath, setFilePath] = useState<string>();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [imageManagerOpen, setImageManagerOpen] = useState(false);
+    const [draftPrompt, setDraftPrompt] = useState<{ content: string; savedAt: number; filePath?: string } | null>(null);
     const [sidebarSection, setSidebarSection] = useState<'filetree' | 'toc'>('filetree');
     const [sidePaneWidth, setSidePaneWidth] = useState(240);
     const lastSavedContentRef = useRef('');
@@ -307,6 +311,7 @@ const Editor: React.FC = () => {
     }), [filePath]);
 
     useEffect(() => transport.addListener('NewFile', () => {
+        remoteCommon.clearDraft().catch(() => {})
         setFilePath(undefined)
         setCursor(undefined)
         setMarkdown('')
@@ -336,6 +341,7 @@ const Editor: React.FC = () => {
             })
             lastSavedContentRef.current = content
             lastMtimeRef.current = mtime
+            remoteCommon.clearDraft().catch(() => {})
             setSaveStatus('saved')
             transport.postMessage('SaveState', { status: 'Saved' })
             return true
@@ -392,6 +398,27 @@ const Editor: React.FC = () => {
         return () => { cancelled = true }
     }, [filePath])
 
+    // Draft recovery: keep the latest content and offer it after a crash.
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const content = markdownRef.current ?? ''
+            if (!content || content === lastSavedContentRef.current) return
+            remoteCommon.saveDraft({ content, filePath }).catch(() => {})
+        }, 1500)
+        return () => clearInterval(timer)
+    }, [filePath])
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            remoteCommon.loadDraft().then((draft) => {
+                const sameFile = !draft?.filePath || !filePath || draft.filePath === filePath
+                if (draft && sameFile && shouldOfferDraft(draft, markdownRef.current ?? '')) setDraftPrompt(draft)
+                else if (draft) remoteCommon.clearDraft().catch(() => {})
+            }).catch(() => {})
+        }, 900)
+        return () => window.clearTimeout(timer)
+    }, [])
+
     useEffect(() => transport.addListener('MenuSave', () => {
         saveNow()
     }), [saveNow]);
@@ -399,6 +426,10 @@ const Editor: React.FC = () => {
     useEffect(() => transport.addListener('MenuSaveAs', () => {
         const content = markdownRef.current ?? ''
         remote.saveFileAs({ content })
+    }), []);
+
+    useEffect(() => transport.addListener('OpenImageManager', () => {
+        setImageManagerOpen(true);
     }), []);
 
     useEffect(() => {
@@ -518,6 +549,46 @@ const Editor: React.FC = () => {
     return (
         <>
             <Sidebar open={sidebarOpen} section={sidebarSection} onClose={() => setSidebarOpen(false)} />
+
+            {draftPrompt && (
+                <div style={modalOverlayStyle} onClick={() => setDraftPrompt(null)}>
+                    <div style={modalCardStyle} onClick={e => e.stopPropagation()}>
+                        <div style={modalTitleStyle}>{t('Restore draft')}</div>
+                        <div style={modalTextStyle}>
+                            {t('An unsaved draft was found. Do you want to restore it?')}
+                            <br />
+                            {new Date(draftPrompt.savedAt).toLocaleString()}
+                        </div>
+                        <div style={modalActionsStyle}>
+                            <button style={dialogBtnStyle} onClick={() => {
+                                setDraftPrompt(null);
+                                remoteCommon.clearDraft().catch(() => {});
+                            }}>{t('Discard')}</button>
+                            <button style={dialogPrimaryBtnStyle} onClick={() => {
+                                const content = draftPrompt.content;
+                                setDraftPrompt(null);
+                                adoptDocSize(content);
+                                setMarkdown(content);
+                                markdownRef.current = content;
+                                transport.postMessage('SaveState', { status: 'Draft restored' });
+                            }}>{t('Restore')}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {imageManagerOpen && (
+                <ImageManager
+                    open
+                    markdown={markdownRef.current ?? markdown ?? ''}
+                    basePath={window.basePath || ''}
+                    onChange={(next) => {
+                        markdownRef.current = next;
+                        setMarkdown(next);
+                    }}
+                    onClose={() => setImageManagerOpen(false)}
+                />
+            )}
 
             {conflict && (
                 <div style={modalOverlayStyle} onClick={() => setConflict(null)}>

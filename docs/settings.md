@@ -42,6 +42,10 @@ Open it from **Settings → Advanced → Open settings.json**, then press
 | `strictMode` | boolean | `false` | GFM only: disables TOC, alerts, emoji, math, highlight and super/subscript. |
 | `customShortcuts` | object | `{}` | Action id → Tauri accelerator; `""` disables. Menu/command-palette actions only. |
 | `checkUpdatesOnStartup` | boolean | `false` | Query GitHub's latest release once per launch. |
+| `printSettings` | object | A4 + Chinese official | Full print/PDF configuration (paper, margins, fonts, cover, TOC, headers, metadata). |
+| `printPresets` | array | `[]` | User print presets (`{ id, name, settings }`). |
+| `printEnginePaths` | object | `{}` | Custom `pandoc` / `xelatex` / `tectonic` / `weasyprint` executable paths. |
+| `printOpenAfter` | boolean | `true` | Open the generated PDF after exporting. |
 
 ## Drafts, shortcuts and updates
 
@@ -141,6 +145,13 @@ attributes).
 | `dotSlashImagePaths` | boolean | `true` | Prefix relative image paths with `./`. |
 | `pandocPath` | string | `""` | Pandoc executable; empty means auto-detect. |
 | `customExportCommand` | string | `""` | Command template for the Custom export format (`{input}`, `{output}`, `{title}`). |
+
+## Print and PDF
+
+`printSettings` mirrors the Print / PDF dialog. Defaults: A4 portrait, Chinese
+official margins (top/bottom 25.4 mm, left/right 31.8 mm), 11 pt, 1.6 line
+height, footer `{page}`, TOC enabled. Details and per-document overrides are in
+[`printing.md`](printing.md).
 
 ## Per-document export
 

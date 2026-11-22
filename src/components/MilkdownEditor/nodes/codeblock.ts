@@ -5,7 +5,7 @@ import loadRenderer from 'services/renderers';
 import { t } from 'services/i18n';
 
 const DIAGRAM_LANGS = ['mermaid', 'flowchart', 'sequence', 'plantuml', 'vega-lite', 'vega'] as const;
-type DiagramLang = typeof DIAGRAM_LANGS[number];
+export type DiagramLang = typeof DIAGRAM_LANGS[number];
 
 export const isDiagramLang = (lang: string): lang is DiagramLang =>
   (DIAGRAM_LANGS as readonly string[]).includes(lang);

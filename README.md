@@ -34,6 +34,7 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
 - **Image support**: clipboard paste, local copy, relative paths, HTTP image hosting upload, plus an Image Manager (download remote images, move/copy all, rename/move/copy one, delete with the file)
 - **Recovery & shortcuts**: crash-safe drafts with restore prompt, configurable menu/command-palette shortcuts, and a manual/startup update check that opens the release page
+- **Print / PDF**: A3/A4/A5/B5/Letter/custom paper, Chinese official margins by default, cover, linked TOC, running headers/footers, page numbers, metadata, CJK fonts, Paged.js preview, Pandoc + XeLaTeX/Tectonic/WeasyPrint with engine detection and presets
 - **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background; each setting follows the theme until overridden
 - **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes; Typora-compatible CSS and a [theme authoring guide](docs/theme-authoring.md)
 - **Bilingual UI**: English and 简体中文, switchable at runtime
@@ -99,6 +100,7 @@ bun run test:roundtrip # markdown parse ↔ serialize fidelity
 bun run test:cm6       # CodeMirror 6 smoke test
 bun run test:search    # cross-node search and $1 replacements
 bun run test:web       # real components in headless Chrome
+bun run test:print     # cover/TOC/CJK sample → PDF via headless Chrome
 bun run test:rust      # CLI argument parsing (cargo test)
 ```
 
@@ -111,8 +113,8 @@ Prism tokens, outline, word count), drives the search panel and real typing, and
 fails on any `console.error`. `?theme=1`, `?layout=1`, `?codeblock=1`, `?sidebar=1`, `?folders=1`,
 `?exportdialog=1`, `?settings=1`, `?settingstype=1`, `?searchmenu=1`,
 `?softbreak=1`, `?spell=1`, `?media=1`, `?exporttheme=1`, `?strict=1`,
-`?filelink=1`, `?foldersearch=1`, `?filelist=1` and `?pickers=1` switch the
-page into the other checks.
+`?filelink=1`, `?foldersearch=1`, `?filelist=1`, `?printdialog=1` and
+`?pickers=1` switch the page into the other checks.
 
 Every preference lives in one JSON file; see [`docs/settings.md`](docs/settings.md)
 for the full key reference (also reachable from Settings → Advanced).

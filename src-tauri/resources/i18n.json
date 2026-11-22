@@ -1098,5 +1098,461 @@
   "Download": {
     "en": "Download",
     "zh": "下载"
+  },
+  "Print / PDF...": {
+    "en": "Print / PDF...",
+    "zh": "打印 / PDF..."
+  },
+  "Print / PDF": {
+    "en": "Print / PDF",
+    "zh": "打印 / PDF"
+  },
+  "Page": {
+    "en": "Page",
+    "zh": "页面"
+  },
+  "Typography": {
+    "en": "Typography",
+    "zh": "排版"
+  },
+  "Structure": {
+    "en": "Structure",
+    "zh": "结构"
+  },
+  "Header & Footer": {
+    "en": "Header & Footer",
+    "zh": "页眉页脚"
+  },
+  "Metadata": {
+    "en": "Metadata",
+    "zh": "元数据"
+  },
+  "Engine": {
+    "en": "Engine",
+    "zh": "引擎"
+  },
+  "Preset": {
+    "en": "Preset",
+    "zh": "预设"
+  },
+  "Save Preset": {
+    "en": "Save Preset",
+    "zh": "保存预设"
+  },
+  "Preset name": {
+    "en": "Preset name",
+    "zh": "预设名称"
+  },
+  "Preset saved": {
+    "en": "Preset saved",
+    "zh": "预设已保存"
+  },
+  "Save Settings": {
+    "en": "Save Settings",
+    "zh": "保存设置"
+  },
+  "Paper": {
+    "en": "Paper",
+    "zh": "纸张"
+  },
+  "Custom": {
+    "en": "Custom",
+    "zh": "自定义"
+  },
+  "Size (mm)": {
+    "en": "Size (mm)",
+    "zh": "尺寸（mm）"
+  },
+  "Orientation": {
+    "en": "Orientation",
+    "zh": "方向"
+  },
+  "Portrait": {
+    "en": "Portrait",
+    "zh": "纵向"
+  },
+  "Landscape": {
+    "en": "Landscape",
+    "zh": "横向"
+  },
+  "Margins": {
+    "en": "Margins",
+    "zh": "页边距"
+  },
+  "default: A4 + Chinese official": {
+    "en": "default: A4 + Chinese official",
+    "zh": "默认：A4 + 中文公文"
+  },
+  "Normal (25.4 mm)": {
+    "en": "Normal (25.4 mm)",
+    "zh": "常规（25.4 mm）"
+  },
+  "Chinese official (2.54 / 3.18 cm)": {
+    "en": "Chinese official (2.54 / 3.18 cm)",
+    "zh": "中文公文（上下 2.54 / 左右 3.18 cm）"
+  },
+  "Narrow (12.7 mm)": {
+    "en": "Narrow (12.7 mm)",
+    "zh": "窄（12.7 mm）"
+  },
+  "Moderate (19.05 mm)": {
+    "en": "Moderate (19.05 mm)",
+    "zh": "适中（19.05 mm）"
+  },
+  "Wide (38.1 mm)": {
+    "en": "Wide (38.1 mm)",
+    "zh": "宽（38.1 mm）"
+  },
+  "Top": {
+    "en": "Top",
+    "zh": "上"
+  },
+  "Bottom": {
+    "en": "Bottom",
+    "zh": "下"
+  },
+  "Left": {
+    "en": "Left",
+    "zh": "左"
+  },
+  "Right": {
+    "en": "Right",
+    "zh": "右"
+  },
+  "Start each top-level heading on a new page": {
+    "en": "Start each top-level heading on a new page",
+    "zh": "每章一级标题另起一页"
+  },
+  "Body font": {
+    "en": "Body font",
+    "zh": "正文字体"
+  },
+  "Heading font": {
+    "en": "Heading font",
+    "zh": "标题字体"
+  },
+  "CJK font": {
+    "en": "CJK font",
+    "zh": "中文字体"
+  },
+  "auto-detected when empty": {
+    "en": "auto-detected when empty",
+    "zh": "留空自动探测"
+  },
+  "Code font": {
+    "en": "Code font",
+    "zh": "代码字体"
+  },
+  "Font size (pt)": {
+    "en": "Font size (pt)",
+    "zh": "字号（pt）"
+  },
+  "Line height": {
+    "en": "Line height",
+    "zh": "行高"
+  },
+  "Paragraph spacing (em)": {
+    "en": "Paragraph spacing (em)",
+    "zh": "段距（em）"
+  },
+  "First-line indent (em)": {
+    "en": "First-line indent (em)",
+    "zh": "首行缩进（em）"
+  },
+  "Image max width": {
+    "en": "Image max width",
+    "zh": "图片最大宽度"
+  },
+  "Justify text": {
+    "en": "Justify text",
+    "zh": "两端对齐"
+  },
+  "Number headings": {
+    "en": "Number headings",
+    "zh": "标题编号"
+  },
+  "Cover page": {
+    "en": "Cover page",
+    "zh": "封面页"
+  },
+  "Subtitle": {
+    "en": "Subtitle",
+    "zh": "副标题"
+  },
+  "Date": {
+    "en": "Date",
+    "zh": "日期"
+  },
+  "Leave a field empty to hide it; the document title is used when available.": {
+    "en": "Leave a field empty to hide it; the document title is used when available.",
+    "zh": "留空即隐藏；有文档标题时会自动使用。"
+  },
+  "Table of contents page": {
+    "en": "Table of contents page",
+    "zh": "目录页"
+  },
+  "TOC title": {
+    "en": "TOC title",
+    "zh": "目录标题"
+  },
+  "Depth": {
+    "en": "Depth",
+    "zh": "深度"
+  },
+  "Show page numbers": {
+    "en": "Show page numbers",
+    "zh": "显示页码"
+  },
+  "Tables repeat their header across pages; headings avoid splitting from following text; images keep their aspect ratio.": {
+    "en": "Tables repeat their header across pages; headings avoid splitting from following text; images keep their aspect ratio.",
+    "zh": "表格跨页重复表头；标题不会与后文分离；图片保持比例。"
+  },
+  "Tokens": {
+    "en": "Tokens",
+    "zh": "占位符"
+  },
+  "Header": {
+    "en": "Header",
+    "zh": "页眉"
+  },
+  "Footer": {
+    "en": "Footer",
+    "zh": "页脚"
+  },
+  "Different odd/even pages": {
+    "en": "Different odd/even pages",
+    "zh": "奇偶页不同"
+  },
+  "Different first page": {
+    "en": "Different first page",
+    "zh": "首页不同"
+  },
+  "Even pages": {
+    "en": "Even pages",
+    "zh": "偶数页"
+  },
+  "Page numbers": {
+    "en": "Page numbers",
+    "zh": "页码"
+  },
+  "Start": {
+    "en": "Start",
+    "zh": "起始"
+  },
+  "Browser/system printing cannot control running headers; they appear in WeasyPrint and LaTeX PDF exports.": {
+    "en": "Browser/system printing cannot control running headers; they appear in WeasyPrint and LaTeX PDF exports.",
+    "zh": "浏览器/系统打印无法控制页眉页脚；WeasyPrint 与 LaTeX PDF 导出会应用。"
+  },
+  "PDF title": {
+    "en": "PDF title",
+    "zh": "PDF 标题"
+  },
+  "Author": {
+    "en": "Author",
+    "zh": "作者"
+  },
+  "Subject": {
+    "en": "Subject",
+    "zh": "主题"
+  },
+  "Keywords": {
+    "en": "Keywords",
+    "zh": "关键词"
+  },
+  "Metadata is embedded in PDF exports and meta tags in HTML.": {
+    "en": "Metadata is embedded in PDF exports and meta tags in HTML.",
+    "zh": "元数据会写入 PDF 与 HTML meta 标签。"
+  },
+  "System print": {
+    "en": "System print",
+    "zh": "系统打印"
+  },
+  "Opens the system print dialog; page size and margins apply, running headers are limited.": {
+    "en": "Opens the system print dialog; page size and margins apply, running headers are limited.",
+    "zh": "打开系统打印对话框；纸张与边距生效，页眉页脚受限。"
+  },
+  "Full layout: cover, TOC, headers, fonts, bookmarks, CJK.": {
+    "en": "Full layout: cover, TOC, headers, fonts, bookmarks, CJK.",
+    "zh": "完整排版：封面、目录、页眉页脚、字体、书签、中文。"
+  },
+  "XeTeX-based, downloads packages on demand.": {
+    "en": "XeTeX-based, downloads packages on demand.",
+    "zh": "基于 XeTeX，按需下载宏包。"
+  },
+  "CSS paged media: page numbers, running headers, links.": {
+    "en": "CSS paged media: page numbers, running headers, links.",
+    "zh": "CSS 分页媒体：页码、页眉页脚、链接。"
+  },
+  "Not found": {
+    "en": "Not found",
+    "zh": "未找到"
+  },
+  "Custom engine path": {
+    "en": "Custom engine path",
+    "zh": "自定义引擎路径"
+  },
+  "leave empty to use PATH": {
+    "en": "leave empty to use PATH",
+    "zh": "留空则使用 PATH"
+  },
+  "auto-detect": {
+    "en": "auto-detect",
+    "zh": "自动探测"
+  },
+  "Save & Detect": {
+    "en": "Save & Detect",
+    "zh": "保存并检测"
+  },
+  "Capability matrix": {
+    "en": "Capability matrix",
+    "zh": "能力矩阵"
+  },
+  "Feature": {
+    "en": "Feature",
+    "zh": "功能"
+  },
+  "System": {
+    "en": "System",
+    "zh": "系统"
+  },
+  "Paper & margins": {
+    "en": "Paper & margins",
+    "zh": "纸张与边距"
+  },
+  "Cover & TOC": {
+    "en": "Cover & TOC",
+    "zh": "封面与目录"
+  },
+  "Running headers": {
+    "en": "Running headers",
+    "zh": "页眉页脚"
+  },
+  "CJK fonts": {
+    "en": "CJK fonts",
+    "zh": "中文字体"
+  },
+  "PDF metadata": {
+    "en": "PDF metadata",
+    "zh": "PDF 元数据"
+  },
+  "Bookmarks": {
+    "en": "Bookmarks",
+    "zh": "书签"
+  },
+  "Engines are detected, never installed automatically.": {
+    "en": "Engines are detected, never installed automatically.",
+    "zh": "引擎只检测，不自动安装。"
+  },
+  "Pandoc not found": {
+    "en": "Pandoc not found",
+    "zh": "未找到 Pandoc"
+  },
+  "Preparing...": {
+    "en": "Preparing...",
+    "zh": "准备中..."
+  },
+  "Rendering PDF...": {
+    "en": "Rendering PDF...",
+    "zh": "正在生成 PDF..."
+  },
+  "Choose a PDF engine, or use system printing.": {
+    "en": "Choose a PDF engine, or use system printing.",
+    "zh": "请选择 PDF 引擎，或使用系统打印。"
+  },
+  "Nothing to export.": {
+    "en": "Nothing to export.",
+    "zh": "没有可导出的内容。"
+  },
+  "PDF engine not found": {
+    "en": "PDF engine not found",
+    "zh": "未找到 PDF 引擎"
+  },
+  "Set its path in the Engine tab.": {
+    "en": "Set its path in the Engine tab.",
+    "zh": "请在“引擎”页设置路径。"
+  },
+  "Canceled": {
+    "en": "Canceled",
+    "zh": "已取消"
+  },
+  "Preview failed": {
+    "en": "Preview failed",
+    "zh": "预览失败"
+  },
+  "Laying out pages...": {
+    "en": "Laying out pages...",
+    "zh": "正在分页..."
+  },
+  "Print preview": {
+    "en": "Print preview",
+    "zh": "打印预览"
+  },
+  "Page size and margins follow the print settings.": {
+    "en": "Page size and margins follow the print settings.",
+    "zh": "页面尺寸与边距遵循打印设置。"
+  },
+  "Back": {
+    "en": "Back",
+    "zh": "返回"
+  },
+  "Preview": {
+    "en": "Preview",
+    "zh": "预览"
+  },
+  "System Print": {
+    "en": "System Print",
+    "zh": "系统打印"
+  },
+  "Export PDF": {
+    "en": "Export PDF",
+    "zh": "导出 PDF"
+  },
+  "A preset with that name already exists.": {
+    "en": "A preset with that name already exists.",
+    "zh": "同名预设已存在。"
+  },
+  "Front matter overrides active": {
+    "en": "Front matter overrides active",
+    "zh": "Front Matter 覆盖已生效"
+  },
+  "Odd/even pages differ": {
+    "en": "Odd/even pages differ",
+    "zh": "奇偶页不同"
+  },
+  "Same headers on all pages": {
+    "en": "Same headers on all pages",
+    "zh": "所有页使用相同页眉"
+  },
+  "Rendering diagrams...": {
+    "en": "Rendering diagrams...",
+    "zh": "正在渲染图表..."
+  },
+  "Diagram warnings": {
+    "en": "Diagram warnings",
+    "zh": "图表警告"
+  },
+  "Code highlight": {
+    "en": "Code highlight",
+    "zh": "代码高亮主题"
+  },
+  "Image DPI": {
+    "en": "Image DPI",
+    "zh": "图片 DPI"
+  },
+  "0 = keep original": {
+    "en": "0 = keep original",
+    "zh": "0 = 保持原样"
+  },
+  "Missing images": {
+    "en": "Missing images",
+    "zh": "图片缺失"
+  },
+  "Continue export?": {
+    "en": "Continue export?",
+    "zh": "仍要继续导出吗？"
+  },
+  "Open PDF after export": {
+    "en": "Open PDF after export",
+    "zh": "导出后打开 PDF"
   }
 }

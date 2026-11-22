@@ -93,7 +93,22 @@
       if (cmd === 'reorder_export_configs') { window.__reordered = args.ids; return Promise.resolve(null); }
       if (cmd === 'get_settings_path') return Promise.resolve('/example/typeleft/settings.json');
       if (cmd === 'detect_pandoc') return Promise.resolve({ found: false, path: '', version: '' });
-      if (cmd === 'pick_export_path') return Promise.resolve(null);
+      if (cmd === 'pick_export_path') {
+        if (location.search.includes('print')) {
+          setTimeout(function () {
+            window.__TAURI_INTERNALS__.invoke('plugin:event|emit', { event: 'ExportPathPicked', payload: '/example/out.pdf' });
+          }, 60);
+        }
+        return Promise.resolve(null);
+      }
+      if (cmd === 'detect_print_engines') return Promise.resolve([
+        { name: 'pandoc', found: true, path: '/usr/bin/pandoc', version: 'pandoc 3.1' },
+        { name: 'xelatex', found: true, path: '/usr/bin/xelatex', version: 'XeTeX 3.14' },
+        { name: 'tectonic', found: false, path: '', version: '' },
+        { name: 'weasyprint', found: false, path: '', version: '' },
+      ]);
+      if (cmd === 'pandoc_export_print') { window.__printExport = args; return Promise.resolve(null); }
+      if (cmd === 'cancel_print_export') { window.__printCanceled = true; return Promise.resolve(null); }
       if (cmd === 'pandoc_export') { window.__pandocExport = args; return Promise.resolve(null); }
       if (cmd === 'pandoc_import') return Promise.resolve('# Imported');
       if (cmd === 'run_export_command') { window.__customExport = args; return Promise.resolve(null); }
@@ -127,6 +142,7 @@
       if (cmd === 'copy_image_to_dir') { window.__copiedImage = args; return Promise.resolve('/example/docs/assets/a.png'); }
       if (cmd === 'move_image_to_dir') { window.__movedImage = args; return Promise.resolve('/example/docs/assets/a.png'); }
       if (cmd === 'delete_file') { window.__deletedFile = args.path; return Promise.resolve(null); }
+      if (cmd === 'save_print_asset') return Promise.resolve('/example/typeleft-print-assets/diagram.png');
       if (cmd === 'save_draft') { window.__savedDraft = args; return Promise.resolve(null); }
       if (cmd === 'load_draft') return Promise.resolve(window.__draft || null);
       if (cmd === 'clear_draft') { window.__draftCleared = true; return Promise.resolve(null); }

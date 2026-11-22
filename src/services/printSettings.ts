@@ -73,6 +73,7 @@ export interface PrintSettings {
   pageStart: number;
   meta: PrintMeta;
   imageMaxWidth: string;
+  imageDpi: number;
   codeHighlight: string;
 }
 
@@ -138,6 +139,7 @@ export const defaultPrintSettings = (): PrintSettings => ({
   pageStart: 1,
   meta: { title: '', author: '', subject: '', keywords: '' },
   imageMaxWidth: '100%',
+  imageDpi: 0,
   codeHighlight: 'github',
 });
 
@@ -227,9 +229,18 @@ export const normalizePrintSettings = (raw: any): PrintSettings => {
       keywords: text(meta.keywords),
     },
     imageMaxWidth: text(raw.imageMaxWidth, base.imageMaxWidth) || '100%',
+    imageDpi: num(raw.imageDpi, base.imageDpi, 0, 1200),
     codeHighlight: text(raw.codeHighlight, base.codeHighlight) || 'github',
   };
 };
+
+/** Remove YAML/TOML front matter before printing: it is metadata, not content. */
+export const stripFrontmatter = (markdown: string): string =>
+  markdown.replace(/^(?:---|\+\+\+)\r?\n[\s\S]*?\r?\n(?:---|\+\+\+)\r?\n?/, '');
+
+/** Pandoc and the standalone print TOC replace the in-document marker. */
+export const removeTocMarker = (markdown: string): string =>
+  markdown.replace(/^[ \t]*\[TOC\][ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n');
 
 export const paperSizeMm = (settings: PrintSettings): [number, number] => {
   const [w, h] = settings.paper === 'custom'
@@ -264,10 +275,15 @@ export const buildPrintCss = (input: PrintSettings, themeCss = ''): string => {
   const title = settings.cover.title || settings.meta.title;
   const author = settings.cover.author || settings.meta.author;
   const date = settings.cover.date;
+  const pageCounter = settings.pageNumberFormat === 'roman' ? 'counter(page, lower-roman)'
+    : settings.pageNumberFormat === 'Roman' ? 'counter(page, upper-roman)'
+      : settings.pageNumberFormat === 'alpha' ? 'counter(page, lower-alpha)'
+        : settings.pageNumberFormat === 'Alpha' ? 'counter(page, upper-alpha)'
+          : 'counter(page)';
   const marginBox = (area: string, value: string): string => {
     if (!value.trim()) return '';
     const content = value
-      .replace(/\{page\}/g, 'counter(page)')
+      .replace(/\{page\}/g, pageCounter)
       .replace(/\{total\}/g, 'counter(pages)')
       .replace(/\{title\}/g, cssString(title))
       .replace(/\{author\}/g, cssString(author))
@@ -321,7 +337,10 @@ html, body { margin: 0; padding: 0; background: #fff; color: #111; }
 #write p, .markdown-body p { margin: 0 0 ${settings.paragraphSpacing}em; ${settings.justify ? 'text-align: justify;' : ''} ${settings.firstLineIndent > 0 ? `text-indent: ${settings.firstLineIndent}em;` : ''} }
 ${headingRules}
 #write a, .markdown-body a { color: #0b57d0; text-decoration: none; }
-#write img, .markdown-body img { max-width: ${settings.imageMaxWidth || '100%'}; height: auto; break-inside: avoid; }
+#write img, .markdown-body img { max-width: ${settings.imageMaxWidth || '100%'}; height: auto; break-inside: avoid;${settings.imageDpi > 0 ? ` image-resolution: ${settings.imageDpi}dpi;` : ''} }
+#write img[data-align="center"], .markdown-body img[data-align="center"] { display: block; margin-left: auto; margin-right: auto; }
+#write img[data-align="right"], .markdown-body img[data-align="right"] { display: block; margin-left: auto; margin-right: 0; }
+#write img[data-align="left"], .markdown-body img[data-align="left"] { display: block; margin-right: auto; }
 #write table, .markdown-body table { border-collapse: collapse; width: 100%; break-inside: auto; }
 #write thead, .markdown-body thead { display: table-header-group; }
 #write tr, .markdown-body tr { break-inside: avoid; }
@@ -338,6 +357,35 @@ ${headingRules}
 #write .md-alert, .markdown-body .md-alert { break-inside: avoid; border: 1px solid #bbb; border-left-width: 4pt; padding: 6pt 10pt; margin: 0.8em 0; }
 #write .md-emoji, .markdown-body .md-emoji { font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 #write .page-break, .markdown-body .page-break { break-after: page; }
+#write h1, .markdown-body h1 { bookmark-level: 1; bookmark-label: content(text); }
+#write h2, .markdown-body h2 { bookmark-level: 2; bookmark-label: content(text); }
+#write h3, .markdown-body h3 { bookmark-level: 3; bookmark-label: content(text); }
+#write h4, .markdown-body h4 { bookmark-level: 4; bookmark-label: content(text); }
+#write h5, .markdown-body h5 { bookmark-level: 5; bookmark-label: content(text); }
+#write h6, .markdown-body h6 { bookmark-level: 6; bookmark-label: content(text); }
+.print-toc-title { bookmark-level: none; }
+.print-cover-page { bookmark-level: none; }
+${settings.headingNumbering ? `#write, .markdown-body { counter-reset: h1 h2 h3 h4 h5 h6; }
+#write h1, .markdown-body h1, #write h2, .markdown-body h2, #write h3, .markdown-body h3, #write h4, .markdown-body h4, #write h5, .markdown-body h5, #write h6, .markdown-body h6 { counter-increment: none; }
+#write h1::before, .markdown-body h1::before { content: counter(h1) " "; counter-increment: h1; counter-reset: h2 h3 h4 h5 h6; }
+#write h2::before, .markdown-body h2::before { content: counter(h1) "." counter(h2) " "; counter-increment: h2; counter-reset: h3 h4 h5 h6; }
+#write h3::before, .markdown-body h3::before { content: counter(h1) "." counter(h2) "." counter(h3) " "; counter-increment: h3; counter-reset: h4 h5 h6; }
+#write h4::before, .markdown-body h4::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) " "; counter-increment: h4; counter-reset: h5 h6; }
+#write h5::before, .markdown-body h5::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) " "; counter-increment: h5; counter-reset: h6; }
+#write h6::before, .markdown-body h6::before { content: counter(h1) "." counter(h2) "." counter(h3) "." counter(h4) "." counter(h5) "." counter(h6) " "; counter-increment: h6; }
+` : ''}
+/* Print settings win over a user theme's ProseMirror-specific rules. */
+#write.milkdown-write .ProseMirror { font-family: ${fontStack(settings, 'body')}; font-size: ${settings.fontSize}pt; line-height: ${settings.lineHeight}; color: #111; }
+#write.milkdown-write .ProseMirror p { margin: 0 0 ${settings.paragraphSpacing}em; ${settings.justify ? 'text-align: justify;' : ''} ${settings.firstLineIndent > 0 ? `text-indent: ${settings.firstLineIndent}em;` : ''} orphans: 2; widows: 2; }
+${headingSizes.map((scale, index) => `#write.milkdown-write .ProseMirror h${index + 1} { font-family: ${fontStack(settings, 'heading')}; font-size: ${(settings.fontSize * scale).toFixed(1)}pt; line-height: 1.25; margin: ${index === 0 ? '0 0 0.8em' : '1em 0 0.5em'}; ${index === 0 && settings.pageBreaks ? 'break-before: page;' : ''} break-after: avoid; }`).join('\n')}
+#write.milkdown-write .ProseMirror pre { font-family: ${fontStack(settings, 'code')}; font-size: ${Math.max(7, settings.fontSize - 2).toFixed(1)}pt; line-height: 1.45; white-space: pre-wrap; word-break: break-word; padding: 8pt; background: #f6f8fa; border: 1px solid #ddd; border-radius: 3pt; break-inside: avoid; }
+#write.milkdown-write .ProseMirror code { font-family: ${fontStack(settings, 'code')}; }
+#write.milkdown-write .ProseMirror img { max-width: ${settings.imageMaxWidth || '100%'}; height: auto; break-inside: avoid; }
+#write.milkdown-write .ProseMirror table { border-collapse: collapse; width: 100%; }
+#write.milkdown-write .ProseMirror th, #write.milkdown-write .ProseMirror td { border: 1px solid #bbb; padding: 4pt 6pt; vertical-align: top; }
+#write.milkdown-write .ProseMirror blockquote { margin: 0.8em 0; padding: 0.2em 1em; border-left: 3pt solid #999; color: #333; }
+#write.milkdown-write .ProseMirror ul, #write.milkdown-write .ProseMirror ol { margin: 0 0 ${settings.paragraphSpacing}em 1.4em; padding: 0; }
+#write.milkdown-write .ProseMirror li { margin: 0.15em 0; orphans: 2; widows: 2; }
 /* Cover */
 .print-cover-page { page: cover; height: 100vh; box-sizing: border-box; padding: 55mm 30mm; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; break-after: page; font-family: ${fontStack(settings, 'heading')}; }
 .print-cover-page .cover-title { font-size: ${(settings.fontSize * 2.6).toFixed(1)}pt; font-weight: 700; line-height: 1.25; margin-bottom: 0.5em; }
@@ -350,6 +398,8 @@ ${headingRules}
 .print-toc a { display: block; color: #111; text-decoration: none; margin: 0.28em 0; padding-left: var(--toc-indent, 0); }
 .print-toc a::after { content: target-counter(attr(href), page); float: right; }
 .print-toc a.no-page-numbers::after { content: none; }
+#TOC a::after, nav#TOC a::after { content: target-counter(attr(href), page); float: right; }
+#TOC a, nav#TOC a { text-decoration: none; color: #111; }
 .print-toc a { border-bottom: 1px dotted #bbb; }
 `;
 };

@@ -1,7 +1,7 @@
 {
   "name": "typeleft",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "test:engine": "bun scripts/engine-select.ts",
     "test:search": "bun scripts/search-smoke.ts",
     "test:rust": "cd src-tauri && cargo test --lib",
-    "build:emoji": "bun scripts/generate-emoji-data.mjs"
+    "build:emoji": "bun scripts/generate-emoji-data.mjs",
+    "test:print": "bun scripts/print-smoke.ts"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

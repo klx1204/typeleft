@@ -103,6 +103,7 @@ run_mode "foldersearch" "static=1&foldersearch=1" 15000
 run_mode "filelist" "static=1&filelist=1" 15000
 run_mode "imagemanager" "static=1&imagemanager=1" 18000
 run_mode "shortcuts" "static=1&shortcuts=1" 15000
+run_mode "printdialog" "static=1&printdialog=1" 24000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

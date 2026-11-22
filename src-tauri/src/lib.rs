@@ -456,6 +456,29 @@ fn check_for_updates(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
     Ok(UpdateInfo { current, latest, url, newer })
 }
 
+/// Save a pre-rendered diagram (PNG/SVG) for Pandoc, returning its path.
+#[tauri::command]
+fn save_print_asset(data: String, extension: Option<String>) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("base64 decode error: {}", e))?;
+    let ext = match extension.as_deref().unwrap_or("png") {
+        "svg" => "svg",
+        "jpg" | "jpeg" => "jpg",
+        _ => "png",
+    };
+    let dir = std::env::temp_dir().join("typeleft-print-assets");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let path = dir.join(format!("diagram-{}.{}", stamp, ext));
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().to_string())
+}
+
 #[tauri::command]
 fn download_image(url: String, dest_dir: String, file_name: Option<String>) -> Result<String, String> {
     let mut response = ureq::get(&url)
@@ -1634,6 +1657,12 @@ struct PrintOptions {
     footer_left: Option<String>,
     footer_center: Option<String>,
     footer_right: Option<String>,
+    even_header_left: Option<String>,
+    even_header_center: Option<String>,
+    even_header_right: Option<String>,
+    even_footer_left: Option<String>,
+    even_footer_center: Option<String>,
+    even_footer_right: Option<String>,
     different_odd_even: Option<bool>,
     different_first: Option<bool>,
     page_number_format: Option<String>,
@@ -1643,6 +1672,7 @@ struct PrintOptions {
     image_max_width: Option<String>,
     css: Option<String>,
     cover_html: Option<String>,
+    code_highlight: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -1654,7 +1684,19 @@ struct EngineInfo {
     version: String,
 }
 
-struct PrintJob(Mutex<Option<std::process::Child>>);
+struct PrintJob {
+    child: Mutex<Option<std::process::Child>>,
+    canceled: std::sync::atomic::AtomicBool,
+}
+
+impl PrintJob {
+    fn new() -> Self {
+        Self {
+            child: Mutex::new(None),
+            canceled: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+}
 
 fn engine_binary(name: &str, overrides: Option<&HashMap<String, String>>) -> Option<(String, String)> {
     let custom = overrides
@@ -1770,39 +1812,55 @@ fn latex_page_args(options: &PrintOptions) -> Vec<String> {
 fn latex_header(options: &PrintOptions) -> String {
     let mut header = String::from("\\usepackage{fancyhdr}\n\\usepackage{lastpage}\n\\pagestyle{fancy}\n\\fancyhf{}\n");
     let odd_even = options.different_odd_even.unwrap_or(false);
-    let mut put = |slot: &str, value: &Option<String>| {
-        if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
-            let replaced = text
-                .replace("{page}", "\\thepage{}")
-                .replace("{total}", "\\pageref{LastPage}")
-                .replace("{title}", &eps_escape(options.cover_title.as_deref().unwrap_or("")))
-                .replace("{author}", &eps_escape(options.cover_author.as_deref().unwrap_or("")))
-                .replace("{date}", &eps_escape(options.cover_date.as_deref().unwrap_or("")));
-            header.push_str(&format!("\\fancyhead[{}]{{{}}}\n", slot, replaced));
-        }
+    let render = |text: &str| {
+        text
+            .replace("{page}", "\\thepage{}")
+            .replace("{total}", "\\pageref{LastPage}")
+            .replace("{title}", &eps_escape(options.cover_title.as_deref().unwrap_or("")))
+            .replace("{author}", &eps_escape(options.cover_author.as_deref().unwrap_or("")))
+            .replace("{date}", &eps_escape(options.cover_date.as_deref().unwrap_or("")))
     };
-    put("L", &options.header_left);
-    put("C", &options.header_center);
-    put("R", &options.header_right);
-    let mut foot = |slot: &str, value: &Option<String>| {
-        if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
-            let replaced = text
-                .replace("{page}", "\\thepage{}")
-                .replace("{total}", "\\pageref{LastPage}")
-                .replace("{title}", &eps_escape(options.cover_title.as_deref().unwrap_or("")))
-                .replace("{author}", &eps_escape(options.cover_author.as_deref().unwrap_or("")))
-                .replace("{date}", &eps_escape(options.cover_date.as_deref().unwrap_or("")));
-            header.push_str(&format!("\\fancyfoot[{}]{{{}}}\n", slot, replaced));
-        }
+    let slot_name = |side: &str, odd: bool| -> String {
+        if !odd_even { return side.to_string(); }
+        let parity = if odd { 'O' } else { 'E' };
+        format!("{}{}", side, parity)
     };
-    foot("L", &options.footer_left);
-    foot("C", &options.footer_center);
-    foot("R", &options.footer_right);
+    let entries: [(&str, &Option<String>, bool); 6] = [
+        ("L", &options.header_left, true),
+        ("C", &options.header_center, true),
+        ("R", &options.header_right, true),
+        ("L", &options.footer_left, false),
+        ("C", &options.footer_center, false),
+        ("R", &options.footer_right, false),
+    ];
+    for (side, value, is_header) in entries {
+        if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
+            let command = if is_header { "fancyhead" } else { "fancyfoot" };
+            header.push_str(&format!("\\{}[{}]{{{}}}\n", command, slot_name(side, true), render(text)));
+        }
+    }
     if odd_even {
-        header.push_str("\\fancyhead[LE,RO]{\\slshape\\thepage}\n");
+        let even: Vec<(&str, &Option<String>, bool)> = vec![
+            ("L", &options.even_header_left, true),
+            ("C", &options.even_header_center, true),
+            ("R", &options.even_header_right, true),
+            ("L", &options.even_footer_left, false),
+            ("C", &options.even_footer_center, false),
+            ("R", &options.even_footer_right, false),
+        ];
+        for (side, value, is_header) in even {
+            if let Some(text) = value.as_ref().filter(|v| !v.trim().is_empty()) {
+                let command = if is_header { "fancyhead" } else { "fancyfoot" };
+                header.push_str(&format!("\\{}[{}]{{{}}}\n", command, slot_name(side, false), render(text)));
+            }
+        }
     }
     if options.different_first.unwrap_or(false) {
         header.push_str("\\fancypagestyle{plain}{\\fancyhf{}\\renewcommand{\\headrulewidth}{0pt}}\n");
+        header.push_str("\\AtBeginDocument{\\thispagestyle{empty}}\n");
+    }
+    if options.cover.unwrap_or(true) {
+        header.push_str("\\renewcommand{\\maketitle}{}\n");
     }
     let format = options.page_number_format.as_deref().unwrap_or("arabic");
     let command = match format {
@@ -1857,7 +1915,8 @@ fn resolve_engine_path(name: &str, custom: Option<&str>) -> Result<String, Strin
 
 #[tauri::command]
 fn cancel_print_export(state: tauri::State<PrintJob>) -> Result<(), String> {
-    if let Ok(mut guard) = state.0.lock() {
+    state.canceled.store(true, std::sync::atomic::Ordering::SeqCst);
+    if let Ok(mut guard) = state.child.lock() {
         if let Some(child) = guard.as_mut() {
             let _ = child.kill();
         }
@@ -1866,9 +1925,34 @@ fn cancel_print_export(state: tauri::State<PrintJob>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn pandoc_export_print(
+async fn pandoc_export_print(
     app: tauri::AppHandle,
-    state: tauri::State<PrintJob>,
+    markdown: String,
+    target_path: String,
+    base_path: Option<String>,
+    pandoc_path: Option<String>,
+    engine: String,
+    engine_path: Option<String>,
+    options: PrintOptions,
+) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        pandoc_export_print_blocking(
+            app,
+            markdown,
+            target_path,
+            base_path,
+            pandoc_path,
+            engine,
+            engine_path,
+            options,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+fn pandoc_export_print_blocking(
+    app: tauri::AppHandle,
     markdown: String,
     target_path: String,
     base_path: Option<String>,
@@ -1878,6 +1962,7 @@ fn pandoc_export_print(
     options: PrintOptions,
 ) -> Result<(), String> {
     let (pandoc, _) = find_pandoc(pandoc_path.as_deref()).ok_or("pandoc-not-found")?;
+    let state = app.state::<PrintJob>();
     let engine_name = match engine.as_str() {
         "xelatex" | "tectonic" | "weasyprint" => engine.as_str(),
         other => return Err(format!("unsupported-engine:{}", other)),
@@ -1900,6 +1985,12 @@ fn pandoc_export_print(
     }
     if options.heading_numbering.unwrap_or(false) {
         command.arg("--number-sections");
+    }
+    if let Some(style) = options.code_highlight.as_deref() {
+        let allowed = ["pygments", "tango", "espresso", "zenburn", "kate", "monochrome", "breezedark", "haddock"];
+        if allowed.contains(&style) {
+            command.arg(format!("--highlight-style={}", style));
+        }
     }
     let mut metadatas: Vec<(String, String)> = Vec::new();
     if let Some(title) = options.cover_title.clone().filter(|v| !v.trim().is_empty()) {
@@ -1968,14 +2059,15 @@ fn pandoc_export_print(
     command.stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped());
     let mut child = command.spawn().map_err(|e| e.to_string())?;
     let stderr = child.stderr.take();
+    state.canceled.store(false, std::sync::atomic::Ordering::SeqCst);
     {
-        let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+        let mut guard = state.child.lock().map_err(|e| e.to_string())?;
         *guard = Some(child);
     }
     let _ = app.emit("PrintExportProgress", serde_json::json!({"stage": "compiling", "engine": engine_name}));
     let result = loop {
         {
-            let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+            let mut guard = state.child.lock().map_err(|e| e.to_string())?;
             let Some(child) = guard.as_mut() else {
                 break Err("canceled".to_string());
             };
@@ -1988,7 +2080,10 @@ fn pandoc_export_print(
                         let _ = handle.read_to_string(&mut text);
                         Some(text)
                     });
-                    break if status.success() {
+                    let canceled = state.canceled.load(std::sync::atomic::Ordering::SeqCst);
+                    break if canceled {
+                        Err("canceled".to_string())
+                    } else if status.success() {
                         Ok(())
                     } else {
                         Err(stderr.unwrap_or_else(|| "print-export-failed".into()).trim().to_string())
@@ -2571,6 +2666,7 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Quick Open..." => "快速打开...",
         "Search in Folder..." => "在文件夹中搜索...",
         "Image Manager..." => "图片管理...",
+        "Print / PDF..." => "打印 / PDF...",
         "Help" => "帮助",
         "Check for Updates..." => "检查更新...",
         "Export HTML..." => "导出 HTML...",
@@ -2653,7 +2749,7 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let import_document = MenuItem::with_id(app, "import_document", tr("Import Document..."), true, None::<&str>)?;
     let quick_open = MenuItem::with_id(app, "quick_open", tr("Quick Open..."), true, Some("CmdOrCtrl+Shift+O"))?;
     let export_html = MenuItem::with_id(app, "export_html", tr("Export HTML..."), true, None::<&str>)?;
-    let print_item = MenuItem::with_id(app, "print", tr("Print..."), true, Some("CmdOrCtrl+P"))?;
+    let print_item = MenuItem::with_id(app, "print", tr("Print / PDF..."), true, Some("CmdOrCtrl+P"))?;
     let image_hosting = MenuItem::with_id(app, "image_hosting", tr("Image Hosting..."), true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let close = MenuItem::with_id(app, "close_window", tr("Close Window"), true, Some("CmdOrCtrl+W"))?;
@@ -2816,7 +2912,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(PendingFiles(Mutex::new(Vec::new())))
         .manage(FolderWatcher(Mutex::new(None)))
-        .manage(PrintJob(Mutex::new(None)))
+        .manage(PrintJob::new())
         .on_window_event(|window, event| {
             match event {
                 tauri::WindowEvent::ThemeChanged(theme) => {
@@ -2971,7 +3067,7 @@ pub fn run() {
                 "import_html" => { let _ = app.emit("ImportHTMLDialog", ()); }
                 "import_document" => { import_document_dialog(app.clone()); }
                 "export_html" => { let _ = app.emit("OpenExportDialog", ()); }
-                "print" => { let _ = app.emit("Export", serde_json::json!({"type": "print", "context": {}})); }
+                "print" => { let _ = app.emit("OpenPrintDialog", ()); }
                 "image_hosting" => { let _ = app.emit("OpenImageConfigDialog", ()); }
                 "undo" => { let _ = app.emit("Undo", ()); }
                 "redo" => { let _ = app.emit("Redo", ()); }
@@ -3118,6 +3214,7 @@ pub fn run() {
             detect_print_engines,
             pandoc_export_print,
             cancel_print_export,
+            save_print_asset,
             save_draft,
             load_draft,
             clear_draft,
@@ -3417,6 +3514,31 @@ mod print_tests {
         });
         assert!(cover.contains("Title \\& Co"));
         assert!(cover.contains("titlepage"));
+    }
+
+    #[test]
+    fn print_options_deserialize_from_camel_case() {
+        let parsed: PrintOptions = serde_json::from_str(r#"{
+            "paper": "A5", "orientation": "landscape", "marginLeft": 31.8,
+            "margins": 1, "toc": true, "tocDepth": 2, "cover": true,
+            "coverTitle": "Report", "pageStart": 3, "headerLeft": "{title}",
+            "footerCenter": "{page} / {total}", "differentOddEven": true,
+            "evenFooterCenter": "even {page}"
+        }"#).unwrap();
+        assert_eq!(parsed.paper.as_deref(), Some("A5"));
+        assert_eq!(parsed.orientation.as_deref(), Some("landscape"));
+        assert_eq!(parsed.margin_left, Some(31.8));
+        assert_eq!(parsed.toc_depth, Some(2));
+        assert_eq!(parsed.cover_title.as_deref(), Some("Report"));
+        assert_eq!(parsed.page_start, Some(3));
+        assert!(parsed.different_odd_even.unwrap());
+        let header = latex_header(&parsed);
+        assert!(header.contains("\\fancyhead[LO]"));
+        assert!(header.contains("\\fancyfoot[CO]"));
+        assert!(header.contains("\\fancyfoot[CE]"));
+        assert!(header.contains("\\renewcommand{\\maketitle}"));
+        assert!(header.contains("\\setcounter{page}{3}"));
+        assert!(header.contains("\\thepage{}"));
     }
 
     #[test]

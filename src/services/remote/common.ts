@@ -118,6 +118,7 @@ const remote = {
       options: Record<string, unknown>,
     }, void>('pandoc_export_print'),
     cancelPrintExport: remoteFunction<undefined, void>('cancel_print_export'),
+    savePrintAsset: remoteFunction<{ data: string, extension?: string }, string>('save_print_asset'),
     getImageUploadConfigs: remoteFunction<undefined, Array<{ id: string, name: string, provider: string, host: string, port: number, username: string, password: string, remotePath: string, baseUrl: string }>>('get_image_upload_configs'),
     saveImageUploadConfig: remoteFunction<{ config: { id: string, name: string, provider: string, host: string, port: number, username: string, password: string, remotePath: string, baseUrl: string } }, void>('save_image_upload_config'),
     deleteImageUploadConfig: remoteFunction<{ id: string }, void>('delete_image_upload_config'),

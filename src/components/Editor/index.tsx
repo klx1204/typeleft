@@ -2,6 +2,7 @@ import CodeMirror from "components/CodeMirror6";
 import MilkdownEditor from "components/MilkdownEditor";
 import Sidebar from "components/Sidebar";
 import ImageManager from "components/ImageManager";
+import PrintDialog from "components/PrintDialog";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { remote } from "services/remote";
 import transport from "services/transport";
@@ -56,6 +57,7 @@ const Editor: React.FC = () => {
     const [filePath, setFilePath] = useState<string>();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [imageManagerOpen, setImageManagerOpen] = useState(false);
+    const [printOpen, setPrintOpen] = useState(false);
     const [draftPrompt, setDraftPrompt] = useState<{ content: string; savedAt: number; filePath?: string } | null>(null);
     const [sidebarSection, setSidebarSection] = useState<'filetree' | 'toc'>('filetree');
     const [sidePaneWidth, setSidePaneWidth] = useState(240);
@@ -432,6 +434,10 @@ const Editor: React.FC = () => {
         setImageManagerOpen(true);
     }), []);
 
+    useEffect(() => transport.addListener('OpenPrintDialog', () => {
+        setPrintOpen(true);
+    }), []);
+
     useEffect(() => {
         const unsub = transport.addListener('SidebarToggle', () => {
             setSidebarOpen(prev => !prev);
@@ -575,6 +581,20 @@ const Editor: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {printOpen && (
+                <PrintDialog
+                    open
+                    markdown={markdownRef.current ?? markdown ?? ''}
+                    title={
+                        (parseFrontmatter(markdownRef.current ?? '').data.title as string)
+                        || (filePath ? (filePath.split(/[\\/]/).pop() || 'Typeleft').replace(/\.[^.]+$/, '') : 'Typeleft')
+                    }
+                    basePath={window.basePath || ''}
+                    docPrint={parseFrontmatter(markdownRef.current ?? '').data.print}
+                    onClose={() => setPrintOpen(false)}
+                />
             )}
 
             {imageManagerOpen && (

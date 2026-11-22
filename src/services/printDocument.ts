@@ -5,6 +5,8 @@ import {
   buildTocHtml,
   collectPrintHeadings,
   normalizePrintSettings,
+  removeTocMarker,
+  stripFrontmatter,
   type PrintSettings,
 } from './printSettings';
 
@@ -13,6 +15,8 @@ const escapeAttr = (value: string): string => value
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
+
+export { removeTocMarker, stripFrontmatter } from './printSettings';
 
 export interface PrintDocumentOptions {
   markdown: string;
@@ -31,7 +35,7 @@ export interface PrintDocumentOptions {
  */
 export const buildPrintHtml = async (options: PrintDocumentOptions): Promise<string> => {
   const settings = normalizePrintSettings(options.settings);
-  const html = await new ExportHtml(options.markdown, {
+  const html = await new ExportHtml(removeTocMarker(stripFrontmatter(options.markdown)), {
     baseUrl: options.basePath ? `file:///${options.basePath.replaceAll('\\', '/')}/` : undefined,
     typoraRootUrl: options.rootUrl,
   }).generate({

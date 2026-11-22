@@ -34,6 +34,7 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **选中文本网页搜索**、错误日志面板，以及 **CLI**（`typeleft <文件>`、`--new`、`--folder`）
 - **图片**：剪贴板粘贴、本地复制、相对路径、HTTP 图床上传，以及图片管理（下载远程图片、全部移动/复制、单张重命名/移动/复制、删除图片联动删文件）
 - **恢复与快捷键**：崩溃安全的草稿恢复、可自定义的菜单/命令面板快捷键、手动或启动时的更新检查（只跳转 Release 页）
+- **打印 / PDF**：A3/A4/A5/B5/Letter/自定义纸张，默认中文公文边距，封面、带页码目录、页眉页脚、页码、元数据、中文字体、Paged.js 预览，Pandoc + XeLaTeX/Tectonic/WeasyPrint 引擎检测与预设
 - **排版选项**：文字方向（RTL）、标题自动编号、两端对齐、列表符号/编号、正文字体/代码字体、编辑区背景色；默认跟随主题，显式修改才覆盖
 - **主题**：明亮 / 暗色 / 跟随系统，Mermaid / Sequence / Vega 图表主题；兼容 Typora CSS，附[主题开发指南](docs/theme-authoring.zh-CN.md)
 - **双语界面**：English 与简体中文，运行时切换
@@ -98,6 +99,7 @@ bun run test:roundtrip # Markdown 解析 ↔ 序列化保真度
 bun run test:cm6       # CodeMirror 6 冒烟测试
 bun run test:search    # 跨节点搜索与 $1 替换
 bun run test:web       # 无头 Chrome 中挂载真实组件
+bun run test:print     # 封面/目录/中文样例 → 无头 Chrome 生成 PDF
 bun run test:rust      # CLI 参数解析（cargo test）
 ```
 
@@ -107,7 +109,7 @@ bun run test:rust      # CLI 参数解析（cargo test）
 `MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?theme=1`、`?layout=1`、`?codeblock=1`、`?sidebar=1`、`?folders=1`、
 `?exportdialog=1`、`?settings=1`、`?settingstype=1`、`?searchmenu=1`、
 `?softbreak=1`、`?spell=1`、`?media=1`、`?exporttheme=1`、`?strict=1`、
-`?filelink=1`、`?foldersearch=1`、`?filelist=1`、`?pickers=1` 可切换到其他检查。
+`?filelink=1`、`?foldersearch=1`、`?filelist=1`、`?printdialog=1`、`?pickers=1` 可切换到其他检查。
 
 所有偏好都保存在同一个 JSON 文件中，完整键名见 [`docs/settings.md`](docs/settings.md)（也可从“设置 → 高级”打开）。
 

@@ -12,10 +12,14 @@ import {
   MARGIN_PRESETS,
   normalizePrintSettings,
   paperSizeMm,
+  removeTocMarker,
+  stripFrontmatter,
   type MarginPreset,
   type PrintSettings,
 } from 'services/printSettings';
 import { buildPrintHtml } from 'services/printDocument';
+import { extractImageRefs, localImagePath } from 'services/imageManager';
+import { preRenderDiagrams } from 'services/printAssets';
 
 interface PrintDialogProps {
   open: boolean;
@@ -101,7 +105,7 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
     () => String(parseFrontmatter(markdown).data['typora-root-url'] || ''),
     [markdown],
   );
-  const headingNumbering = settings.headingNumbering || headingNumberingFromDoc(markdown);
+  const headingNumbering = settings.headingNumbering;
 
   const loadEngines = async (paths: Record<string, string>, pandoc: string) => {
     try {
@@ -125,7 +129,11 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
     setPreviewHtml('');
     remote.getSettings().then((saved: any) => {
       setAppSettings(saved || {});
-      setSettings(normalizePrintSettings({ ...(saved?.printSettings || {}), ...(docPrint || {}) }));
+      const merged = normalizePrintSettings({ ...(saved?.printSettings || {}), ...(docPrint || {}) });
+      if (docPrint?.headingNumbering === undefined && saved?.printSettings?.headingNumbering === undefined && headingNumberingFromDoc(markdown)) {
+        merged.headingNumbering = true;
+      }
+      setSettings(merged);
       setPresets([...builtInPresets(), ...(Array.isArray(saved?.printPresets) ? saved.printPresets : [])]);
       const paths = saved?.printEnginePaths && typeof saved.printEnginePaths === 'object' ? saved.printEnginePaths : {};
       setEnginePaths(paths);
@@ -204,7 +212,9 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
     setPreviewBusy(true);
     setPreview(true);
     try {
-      setPreviewHtml(await gatherHtml());
+      const html = await gatherHtml();
+      (window as any).__lastPrintHtml = html;
+      setPreviewHtml(html);
     } catch (err: any) {
       setPreview(false);
       setError(String(err));
@@ -236,6 +246,13 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
       setError(t('Nothing to export.'));
       return;
     }
+    const missing: string[] = [];
+    for (const ref of extractImageRefs(markdown)) {
+      if (ref.kind !== 'local') continue;
+      const path = localImagePath(ref.src, basePath || '', rootUrl);
+      if (path && !(await remote.checkFileExists({ path }).catch(() => true))) missing.push(ref.src);
+    }
+    if (missing.length && !window.confirm(`${t('Missing images')}: ${missing.join(', ')}\n${t('Continue export?')}`)) return;
     const targetPath = await pickTarget();
     if (!targetPath) return;
     const values = {
@@ -270,6 +287,12 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
       footerLeft: settings.headerFooter.footerLeft || undefined,
       footerCenter: settings.headerFooter.footerCenter || undefined,
       footerRight: settings.headerFooter.footerRight || undefined,
+      evenHeaderLeft: settings.headerFooter.evenHeaderLeft || undefined,
+      evenHeaderCenter: settings.headerFooter.evenHeaderCenter || undefined,
+      evenHeaderRight: settings.headerFooter.evenHeaderRight || undefined,
+      evenFooterLeft: settings.headerFooter.evenFooterLeft || undefined,
+      evenFooterCenter: settings.headerFooter.evenFooterCenter || undefined,
+      evenFooterRight: settings.headerFooter.evenFooterRight || undefined,
       differentOddEven: settings.headerFooter.differentOddEven,
       differentFirst: settings.headerFooter.differentFirst,
       pageNumberFormat: settings.pageNumberFormat,
@@ -277,13 +300,28 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
       subject: settings.meta.subject || undefined,
       keywords: settings.meta.keywords || undefined,
       imageMaxWidth: settings.imageMaxWidth,
+      codeHighlight: settings.codeHighlight,
       css: buildPrintCss(settings),
       coverHtml: buildCoverHtml(settings),
     };
+    setBusy(t('Rendering diagrams...'));
+    let prepared = removeTocMarker(stripFrontmatter(markdown));
+    let warnings: string[] = [];
+    try {
+      const diagrams = await preRenderDiagrams(prepared, {
+        mermaidTheme: appSettings?.mermaidTheme,
+        sequenceTheme: appSettings?.sequenceTheme,
+        vegaTheme: appSettings?.vegaTheme,
+      });
+      prepared = diagrams.markdown;
+      warnings = diagrams.failed;
+    } catch (err: any) {
+      warnings = [String(err)];
+    }
     setBusy(t('Rendering PDF...'));
     try {
       await remote.pandocExportPrint({
-        markdown,
+        markdown: prepared,
         targetPath,
         basePath: basePath || undefined,
         pandocPath: pandocPath || undefined,
@@ -292,7 +330,11 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
         options: values,
       });
       setBusy('');
-      setMessage(`${t('Exported to')}: ${targetPath}`);
+      const notes = [
+        warnings.length ? `${t('Diagram warnings')}: ${warnings.join('; ')}` : '',
+        missing.length ? `${t('Missing images')}: ${missing.join(', ')}` : '',
+      ].filter(Boolean).join('\n');
+      setMessage(`${t('Exported to')}: ${targetPath}${notes ? `\n${notes}` : ''}`);
       if (appSettings?.printOpenAfter !== false) remote.openPath({ path: targetPath }).catch(() => {});
     } catch (err: any) {
       setBusy('');
@@ -353,13 +395,18 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
 
   const saveEnginePaths = async () => {
     try {
-      await persist({ printEnginePaths: enginePaths });
+      await persist({ printEnginePaths: enginePaths, pandocPath });
       await loadEngines(enginePaths, pandocPath);
       setMessage(t('Saved'));
     } catch (err: any) { setError(String(err)); }
   };
 
   if (!open) return null;
+
+  const closeDialog = () => {
+    void persist({}).catch(() => {});
+    onClose();
+  };
 
   const [pw, ph] = paperSizeMm(settings);
   const engineFound = (name: string) => engines.find(item => item.name === name);
@@ -373,7 +420,7 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 10004, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10004, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.45)' }} onClick={closeDialog}>
       <div onClick={e => e.stopPropagation()} style={{ width: 940, height: '86vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--editorColor00)', borderRadius: 8, overflow: 'hidden', boxShadow: '0 10px 40px rgba(0,0,0,0.4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--editorColor10)' }}>
           <strong style={{ fontSize: 16 }}>{t('Print / PDF')}</strong>
@@ -381,7 +428,7 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
           <span style={{ marginLeft: 'auto', fontSize: 12, color: engineFound('pandoc')?.found ? 'var(--editorColor40)' : '#c44' }}>
             {engineFound('pandoc')?.found ? engineFound('pandoc')?.version : t('Pandoc not found')}
           </span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--editorColor40)' }}>×</button>
+          <button onClick={closeDialog} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--editorColor40)' }}>×</button>
         </div>
 
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
@@ -464,7 +511,13 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
               <Row label={t('Line height')}><input type="number" step="0.05" value={settings.lineHeight} onChange={e => update({ lineHeight: numValue(e.target.value, 1.6) })} style={{ ...inputStyle, width: 100 }} /></Row>
               <Row label={t('Paragraph spacing (em)')}><input type="number" step="0.1" value={settings.paragraphSpacing} onChange={e => update({ paragraphSpacing: numValue(e.target.value, 0.6) })} style={{ ...inputStyle, width: 100 }} /></Row>
               <Row label={t('First-line indent (em)')}><input type="number" step="0.5" value={settings.firstLineIndent} onChange={e => update({ firstLineIndent: numValue(e.target.value, 0) })} style={{ ...inputStyle, width: 100 }} /></Row>
+              <Row label={t('Code highlight')}>
+                <select value={settings.codeHighlight} onChange={e => update({ codeHighlight: e.target.value })} style={{ ...inputStyle, width: 180 }}>
+                  {['pygments', 'tango', 'espresso', 'zenburn', 'kate', 'monochrome', 'breezedark', 'haddock'].map(style => <option key={style} value={style}>{style}</option>)}
+                </select>
+              </Row>
               <Row label={t('Image max width')}><input style={inputStyle} value={settings.imageMaxWidth} onChange={e => update({ imageMaxWidth: e.target.value })} /></Row>
+              <Row label={t('Image DPI')} hint={t('0 = keep original')}><input type="number" value={settings.imageDpi} onChange={e => update({ imageDpi: numValue(e.target.value, 0) })} style={{ ...inputStyle, width: 100 }} /></Row>
               <div style={{ display: 'flex', gap: 20, marginTop: 6 }}>
                 <Check checked={settings.justify} onChange={value => update({ justify: value })} label={t('Justify text')} />
                 <Check checked={headingNumbering} onChange={value => update({ headingNumbering: value })} label={t('Number headings')} />
@@ -576,6 +629,21 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
                   <button style={btnStyle} onClick={() => void saveEnginePaths()}>{t('Save & Detect')}</button>
                 </div>
               </Row>
+              <Row label={t('After export')}>
+                <select
+                  value={appSettings?.printPostAction ?? (appSettings?.printOpenAfter === false ? 'none' : 'open-file')}
+                  onChange={e => {
+                    const next = { ...appSettings, printPostAction: e.target.value };
+                    setAppSettings(next);
+                    remote.saveSettings(next).catch(() => {});
+                  }}
+                  style={{ ...inputStyle, width: 180 }}
+                >
+                  <option value="none">{t('Do Nothing')}</option>
+                  <option value="open-file">{t('Open File')}</option>
+                  <option value="open-folder">{t('Open Folder')}</option>
+                </select>
+              </Row>
               <div style={{ marginTop: 14, fontSize: 11, color: 'var(--editorColor50)' }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('Capability matrix')}</div>
                 <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 11 }}>
@@ -609,16 +677,16 @@ const PrintDialog: React.FC<PrintDialogProps> = ({ open, markdown, title, basePa
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderTop: '1px solid var(--editorColor10)' }}>
           <button style={btnStyle} onClick={() => void saveSettingsNow()}>{t('Save Settings')}</button>
           <span style={{ marginLeft: 'auto' }} />
-          <button style={btnStyle} onClick={onClose}>{t('Close')}</button>
+          <button style={btnStyle} onClick={closeDialog}>{t('Close')}</button>
           <button style={btnStyle} onClick={() => void openPreview()}>{t('Preview')}</button>
           <button style={btnStyle} onClick={() => void print()}>{t('System Print')}</button>
           <button style={primaryStyle} disabled={engine === 'system' || !!busy} onClick={() => void exportPdf()}>{busy ? t('Rendering PDF...') : t('Export PDF')}</button>
-          {busy && <button style={{ ...btnStyle, color: '#e05555' }} onClick={() => { void remote.cancelPrintExport(); }}>{t('Cancel')}</button>}
+          {busy && <button style={{ ...btnStyle, color: '#e05555' }} onClick={() => { setBusy(''); setMessage(t('Canceled')); void remote.cancelPrintExport(); }}>{t('Cancel')}</button>}
         </div>
       </div>
 
       {preview && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 10010, display: 'flex', flexDirection: 'column', backgroundColor: '#666' }}>
+        <div onClick={e => e.stopPropagation()} style={{ position: 'fixed', inset: 0, zIndex: 10010, display: 'flex', flexDirection: 'column', backgroundColor: '#666' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', backgroundColor: '#222', color: '#eee' }}>
             <strong style={{ fontSize: 13 }}>{t('Print preview')}</strong>
             <span style={{ fontSize: 12, color: '#aaa' }}>{t('Page size and margins follow the print settings.')}</span>

@@ -52,3 +52,53 @@ jobs:
         env:
           CHROME: ${{ steps.chrome.outputs.chrome-path }}
         run: bash scripts/web-smoke.sh
+
+  print:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Print/PDF smoke (cover, TOC, CJK, tables, code)
+        env:
+          CHROME: ${{ steps.chrome.outputs.chrome-path }}
+        run: bun run test:print
+
+  print-arm:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install WeasyPrint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
+          pip install --break-system-packages weasyprint
+
+      - name: Print/PDF smoke via WeasyPrint (arm64)
+        env:
+          PDF_RENDERER: weasyprint
+        run: bun run test:print

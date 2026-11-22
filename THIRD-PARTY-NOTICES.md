@@ -163,6 +163,14 @@ The application bundle includes open-source npm/Rust dependencies, including:
 | DOMPurify | MPL-2.0 OR Apache-2.0 |
 | nspell | MIT |
 | emojibase-data | MIT |
+| Paged.js | MIT |
+| ignore (Rust) | Unlicense OR MIT |
+| notify (Rust) | CC0-1.0 |
+| ureq (Rust) | MIT OR Apache-2.0 |
+| ureq transitive TLS crates (rustls, ring, webpki-roots) | Apache-2.0 / ISC / MPL-2.0 |
+
+The Rust dependencies are resolved in `src-tauri/Cargo.lock`; their license
+texts ship inside the crate sources. Paged.js is bundled for print preview.
 
 Their full license texts are retained in the corresponding packages and in the
 release source tree. A complete dependency-license report is generated before

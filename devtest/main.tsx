@@ -10,6 +10,7 @@ import SettingsPage from '../src/components/SettingsPage';
 import SelectionSearchMenu from '../src/components/SelectionSearchMenu';
 import FolderSearch from '../src/components/FolderSearch';
 import ImageManager from '../src/components/ImageManager';
+import PrintDialog from '../src/components/PrintDialog';
 
 const fixture = `---
 title: Devtest
@@ -120,6 +121,7 @@ const folderSearchMode = location.search.includes('foldersearch');
 const fileListMode = location.search.includes('filelist');
 const imageManagerMode = location.search.includes('imagemanager');
 const shortcutsMode = location.search.includes('shortcuts');
+const printMode = location.search.includes('printdialog');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -195,6 +197,18 @@ const Harness: React.FC = () => {
       {settingsMode && <SettingsPage open initialSection="advanced" onClose={() => {}} />}
       {settingsTypeMode && <SettingsPage open initialSection="typography" onClose={() => {}} />}
       {shortcutsMode && <SettingsPage open initialSection="shortcuts" onClose={() => {}} />}
+      <div id="print-mode-flag" style={{ display: 'none' }}>{String(printMode)}</div>
+      {printMode && (
+        <div id="print-dialog-wrap">
+          <PrintDialog
+            open={true}
+            markdown={'# Chapter One\n\nBody text.\n\n## Section\n\nMore text.\n\n```js\nconst a = 1\n```\n\n```mermaid\ngraph TD\n  A --> B\n```\n'}
+            title="Print test"
+            basePath="/example/docs"
+            onClose={() => {}}
+          />
+        </div>
+      )}
       {imageManagerMode && (
         <ImageManager
           open
@@ -314,6 +328,23 @@ const finish = (extraCheck?: () => void) => {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (printMode) {
+    check('print mode flag', document.getElementById('print-mode-flag')?.textContent === 'true', String(document.getElementById('print-mode-flag')?.textContent));
+    check('print dialog opens', (window as any).__printOpened === true, String((window as any).__printOpened));
+    check('print dialog has page controls', ((window as any).__printPageControls || 0) >= 4, String((window as any).__printPageControls || 0));
+    check('print preview builds paged document',
+      String((window as any).__lastPrintHtml || '').includes('@page')
+      && String((window as any).__lastPrintHtml || '').includes('print-toc')
+      && String((window as any).__lastPrintHtml || '').includes('print-cover-page'),
+      String((window as any).__lastPrintHtml || '').length);
+    check('print diagrams are pre-rendered', String(((window as any).__printExport || {}).markdown || '').includes('![mermaid diagram]'),
+      String(((window as any).__printExport || {}).markdown || '').slice(-80));
+    check('print export passes options', !!((window as any).__printExport)?.options?.paper
+      && (window as any).__printExport.options.marginLeft === 31.8
+      && (window as any).__printExport.engine === 'xelatex',
+      JSON.stringify(((window as any).__printExport || {}).options || {}).slice(0, 160));
   }
 
   if (shortcutsMode) {
@@ -640,6 +671,46 @@ if (fileLinkMode) {
   }, 2200);
 }
 
+if (printMode) {
+  setTimeout(() => {
+    const text = document.body.textContent || '';
+    (window as any).__printOpened = text.includes('Print / PDF') && text.includes('Chinese official');
+    (window as any).__printPageControls = document.querySelectorAll('input[type=number]').length;
+    const clickText = (value: string) => {
+      const node = Array.from(document.querySelectorAll('div,button')).find(el => (el.textContent || '').trim() === value && el.children.length === 0) as HTMLElement | undefined;
+      node?.click();
+    };
+    clickText('Engine');
+    setTimeout(() => {
+      const radios = document.querySelectorAll('input[type=radio]');
+      (radios[1] as HTMLInputElement | undefined)?.click();
+      setTimeout(() => {
+        clickText('Preview');
+        let settled = false;
+        const settle = (pages: number) => {
+          if (settled) return;
+          settled = true;
+          observer.disconnect();
+          (window as any).__printPreviewPages = pages;
+          if (pages > 0) check('print preview renders pages', true, String(pages));
+          const back = Array.from(document.querySelectorAll('button')).find(b => (b.textContent || '') === 'Back') as HTMLElement | undefined;
+          back?.click();
+          setTimeout(() => {
+            const exportBtn = Array.from(document.querySelectorAll('button')).find(b => (b.textContent || '') === 'Export PDF') as HTMLElement | undefined;
+            exportBtn?.click();
+          }, 600);
+        };
+        const observer = new MutationObserver(() => {
+          const pages = document.querySelectorAll('.pagedjs_page').length;
+          if (pages > 0) settle(pages);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        setTimeout(() => settle(document.querySelectorAll('.pagedjs_page').length), 5000);
+      }, 400);
+    }, 500);
+  }, 1600);
+}
+
 if (shortcutsMode) {
   setTimeout(() => {
     const input = document.querySelectorAll('input')[2] as HTMLInputElement | undefined;
@@ -740,7 +811,7 @@ if (isStatic) {
       anchor!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
     }
   }, 2400);
-  setTimeout(() => finish(), spellMode ? 9000 : 3000);
+  setTimeout(() => finish(), printMode ? 20000 : spellMode ? 9000 : 3000);
 } else if (isPickers) {
   setTimeout(() => { void runPickerChecks(); }, 2500);
 } else setTimeout(() => {

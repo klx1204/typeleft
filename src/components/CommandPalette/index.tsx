@@ -27,7 +27,7 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'import_document', label: 'Import Document...', category: 'File', action: () => remote.importDocument().catch(() => {}) },
     { id: 'image_hosting', label: 'Image Hosting', category: 'File', action: () => transport.postMessage('OpenImageConfigDialog', {}) },
     { id: 'themes', label: 'Themes...', category: 'View', action: () => transport.postMessage('OpenThemeDialog', {}) },
-    { id: 'print', label: 'Print...', category: 'File', action: () => transport.postMessage('Export', { type: 'print', context: {} }) },
+    { id: 'print', label: 'Print / PDF...', category: 'File', action: () => transport.postMessage('OpenPrintDialog', {}) },
 
     { id: 'undo', label: 'Undo', category: 'Edit', action: () => transport.postMessage('Undo', {}) },
     { id: 'redo', label: 'Redo', category: 'Edit', action: () => transport.postMessage('Redo', {}) },

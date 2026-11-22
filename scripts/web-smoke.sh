@@ -99,6 +99,8 @@ run_mode "exporttheme" "static=1&exporttheme=1" 15000
 run_mode "settingstype" "static=1&settingstype=1" 15000
 run_mode "strict" "static=1&strict=1" 15000
 run_mode "filelink" "static=1&filelink=1" 15000
+run_mode "foldersearch" "static=1&foldersearch=1" 15000
+run_mode "filelist" "static=1&filelist=1" 15000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

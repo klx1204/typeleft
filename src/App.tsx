@@ -7,6 +7,7 @@ import CommandPalette from 'components/CommandPalette';
 import ExportDialog from 'components/ExportDialog';
 import ImageConfigDialog from 'components/ImageConfigDialog';
 import SelectionSearchMenu from 'components/SelectionSearchMenu';
+import FolderSearch from 'components/FolderSearch';
 import { applyCustomTheme, getCustomTheme } from 'services/customTheme';
 import { initZoom, installZoomWheel, zoomIn, zoomOut, zoomReset } from 'services/zoom';
 import { remote } from 'services/remote';
@@ -32,6 +33,7 @@ function App() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [imageConfigOpen, setImageConfigOpen] = useState(false);
+  const [folderSearch, setFolderSearch] = useState<{ open: boolean; mode: 'content' | 'files' | 'tags' }>({ open: false, mode: 'content' });
 
   useEffect(() => {
     const unsub = transport.addListener('OpenSettings', () => { setSettingsSection(undefined); setSettingsOpen(true); });
@@ -40,6 +42,13 @@ function App() {
 
   useEffect(() => {
     const unsub = transport.addListener('OpenCommandPalette', () => setCommandPaletteOpen(true));
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = transport.addListener<{ mode?: 'content' | 'files' | 'tags' }>('OpenFolderSearch', (payload) => {
+      setFolderSearch({ open: true, mode: payload?.mode ?? 'content' });
+    });
     return () => unsub();
   }, []);
 
@@ -110,6 +119,14 @@ function App() {
       e.preventDefault();
       setCommandPaletteOpen(prev => !prev);
     }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      setFolderSearch({ open: true, mode: 'content' });
+    }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      setFolderSearch({ open: true, mode: 'files' });
+    }
     if (e.key === 'Escape') {
       setCommandPaletteOpen(false);
     }
@@ -129,6 +146,7 @@ function App() {
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <ImageConfigDialog open={imageConfigOpen} onClose={() => setImageConfigOpen(false)} />
       <SelectionSearchMenu />
+      <FolderSearch open={folderSearch.open} initialMode={folderSearch.mode} onClose={() => setFolderSearch({ ...folderSearch, open: false })} />
     </ErrorBoundary>
   );
 }

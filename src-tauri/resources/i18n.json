@@ -910,5 +910,81 @@
   "File not found": {
     "en": "File not found",
     "zh": "文件不存在"
+  },
+  "Quick Open...": {
+    "en": "Quick Open...",
+    "zh": "快速打开..."
+  },
+  "Search in Folder...": {
+    "en": "Search in Folder...",
+    "zh": "在文件夹中搜索..."
+  },
+  "Content": {
+    "en": "Content",
+    "zh": "内容"
+  },
+  "Tags": {
+    "en": "Tags",
+    "zh": "标签"
+  },
+  "Search in folder...": {
+    "en": "Search in folder...",
+    "zh": "在文件夹中搜索..."
+  },
+  "Search tags...": {
+    "en": "Search tags...",
+    "zh": "搜索标签..."
+  },
+  "Type a file name...": {
+    "en": "Type a file name...",
+    "zh": "输入文件名..."
+  },
+  "Open a folder first": {
+    "en": "Open a folder first",
+    "zh": "请先打开一个文件夹"
+  },
+  "No folder": {
+    "en": "No folder",
+    "zh": "未打开文件夹"
+  },
+  "Searching...": {
+    "en": "Searching...",
+    "zh": "搜索中..."
+  },
+  "Type to search": {
+    "en": "Type to search",
+    "zh": "输入关键词开始搜索"
+  },
+  "Flat outline": {
+    "en": "Flat outline",
+    "zh": "扁平大纲"
+  },
+  "Tree view": {
+    "en": "Tree view",
+    "zh": "树形视图"
+  },
+  "List view": {
+    "en": "List view",
+    "zh": "列表视图"
+  },
+  "Undo file operation": {
+    "en": "Undo file operation",
+    "zh": "撤销文件操作"
+  },
+  "Filter files...": {
+    "en": "Filter files...",
+    "zh": "过滤文件..."
+  },
+  "Sort files": {
+    "en": "Sort files",
+    "zh": "文件排序"
+  },
+  "Modified": {
+    "en": "Modified",
+    "zh": "修改时间"
+  },
+  "Type": {
+    "en": "Type",
+    "zh": "类型"
   }
 }

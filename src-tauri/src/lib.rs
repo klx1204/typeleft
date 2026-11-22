@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, RunEvent};
 use tauri::menu::{Menu, Submenu, MenuItem, PredefinedMenuItem};
 use tauri_plugin_dialog::DialogExt;
+use notify::Watcher;
 
 #[derive(Clone, Serialize)]
 struct PendingFile {
@@ -13,6 +14,8 @@ struct PendingFile {
 }
 
 struct PendingFiles(Mutex<Vec<PendingFile>>);
+
+struct FolderWatcher(Mutex<Option<notify::RecommendedWatcher>>);
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -403,6 +406,7 @@ struct FileEntry {
     name: String,
     path: String,
     is_dir: bool,
+    modified: i64,
 }
 
 #[tauri::command]
@@ -417,10 +421,15 @@ fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
         let ft = entry.file_type().map_err(|e| e.to_string())?;
         let name = entry.file_name().to_string_lossy().to_string();
         if name.starts_with('.') { continue; }
+        let modified = entry.metadata().and_then(|m| m.modified()).ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as i64)
+            .unwrap_or(0);
         entries.push(FileEntry {
             name,
             path: entry.path().to_string_lossy().to_string(),
             is_dir: ft.is_dir(),
+            modified,
         });
     }
     entries.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.cmp(&b.name)));
@@ -1534,6 +1543,339 @@ fn pick_export_path(app: tauri::AppHandle, file_name: String, extension: String)
     });
 }
 
+fn undo_dir(app: &tauri::AppHandle) -> std::path::PathBuf {
+    let dir = app.path().app_data_dir()
+        .unwrap_or_else(|_| std::env::temp_dir().join("typeleft"))
+        .join("undo");
+    let _ = std::fs::create_dir_all(&dir);
+    dir
+}
+
+fn copy_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    if src.is_dir() {
+        std::fs::create_dir_all(dst)?;
+        for entry in std::fs::read_dir(src)? {
+            let entry = entry?;
+            copy_recursive(&entry.path(), &dst.join(entry.file_name()))?;
+        }
+        Ok(())
+    } else {
+        if let Some(parent) = dst.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::copy(src, dst).map(|_| ())
+    }
+}
+
+/// Copy a file/folder before deleting it so the operation can be undone.
+#[tauri::command]
+fn backup_for_delete(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    let source = std::path::Path::new(&path);
+    if !source.exists() {
+        return Err("source-not-found".into());
+    }
+    let name = source.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "item".into());
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let mut backup = undo_dir(&app).join(format!("{}-{}", stamp, name));
+    let mut index = 1;
+    while backup.exists() {
+        backup = undo_dir(&app).join(format!("{}-{}-{}", stamp, index, name));
+        index += 1;
+    }
+    copy_recursive(source, &backup).map_err(|e| e.to_string())?;
+    Ok(backup.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn restore_backup(backup: String, original: String) -> Result<(), String> {
+    let src = std::path::Path::new(&backup);
+    let dst = std::path::Path::new(&original);
+    if !src.exists() {
+        return Err("backup-not-found".into());
+    }
+    if dst.exists() {
+        return Err("target-exists".into());
+    }
+    copy_recursive(src, dst).map_err(|e| e.to_string())?;
+    if src.is_dir() {
+        let _ = std::fs::remove_dir_all(src);
+    } else {
+        let _ = std::fs::remove_file(src);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn watch_folder(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+    state: tauri::State<FolderWatcher>,
+) -> Result<(), String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+    *guard = None;
+    if paths.is_empty() {
+        return Ok(());
+    }
+    let handle = app.clone();
+    let mut watcher = notify::recommended_watcher(move |event: Result<notify::Event, notify::Error>| {
+        if let Ok(event) = event {
+            let changed: Vec<String> = event
+                .paths
+                .iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect();
+            let _ = handle.emit("FolderChanged", serde_json::json!({
+                "paths": changed,
+                "kind": format!("{:?}", event.kind),
+            }));
+        }
+    }).map_err(|e| e.to_string())?;
+    for path in paths {
+        let target = std::path::Path::new(&path);
+        if target.is_dir() {
+            watcher
+                .watch(target, notify::RecursiveMode::NonRecursive)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    *guard = Some(watcher);
+    Ok(())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolderFile {
+    path: String,
+    name: String,
+    rel: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchHit {
+    path: String,
+    rel: String,
+    line: usize,
+    text: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TagHit {
+    path: String,
+    rel: String,
+    tags: Vec<String>,
+}
+
+fn folder_walk(root: &str) -> Result<ignore::Walk, String> {
+    let root_path = std::path::Path::new(root);
+    if !root_path.is_dir() {
+        return Err("folder-not-found".into());
+    }
+    Ok(ignore::WalkBuilder::new(root_path)
+        .hidden(true)
+        .git_ignore(true)
+        .git_global(true)
+        .git_exclude(true)
+        .build())
+}
+
+fn rel_path(root: &str, path: &std::path::Path) -> String {
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
+}
+
+fn looks_binary(bytes: &[u8]) -> bool {
+    bytes.iter().take(8192).any(|b| *b == 0)
+}
+
+#[tauri::command]
+fn list_folder_files(root: String, limit: Option<usize>) -> Result<Vec<FolderFile>, String> {
+    let cap = limit.unwrap_or(20000).min(50000);
+    let mut out = Vec::new();
+    for entry in folder_walk(&root)? {
+        let Ok(entry) = entry else { continue };
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        out.push(FolderFile {
+            path: path.to_string_lossy().to_string(),
+            name,
+            rel: rel_path(&root, path),
+        });
+        if out.len() >= cap {
+            break;
+        }
+    }
+    out.sort_by(|a, b| a.rel.to_lowercase().cmp(&b.rel.to_lowercase()));
+    Ok(out)
+}
+
+#[tauri::command]
+fn search_folder(
+    root: String,
+    query: String,
+    case_sensitive: Option<bool>,
+    regex: Option<bool>,
+    whole_word: Option<bool>,
+    limit: Option<usize>,
+) -> Result<Vec<SearchHit>, String> {
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let cap = limit.unwrap_or(1000).min(5000);
+    let case_sensitive = case_sensitive.unwrap_or(false);
+    let as_regex = regex.unwrap_or(false);
+    let whole_word = whole_word.unwrap_or(false);
+    let mut pattern = if as_regex {
+        query.clone()
+    } else {
+        regex::escape(&query)
+    };
+    if whole_word {
+        pattern = format!(r"\b(?:{})\b", pattern);
+    }
+    let matcher = regex::RegexBuilder::new(&pattern)
+        .case_insensitive(!case_sensitive)
+        .build()
+        .map_err(|e| format!("invalid-regex: {}", e))?;
+
+    let mut out = Vec::new();
+    for entry in folder_walk(&root)? {
+        let Ok(entry) = entry else { continue };
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let Ok(meta) = entry.metadata() else { continue };
+        if meta.len() > 5 * 1024 * 1024 {
+            continue;
+        }
+        let Ok(bytes) = std::fs::read(path) else { continue };
+        if looks_binary(&bytes) {
+            continue;
+        }
+        let text = String::from_utf8_lossy(&bytes);
+        for (index, line) in text.lines().enumerate() {
+            if !matcher.is_match(line) {
+                continue;
+            }
+            let trimmed = line.trim();
+            out.push(SearchHit {
+                path: path.to_string_lossy().to_string(),
+                rel: rel_path(&root, path),
+                line: index + 1,
+                text: if trimmed.chars().count() > 300 {
+                    format!("{}…", trimmed.chars().take(300).collect::<String>())
+                } else {
+                    trimmed.to_string()
+                },
+            });
+            if out.len() >= cap {
+                return Ok(out);
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn parse_frontmatter_tags(text: &str) -> Vec<String> {
+    let mut lines = text.lines();
+    let Some(first) = lines.next() else { return Vec::new() };
+    let fence = first.trim();
+    let closing = if fence == "---" {
+        "---"
+    } else if fence == "+++" {
+        "+++"
+    } else {
+        return Vec::new();
+    };
+    let mut body = Vec::new();
+    for line in lines {
+        if line.trim() == closing {
+            break;
+        }
+        body.push(line);
+    }
+    let mut tags = Vec::new();
+    let mut collecting = false;
+    for line in body {
+        let trimmed = line.trim();
+        if collecting {
+            if let Some(item) = trimmed.strip_prefix('-').or_else(|| trimmed.strip_prefix('*')) {
+                tags.push(item.trim().trim_matches('"').trim_matches('\'').to_string());
+                continue;
+            }
+            collecting = false;
+        }
+        if let Some(rest) = trimmed.strip_prefix("tags") {
+            let rest = rest.trim_start();
+            let Some(value) = rest.strip_prefix(':').or_else(|| rest.strip_prefix('=')) else {
+                continue;
+            };
+            let value = value.trim();
+            if value.is_empty() {
+                collecting = true;
+                continue;
+            }
+            let inner = value.trim_start_matches('[').trim_end_matches(']');
+            for part in inner.split(',') {
+                let tag = part.trim().trim_matches('"').trim_matches('\'').to_string();
+                if !tag.is_empty() {
+                    tags.push(tag);
+                }
+            }
+        }
+    }
+    tags
+}
+
+#[tauri::command]
+fn search_tags(root: String, query: String, limit: Option<usize>) -> Result<Vec<TagHit>, String> {
+    let cap = limit.unwrap_or(500).min(2000);
+    let needle = query.trim().to_lowercase();
+    let mut out = Vec::new();
+    for entry in folder_walk(&root)? {
+        let Ok(entry) = entry else { continue };
+        if !entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        let ext = path
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        if ext != "md" && ext != "markdown" && ext != "mdx" {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(path) else { continue };
+        let tags = parse_frontmatter_tags(&text);
+        if tags.is_empty() {
+            continue;
+        }
+        if !needle.is_empty() && !tags.iter().any(|tag| tag.to_lowercase().contains(&needle)) {
+            continue;
+        }
+        out.push(TagHit {
+            path: path.to_string_lossy().to_string(),
+            rel: rel_path(&root, path),
+            tags,
+        });
+        if out.len() >= cap {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+
 fn load_and_queue_file(app: &tauri::AppHandle, path: &std::path::Path) {
     let text = match std::fs::read_to_string(path) {
         Ok(c) => c,
@@ -1572,6 +1914,8 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Save As..." => "另存为...",
         "Import HTML..." => "导入 HTML...",
         "Import Document..." => "导入文档...",
+        "Quick Open..." => "快速打开...",
+        "Search in Folder..." => "在文件夹中搜索...",
         "Export HTML..." => "导出 HTML...",
         "Print..." => "打印...",
         "Close Window" => "关闭窗口",
@@ -1650,6 +1994,7 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let save_as = MenuItem::with_id(app, "save_as", tr("Save As..."), true, Some("CmdOrCtrl+Shift+S"))?;
     let import_html = MenuItem::with_id(app, "import_html", tr("Import HTML..."), true, None::<&str>)?;
     let import_document = MenuItem::with_id(app, "import_document", tr("Import Document..."), true, None::<&str>)?;
+    let quick_open = MenuItem::with_id(app, "quick_open", tr("Quick Open..."), true, Some("CmdOrCtrl+Shift+O"))?;
     let export_html = MenuItem::with_id(app, "export_html", tr("Export HTML..."), true, None::<&str>)?;
     let print_item = MenuItem::with_id(app, "print", tr("Print..."), true, Some("CmdOrCtrl+P"))?;
     let image_hosting = MenuItem::with_id(app, "image_hosting", tr("Image Hosting..."), true, None::<&str>)?;
@@ -1677,7 +2022,7 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     }
 
     let file_menu = Submenu::with_items(app, tr("File"), true, &[
-        &new_file, &open_file, &recent_menu, &import_html, &import_document, &export_html, &print_item, &image_hosting, &sep1, &save, &save_as, &PredefinedMenuItem::separator(app)?, &close,
+        &new_file, &open_file, &recent_menu, &quick_open, &import_html, &import_document, &export_html, &print_item, &image_hosting, &sep1, &save, &save_as, &PredefinedMenuItem::separator(app)?, &close,
     ])?;
 
     let undo = MenuItem::with_id(app, "undo", tr("Undo"), true, None::<&str>)?;
@@ -1694,10 +2039,11 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let copy_as = Submenu::with_items(app, tr("Copy As"), true, &[&copy_as_markdown, &copy_as_html, &copy_as_text])?;
     let sep3 = PredefinedMenuItem::separator(app)?;
     let find = MenuItem::with_id(app, "find", tr("Find..."), true, Some("CmdOrCtrl+F"))?;
+    let search_folder = MenuItem::with_id(app, "search_folder", tr("Search in Folder..."), true, Some("CmdOrCtrl+Shift+F"))?;
     let replace = MenuItem::with_id(app, "replace", tr("Replace..."), true, Some("CmdOrCtrl+H"))?;
 
     let edit_menu = Submenu::with_items(app, tr("Edit"), true, &[
-        &undo, &redo, &sep2, &cut, &copy, &copy_as, &paste, &select_all, &copy_code, &sep3, &find, &replace,
+        &undo, &redo, &sep2, &cut, &copy, &copy_as, &paste, &select_all, &copy_code, &sep3, &find, &replace, &search_folder,
     ])?;
 
     let bold = MenuItem::with_id(app, "bold", tr("Bold"), true, Some("CmdOrCtrl+B"))?;
@@ -1808,6 +2154,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(PendingFiles(Mutex::new(Vec::new())))
+        .manage(FolderWatcher(Mutex::new(None)))
         .on_window_event(|window, event| {
             match event {
                 tauri::WindowEvent::ThemeChanged(theme) => {
@@ -1971,6 +2318,8 @@ pub fn run() {
                 "paste" => { let _ = app.emit("Paste", serde_json::json!({"type": "normal"})); }
                 "select_all" => { let _ = app.emit("SelectAll", ()); }
                 "find" => { let _ = app.emit("SearchOpenChange", serde_json::json!({"open": 1})); }
+                "quick_open" => { let _ = app.emit("OpenFolderSearch", serde_json::json!({"mode": "files"})); }
+                "search_folder" => { let _ = app.emit("OpenFolderSearch", serde_json::json!({"mode": "content"})); }
                 "replace" => { let _ = app.emit("SearchOpenChange", serde_json::json!({"open": 2})); }
                 "bold" => { let _ = app.emit("Format", "bold"); }
                 "italic" => { let _ = app.emit("Format", "italic"); }
@@ -2097,6 +2446,12 @@ pub fn run() {
             import_document,
             run_export_command,
             pick_export_path,
+            watch_folder,
+            backup_for_delete,
+            restore_backup,
+            list_folder_files,
+            search_folder,
+            search_tags,
             get_image_upload_configs,
             save_image_upload_config,
             delete_image_upload_config,
@@ -2282,4 +2637,43 @@ fn import_converts_with_pandoc() {
     let markdown = pandoc_import(source.to_string_lossy().into(), Some(script.to_string_lossy().into())).unwrap();
     assert!(markdown.contains("# Imported"));
     std::fs::remove_dir_all(&dir).ok();
+}
+
+
+#[cfg(test)]
+mod folder_search_tests {
+    use super::*;
+
+    #[test]
+    fn parses_yaml_and_toml_tags() {
+        assert_eq!(parse_frontmatter_tags("---\ntags: [a, b]\n---\n"), vec!["a", "b"]);
+        assert_eq!(parse_frontmatter_tags("---\ntags:\n  - one\n  - two\n---\n"), vec!["one", "two"]);
+        assert_eq!(parse_frontmatter_tags("+++\ntags = [x, y]\n+++\n"), vec!["x", "y"]);
+        assert!(parse_frontmatter_tags("# no frontmatter").is_empty());
+    }
+}
+
+
+#[cfg(test)]
+mod file_ops_tests {
+    use super::*;
+
+    #[test]
+    fn backups_can_be_restored() {
+        let dir = std::env::temp_dir().join(format!("typeleft-undo-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = dir.join("a.txt");
+        std::fs::write(&source, "hello").unwrap();
+        let backup = dir.join("backup.txt");
+        copy_recursive(&source, &backup).unwrap();
+        std::fs::remove_file(&source).unwrap();
+        restore_backup(
+            backup.to_string_lossy().to_string(),
+            source.to_string_lossy().to_string(),
+        ).unwrap();
+        assert_eq!(std::fs::read_to_string(&source).unwrap(), "hello");
+        assert!(!backup.exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

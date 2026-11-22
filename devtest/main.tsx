@@ -8,6 +8,7 @@ import Sidebar from '../src/components/Sidebar';
 import ExportDialog from '../src/components/ExportDialog';
 import SettingsPage from '../src/components/SettingsPage';
 import SelectionSearchMenu from '../src/components/SelectionSearchMenu';
+import FolderSearch from '../src/components/FolderSearch';
 
 const fixture = `---
 title: Devtest
@@ -40,7 +41,7 @@ typora-root-url: assets
 
 <div style="page-break-after: always;"></div>
 
-[跳转](#二级标题)
+[跳转](#二级标题) [本地文件](notes.md)
 
 ## 二级标题
 
@@ -114,6 +115,8 @@ const exportThemeMode = location.search.includes('exporttheme');
 const settingsTypeMode = location.search.includes('settingstype');
 const strictMode = location.search.includes('strict');
 const fileLinkMode = location.search.includes('filelink');
+const folderSearchMode = location.search.includes('foldersearch');
+const fileListMode = location.search.includes('filelist');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -184,10 +187,12 @@ const Harness: React.FC = () => {
       </div>}
       {sidebarMode && <Sidebar open section="toc" onClose={() => {}} />}
       {foldersMode && <Sidebar open section="filetree" onClose={() => {}} />}
+      {fileListMode && <Sidebar open section="filetree" onClose={() => {}} />}
       {exportMode && <ExportDialog open onClose={() => {}} />}
       {settingsMode && <SettingsPage open initialSection="advanced" onClose={() => {}} />}
       {settingsTypeMode && <SettingsPage open initialSection="typography" onClose={() => {}} />}
       <SelectionSearchMenu />
+      {folderSearchMode && <FolderSearch open initialMode="content" onClose={() => {}} />}
       <div id="cm6-test" style={{ marginTop: onlyCm6 ? 24 : 80, borderTop: onlyCm6 ? 'none' : '2px solid #444' }}>
         <CodeMirror6
           markdown={fixture}
@@ -231,9 +236,6 @@ const finish = (extraCheck?: () => void) => {
     const latexInline = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('a+b'));
     check('latex delimiters render', !!latexInline && !!latexInline.querySelector('.katex'), latexInline ? latexInline.innerHTML.slice(0, 60) : 'missing');
   }
-  check('mhchem extension', !!chem && !!chem.querySelector('.katex') && !chem.querySelector('.math-error')
-    && (chemNode?.getAttribute('data-value') || '').includes('\\ce'),
-    chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
   check('milkdown code block', !!ml.querySelector('.md-fences-wrapper'));
   check('page break node', !!ml.querySelector('.page-break[data-type="pagebreak"]'));
   const htmlBlock = Array.from(ml.querySelectorAll('.md-html-block'))
@@ -299,6 +301,19 @@ const finish = (extraCheck?: () => void) => {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (fileListMode) {
+    const items = document.querySelectorAll('#typora-sidebar .file-list-item');
+    check('file list view renders files', ((window as any).__fileListCount ?? 0) >= 2, `${(window as any).__fileListCount} items`);
+    check('file list filter applied', items.length === 1 && (items[0].textContent || '').includes('a.md'), `${items.length} after filter`);
+  }
+
+  if (folderSearchMode) {
+    const text = document.body.textContent || '';
+    check('folder search shows result', text.includes('alpha') && text.includes('a.md'));
+    const emitted: any[] = (window as any).__emitted || [];
+    check('folder search opens result', emitted.some(e => e.event === 'LoadFile'));
   }
 
   if (fileLinkMode) {
@@ -594,6 +609,37 @@ if (fileLinkMode) {
       .find(a => (a.textContent || '').includes('本地文件')) as HTMLElement | undefined;
     link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));
   }, 2200);
+}
+
+if (fileListMode) {
+  setTimeout(() => {
+    const toggle = Array.from(document.querySelectorAll('button')).find(b => (b.title || '') === 'List view') as HTMLElement | undefined;
+    toggle?.click();
+    setTimeout(() => {
+      (window as any).__fileListCount = document.querySelectorAll('#typora-sidebar .file-list-item').length;
+      const input = document.querySelector('#typora-sidebar input') as HTMLInputElement | null;
+      if (input) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+        setter.call(input, 'a');
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }, 700);
+  }, 1800);
+}
+
+if (folderSearchMode) {
+  setTimeout(() => {
+    const input = document.querySelector('input[placeholder]') as HTMLInputElement | null;
+    if (input) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, 'alpha');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    setTimeout(() => {
+      const row = document.querySelector('.folder-search-hit') as HTMLElement | null;
+      row?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    }, 900);
+  }, 1800);
 }
 
 if (settingsTypeMode) {

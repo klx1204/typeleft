@@ -176,6 +176,17 @@ const CodeMirror6: React.FC<ICodeMirror6> = (props) => {
     if (text) remote.setClipboard({ type: 'text', data: text }).catch(() => {});
   }), []);
 
+  useEffect(() => transport.addListener<{ line: number }>('GoToLine', ({ line }) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const target = view.state.doc.line(Math.min(Math.max(1, Number(line)), view.state.doc.lines));
+    view.dispatch({
+      selection: { anchor: target.from },
+      effects: EditorView.scrollIntoView(target.from, { y: 'center' }),
+    });
+    view.focus();
+  }), []);
+
   useEffect(() => transport.addListener<string>('CopyAs', (format) => {
     const view = viewRef.current;
     if (!view) return;

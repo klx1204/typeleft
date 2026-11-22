@@ -19,6 +19,11 @@
     pinnedFolders: ['/example/notes'],
   };
 
+  if (location.search.includes('filelist')) {
+    settings.folderStartupAction = 'openLast';
+    settings.recentFolders = ['/example/notes'];
+  }
+
   var fixture = document.documentElement.getAttribute('data-fixture') === 'empty' ? '' : null;
 
   var exportConfigs = [
@@ -96,7 +101,21 @@
       if (cmd === 'open_url') { window.__openedUrl = args.url; return Promise.resolve(null); }
       if (cmd === 'check_file_exists') return Promise.resolve(true);
       if (cmd === 'open_path') { window.__openedPath = args.path; return Promise.resolve(null); }
-      if (cmd === 'list_directory') return Promise.resolve([]);
+      if (cmd === 'list_folder_files') return Promise.resolve([
+        { path: '/example/notes/a.md', name: 'a.md', rel: 'a.md' },
+        { path: '/example/notes/b.md', name: 'b.md', rel: 'b.md' },
+      ]);
+      if (cmd === 'search_folder') return Promise.resolve([
+        { path: '/example/notes/a.md', rel: 'a.md', line: 2, text: 'alpha' },
+      ]);
+      if (cmd === 'search_tags') return Promise.resolve([
+        { path: '/example/notes/a.md', rel: 'a.md', tags: ['alpha'] },
+      ]);
+      if (cmd === 'list_directory') return Promise.resolve([
+        { name: 'a.md', path: '/example/notes/a.md', is_dir: false, modified: 1700000000000 },
+        { name: 'b.md', path: '/example/notes/b.md', is_dir: false, modified: 1700000001000 },
+        { name: 'sub', path: '/example/notes/sub', is_dir: true, modified: 1700000002000 },
+      ]);
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);
       if (cmd === 'get_theme_dir') return Promise.resolve('/devtest/');

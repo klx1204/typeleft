@@ -31,4 +31,7 @@ arboard = "3"
 base64 = "0.22"
 png = "0.17"
 trash = "5"
+ignore = "0.4.34"
+regex = "1.13.2"
+notify = "9.0.0"
 

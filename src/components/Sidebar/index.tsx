@@ -7,6 +7,7 @@ interface FileEntry {
   name: string;
   path: string;
   is_dir: boolean;
+  modified?: number;
 }
 
 interface TocEntry {
@@ -56,6 +57,17 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [tocQuery, setTocQuery] = useState('');
+  const [collapsedToc, setCollapsedToc] = useState<Set<string>>(new Set());
+  const [flatToc, setFlatToc] = useState(false);
+  const [fileView, setFileView] = useState<'tree' | 'list'>(() =>
+    localStorage.getItem('typeleft-file-view') === 'list' ? 'list' : 'tree');
+  const [fileQuery, setFileQuery] = useState('');
+  const [fileSort, setFileSort] = useState<'name' | 'mtime' | 'type'>(() =>
+    (localStorage.getItem('typeleft-file-sort') as any) || 'name');
+  const [flatFiles, setFlatFiles] = useState<FileEntry[]>([]);
+  const [dragPath, setDragPath] = useState<string | null>(null);
+  const [dropPath, setDropPath] = useState<string | null>(null);
+  const [fileUndo, setFileUndo] = useState<{ type: 'rename' | 'move' | 'delete'; from: string; to: string }[]>([]);
   const [recentFolders, setRecentFolders] = useState<string[]>([]);
   const [pinnedFolders, setPinnedFolders] = useState<string[]>([]);
   const [defaultExt, setDefaultExt] = useState('md');
@@ -122,6 +134,28 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     return () => window.removeEventListener('click', close);
   }, []);
 
+  // Watch the open folder and expanded subfolders for external changes.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const paths = folderPath ? [folderPath, ...Array.from(expandedDirs)] : [];
+      remote.watchFolder({ paths }).catch(() => {});
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [folderPath, expandedDirs]);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const unsub = transport.addListener<{ paths?: string[] }>('FolderChanged', () => {
+      if (!folderPath) return;
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => { void refreshAll(); }, 450);
+    });
+    return () => {
+      unsub();
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [folderPath]);
+
   const loadDir = async (dirPath: string) => {
     try {
       const entries = await remote.listDirectory({ path: dirPath });
@@ -164,6 +198,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     for (const dir of Array.from(expandedDirs)) {
       await loadDir(dir);
     }
+    if (fileView === 'list') await loadFlatFiles();
   };
 
   const parentOf = (p: string) => p.substring(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')));
@@ -177,6 +212,46 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     const ext = extName(name);
     return ext ? name.slice(0, -ext.length) : name;
   };
+
+  const sortEntries = (list: FileEntry[]) => [...list].sort((a, b) => {
+    if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
+    if (fileSort === 'mtime') return (b.modified ?? 0) - (a.modified ?? 0);
+    if (fileSort === 'type') {
+      const byType = extName(a.name).localeCompare(extName(b.name));
+      if (byType) return byType;
+    }
+    return a.name.localeCompare(b.name);
+  });
+
+  const matchesEntry = (entry: FileEntry): boolean => {
+    const query = fileQuery.trim().toLowerCase();
+    if (!query) return true;
+    if (entry.name.toLowerCase().includes(query)) return true;
+    if (entry.is_dir) {
+      return (allFilesRef.current.get(entry.path) ?? []).some(matchesEntry);
+    }
+    return false;
+  };
+
+  const loadFlatFiles = async () => {
+    if (!folderPath) return;
+    try {
+      const rows: any[] = await remote.listFolderFiles({ root: folderPath });
+      setFlatFiles((Array.isArray(rows) ? rows : []).map(row => ({
+        name: row.name, path: row.path, is_dir: false, modified: 0,
+      })));
+    } catch { /* ignore */ }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('typeleft-file-view', fileView);
+    if (fileView === 'list') void loadFlatFiles();
+  }, [fileView, folderPath]);
+
+  useEffect(() => {
+    localStorage.setItem('typeleft-file-sort', fileSort);
+  }, [fileSort]);
+
 
   const toggleDir = async (dir: FileEntry) => {
     if (!dir.is_dir) return;
@@ -225,6 +300,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
           return;
         }
         const result = await remote.renameFile({ oldPath: dialog.entry.path, newName: name });
+        setFileUndo(prev => [...prev.slice(-19), { type: 'rename', from: dialog.entry.path, to: result }]);
         transport.postMessage('FileRenamed', { oldPath: dialog.entry.path, newPath: result });
         setDialog(null);
         await refreshAll();
@@ -237,6 +313,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
           return;
         }
         await remote.moveFile({ source: dialog.entry.path, dest: target });
+        setFileUndo(prev => [...prev.slice(-19), { type: 'move', from: dialog.entry.path, to: target }]);
         transport.postMessage('FileRenamed', { oldPath: dialog.entry.path, newPath: target });
         setDialog(null);
         await refreshAll();
@@ -259,10 +336,13 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
         await refreshAll();
         await loadDir(dialog.dir);
       } else if (dialog.type === 'delete') {
+        const backup = await remote.backupForDelete({ path: dialog.entry.path });
         await remote.deleteFile({ path: dialog.entry.path, useTrash: true });
+        setFileUndo(prev => [...prev.slice(-19), { type: 'delete', from: dialog.entry.path, to: backup }]);
         transport.postMessage('FileDeleted', { path: dialog.entry.path });
         setDialog(null);
         await refreshAll();
+        if (fileView === 'list') await loadFlatFiles();
       }
     } catch (e: any) {
       setError(e?.toString?.() ?? t('Operation failed'));
@@ -287,12 +367,83 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
     }
   };
 
+  const moveEntry = async (source: string, destDir: string) => {
+    if (!source || !destDir) return;
+    if (destDir === source || destDir.startsWith(`${source}/`)) return;
+    const target = joinPath(destDir, baseName(source));
+    if (target === source) return;
+    try {
+      if (await remote.checkFileExists({ path: target })) {
+        setError(t('Target already exists'));
+        return;
+      }
+      await remote.moveFile({ source, dest: target });
+      setFileUndo(prev => [...prev.slice(-19), { type: 'move', from: source, to: target }]);
+      transport.postMessage('FileRenamed', { oldPath: source, newPath: target });
+      setError('');
+      await refreshAll();
+      if (fileView === 'list') await loadFlatFiles();
+    } catch (e: any) {
+      setError(e?.toString?.() ?? t('Move failed'));
+    }
+  };
+
+  const undoFileOp = async () => {
+    const op = fileUndo[fileUndo.length - 1];
+    if (!op) return;
+    try {
+      if (op.type === 'rename') {
+        const result = await remote.renameFile({ oldPath: op.to, newName: baseName(op.from) });
+        transport.postMessage('FileRenamed', { oldPath: op.to, newPath: result });
+      } else if (op.type === 'move') {
+        await remote.moveFile({ source: op.to, dest: op.from });
+        transport.postMessage('FileRenamed', { oldPath: op.to, newPath: op.from });
+      } else {
+        await remote.restoreBackup({ backup: op.to, original: op.from });
+        transport.postMessage('FileRenamed', { oldPath: '', newPath: op.from });
+      }
+      setFileUndo(prev => prev.slice(0, -1));
+      await refreshAll();
+      if (fileView === 'list') await loadFlatFiles();
+    } catch (e: any) {
+      setError(e?.toString?.() ?? t('Operation failed'));
+    }
+  };
+
   const renderEntries = (entries: FileEntry[], depth = 0): React.ReactNode => (
     <>
-      {entries.map(entry => (
+      {sortEntries(entries.filter(matchesEntry)).map(entry => (
         <React.Fragment key={entry.path}>
           <div
             className="file-list-item"
+            data-path={entry.path}
+            data-dir={entry.is_dir ? 'true' : 'false'}
+            tabIndex={-1}
+            draggable
+            onDragStart={e => {
+              e.stopPropagation();
+              setDragPath(entry.path);
+              e.dataTransfer?.setData('text/plain', entry.path);
+              if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragEnd={() => { setDragPath(null); setDropPath(null); }}
+            onDragOver={e => {
+              if (!entry.is_dir || dragPath === entry.path) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setDropPath(entry.path);
+            }}
+            onDragLeave={() => { if (dropPath === entry.path) setDropPath(null); }}
+            onDrop={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              const source = dragPath;
+              setDragPath(null);
+              setDropPath(null);
+              if (source && source !== entry.path) {
+                void moveEntry(source, entry.is_dir ? entry.path : parentOf(entry.path));
+              }
+            }}
             onClick={() => openFile(entry)}
             onContextMenu={e => openContextMenu(e, entry, entry.is_dir ? entry.path : parentOf(entry.path))}
             style={{
@@ -300,6 +451,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
               display: 'flex', alignItems: 'center', gap: 4,
               color: 'var(--editorColor60)',
               paddingLeft: 4 + depth * 14,
+              background: dropPath === entry.path ? 'var(--editorColor06)' : undefined,
             }}
             onMouseEnter={e => (e.currentTarget.style.background = 'var(--editorColor06)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -351,10 +503,31 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
           )}
           {section === 'filetree' && folderPath && (
             <button
+              onClick={() => setFileView(v => v === 'list' ? 'tree' : 'list')}
+              title={fileView === 'list' ? t('Tree view') : t('List view')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor60)', fontSize: 13, padding: 0 }}
+            >{fileView === 'list' ? '🌲' : '▤'}</button>
+          )}
+          {section === 'filetree' && folderPath && fileUndo.length > 0 && (
+            <button
+              onClick={() => void undoFileOp()}
+              title={t('Undo file operation')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor60)', fontSize: 13, padding: 0 }}
+            >↶</button>
+          )}
+          {section === 'filetree' && folderPath && (
+            <button
               onClick={() => refreshAll()}
               title={t('Refresh')}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor60)', fontSize: 13, padding: 0 }}
             >⟳</button>
+          )}
+          {section === 'toc' && (
+            <button
+              onClick={() => setFlatToc(v => !v)}
+              title={t('Flat outline')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: flatToc ? 'var(--themeColor)' : 'var(--editorColor60)', fontSize: 13, padding: 0 }}
+            >≡</button>
           )}
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor60)', fontSize: 16, padding: 0 }}>×</button>
         </span>
@@ -363,7 +536,48 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
       {section === 'filetree' ? (
         <div
           style={{ padding: 8, flex: 1 }}
+          tabIndex={0}
           onContextMenu={e => openContextMenu(e, undefined, folderPath)}
+          onKeyDown={e => {
+            const items = Array.from(e.currentTarget.querySelectorAll('.file-list-item')) as HTMLElement[];
+            if (!items.length) return;
+            let index = items.indexOf(document.activeElement as HTMLElement);
+            if (index === -1) index = 0;
+            const focus = (next: number) => {
+              e.preventDefault();
+              items[Math.max(0, Math.min(items.length - 1, next))]?.focus();
+            };
+            const current = items[index];
+            const path = current?.dataset.path || '';
+            const isDir = current?.dataset.dir === 'true';
+            if (e.key === 'ArrowDown') focus(index + 1);
+            else if (e.key === 'ArrowUp') focus(index - 1);
+            else if (e.key === 'Enter') {
+              e.preventDefault();
+              current?.click();
+            } else if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              if (isDir && !expandedDirs.has(path)) {
+                const entry = Array.from(allFilesRef.current.values()).flat().find(item => item.path === path);
+                if (entry) void toggleDir(entry);
+              } else {
+                focus(index + 1);
+              }
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault();
+              if (isDir && expandedDirs.has(path)) {
+                setExpandedDirs(prev => {
+                  const next = new Set(prev);
+                  next.delete(path);
+                  return next;
+                });
+              } else {
+                const parent = parentOf(path);
+                const parentIndex = items.findIndex(item => item.dataset.path === parent);
+                if (parentIndex >= 0) items[parentIndex].focus();
+              }
+            }
+          }}
         >
           {!folderPath && (
             <div
@@ -379,6 +593,26 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
               style={{ cursor: 'pointer', padding: '4px 8px', fontSize: 12, color: 'var(--editorColor40)', textAlign: 'center', borderBottom: '1px solid var(--editorColor06)', marginBottom: 4 }}
             >
               {folderPath}
+            </div>
+          )}
+          {folderPath && (
+            <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+              <input
+                value={fileQuery}
+                onChange={e => setFileQuery(e.target.value)}
+                placeholder={t('Filter files...')}
+                style={{ ...inputStyle, flex: 1, padding: '4px 6px' }}
+              />
+              <select
+                value={fileSort}
+                onChange={e => setFileSort(e.target.value as any)}
+                title={t('Sort files')}
+                style={{ padding: '4px 6px', fontSize: 12, border: '1px solid var(--editorColor10)', borderRadius: 4, backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)' }}
+              >
+                <option value="name">{t('Name')}</option>
+                <option value="mtime">{t('Modified')}</option>
+                <option value="type">{t('Type')}</option>
+              </select>
             </div>
           )}
           {!folderPath && pinnedFolders.length > 0 && (
@@ -413,7 +647,7 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
               ))}
             </div>
           )}
-          {renderEntries(files)}
+          {fileView === 'list' ? renderEntries(flatFiles) : renderEntries(files)}
         </div>
       ) : (
         <div style={{ padding: 8 }}>
@@ -428,25 +662,52 @@ const Sidebar: React.FC<ISidebarProps> = ({ open, section, onClose }) => {
               {toc.length === 0 ? t('No headings') : t('No result')}
             </div>
           )}
-          {filteredToc.map((item, i) => (
-            <div
-              key={item.slug || i}
-              onClick={() => {
-                const el = document.getElementById(item.slug);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }}
-              style={{
-                cursor: 'pointer', padding: '2px 4px', paddingLeft: 8 + (item.level - 1) * 16,
-                fontSize: 13 - Math.min(item.level - 1, 2) * 1,
-                color: 'var(--editorColor60)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'var(--editorColor06)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              {item.text}
-            </div>
-          ))}
+          {(() => {
+            let hideBelow: number | null = null;
+            return filteredToc.map((item, i) => {
+              if (!flatToc && hideBelow !== null && item.level > hideBelow) return null;
+              hideBelow = null;
+              const next = filteredToc[i + 1];
+              const hasChildren = !!next && next.level > item.level;
+              const collapsed = collapsedToc.has(item.slug);
+              if (!flatToc && collapsed) hideBelow = item.level;
+              return (
+                <div
+                  key={item.slug || i}
+                  onClick={() => {
+                    const el = document.getElementById(item.slug);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  style={{
+                    cursor: 'pointer', padding: '2px 4px',
+                    paddingLeft: flatToc ? 8 : 8 + (item.level - 1) * 16,
+                    fontSize: flatToc ? 13 : 13 - Math.min(item.level - 1, 2) * 1,
+                    color: 'var(--editorColor60)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    display: 'flex', gap: 4, alignItems: 'center',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--editorColor06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {hasChildren && !flatToc ? (
+                    <span
+                      onClick={e => {
+                        e.stopPropagation();
+                        setCollapsedToc(prev => {
+                          const nextSet = new Set(prev);
+                          if (nextSet.has(item.slug)) nextSet.delete(item.slug);
+                          else nextSet.add(item.slug);
+                          return nextSet;
+                        });
+                      }}
+                      style={{ width: 12, fontSize: 10, color: 'var(--editorColor40)' }}
+                    >{collapsed ? '▸' : '▾'}</span>
+                  ) : <span style={{ width: flatToc ? 0 : 12 }} />}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.text}</span>
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
 

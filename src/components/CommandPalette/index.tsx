@@ -32,6 +32,9 @@ const CommandPalette: React.FC<{ open: boolean; onClose: () => void }> = ({ open
     { id: 'undo', label: 'Undo', category: 'Edit', action: () => transport.postMessage('Undo', {}) },
     { id: 'redo', label: 'Redo', category: 'Edit', action: () => transport.postMessage('Redo', {}) },
     { id: 'find', label: 'Find...', category: 'Edit', action: () => transport.postMessage('SearchOpenChange', { open: 1 }) },
+    { id: 'search_folder', label: 'Search in Folder...', category: 'Edit', action: () => transport.postMessage('OpenFolderSearch', { mode: 'content' }) },
+    { id: 'quick_open', label: 'Quick Open...', category: 'File', action: () => transport.postMessage('OpenFolderSearch', { mode: 'files' }) },
+    { id: 'search_tags', label: 'Search Tags...', category: 'Edit', action: () => transport.postMessage('OpenFolderSearch', { mode: 'tags' }) },
     { id: 'replace', label: 'Replace...', category: 'Edit', action: () => transport.postMessage('SearchOpenChange', { open: 2 }) },
 
     { id: 'bold', label: 'Bold', category: 'Format', action: () => transport.postMessage('Format', 'bold') },

@@ -535,6 +535,11 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     }
   }, [getView]);
 
+  useEffect(() => transport.addListener<{ line: number }>('GoToLine', ({ line }) => {
+    const target = Math.max(0, Number(line) - 1);
+    requestAnimationFrame(() => restoreCursor(target));
+  }), [restoreCursor]);
+
   // -------------------------------------------------- external markdown sync
   useEffect(() => {
     const next = props.markdown ?? '';
@@ -544,7 +549,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     if (!editor) return;
     markdownRef.current = next;
     try {
-      editor.action(replaceAll(next, true));
+      const source = propsRef.current.options?.strictMode ? next : normalizeLatexDelimiters(next);
+      editor.action(replaceAll(source, true));
       emitState(next);
     } catch (err) {
       console.error('[Milkdown] replaceAll failed', err);

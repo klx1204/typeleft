@@ -10,6 +10,7 @@ import { parseFrontmatter } from '../src/services/frontmatter';
 import { extractWords } from '../src/components/MilkdownEditor/spellcheck';
 import { finalizeImagePath, resolveMediaPath, imageDirectory } from '../src/services/imagePaths';
 import { mediaKindForPath } from '../src/services/media';
+import { buildExportLayoutCss, buildLayoutCss, typographyOverrides } from '../src/services/layoutCss';
 
 const nestedList = `- a
   - b
@@ -101,6 +102,18 @@ const cases: [string, boolean][] = [
   ['media kinds come from extensions', mediaKindForPath('/example/a.PNG') === 'image'
     && mediaKindForPath('/example/movie.mp4') === 'video' && mediaKindForPath('/example/song.mp3') === 'audio'],
   ['non-media drops are not classified', mediaKindForPath('/example/notes.md') === null],
+  ['typography inherits the theme by default', buildLayoutCss({ textDirection: '', headingNumbering: 'inherit', justifyText: 'inherit' }) === ''],
+  ['typography explicit values are emitted', (() => {
+    const css = buildExportLayoutCss({ textDirection: 'rtl', bodyFont: 'Georgia, serif', lineHeight: 1.8, paragraphGap: '1em', listMarker: 'square' });
+    return css.includes('direction: rtl') && css.includes('font-family: Georgia, serif')
+      && css.includes('line-height: 1.8') && css.includes('margin-bottom: 1em')
+      && css.includes('list-style-type: square');
+  })()],
+  ['typography explicit off disables heading counters', (() => {
+    const values = typographyOverrides({ headingNumbering: 'off', justifyText: 'off' });
+    return values.headingNumbering === false && values.justify === false
+      && buildLayoutCss({ headingNumbering: 'off' }).includes('content: none');
+  })()],
   ['spellcheck extracts unique words', (() => {
     const words = extractWords('teh quikc teh Typeleft — done');
     return words.includes('teh') && words.includes('quikc') && words.includes('Typeleft')

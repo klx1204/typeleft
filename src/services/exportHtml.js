@@ -325,7 +325,7 @@ class ExportHtml {
     const { header, footer } = options
     const appendHeaderFooter = !!header || !!footer
     if (!appendHeaderFooter) {
-      return createMarkdownArticle(html)
+      return createMarkdownArticle(html, options.wrapInWrite)
     }
 
     if (!options.extraCss) {
@@ -354,7 +354,7 @@ const HF_TABLE_START = '<table class="page-container">'
 const createTableBody = html => {
   return `<tbody><tr><td>
   <div class="main-container">
-    ${createMarkdownArticle(html)}
+    ${createMarkdownArticle(html, options.wrapInWrite)}
   </div>
 </td></tr></tbody>`
 }
@@ -398,8 +398,11 @@ const createRealFooter = options => {
 }
 
 /// Generate the mardown article HTML.
-const createMarkdownArticle = html => {
-  return `<article class="markdown-body">${html}</article>`
+const createMarkdownArticle = (html, wrapInWrite = false) => {
+  const body = wrapInWrite
+    ? `<div id="write" class="milkdown-write"><div class="milkdown"><div class="ProseMirror">${html}</div></div></div>`
+    : html
+  return `<article class="markdown-body">${body}</article>`
 }
 
 /// Return the class whether a header/footer should be styled.

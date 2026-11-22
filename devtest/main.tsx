@@ -105,6 +105,8 @@ const noAutoLinkMode = location.search.includes('noautolink');
 const noSmartMode = location.search.includes('nosmart');
 const spellMode = location.search.includes('spell');
 const mediaMode = location.search.includes('media');
+const exportThemeMode = location.search.includes('exporttheme');
+const settingsTypeMode = location.search.includes('settingstype');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -176,6 +178,7 @@ const Harness: React.FC = () => {
       {foldersMode && <Sidebar open section="filetree" onClose={() => {}} />}
       {exportMode && <ExportDialog open onClose={() => {}} />}
       {settingsMode && <SettingsPage open initialSection="advanced" onClose={() => {}} />}
+      {settingsTypeMode && <SettingsPage open initialSection="typography" onClose={() => {}} />}
       <SelectionSearchMenu />
       <div id="cm6-test" style={{ marginTop: onlyCm6 ? 24 : 80, borderTop: onlyCm6 ? 'none' : '2px solid #444' }}>
         <CodeMirror6
@@ -262,6 +265,22 @@ const finish = (extraCheck?: () => void) => {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (settingsTypeMode) {
+    const text = document.body.textContent || '';
+    check('typography follow-theme control', text.includes('Follow theme') || text.includes('跟随主题'));
+    check('typography paragraph gap field', text.includes('Paragraph Gap') || text.includes('段落间距'));
+    const emitted: any[] = (window as any).__emitted || [];
+    const changed = emitted.filter(e => e.event === 'SettingsChanged' && e.payload && e.payload.bodyFont === 'Georgia, serif');
+    check('typography setting persists', changed.length > 0, JSON.stringify(emitted.slice(-3)));
+  }
+
+  if (exportThemeMode) {
+    const html = String((window as any).__exportHtml || '');
+    check('export wraps content in #write', html.includes('id="write"') && html.includes('class="ProseMirror"'));
+    check('export applies theme css', html.includes('color: rgb(1, 2, 3)'));
+    check('export generated without error', !(window as any).__exportHtmlError, String((window as any).__exportHtmlError || ''));
   }
 
   if (mediaMode) {
@@ -527,6 +546,33 @@ if (sidebarMode) {
     setter.call(input, '二级');
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }, 2200);
+}
+
+if (settingsTypeMode) {
+  setTimeout(() => {
+    const input = Array.from(document.querySelectorAll('input'))
+      .find(el => (el.getAttribute('placeholder') || '').includes('LXGW')) as HTMLInputElement | undefined;
+    if (input) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      setter.call(input, 'Georgia, serif');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, 2200);
+}
+
+if (exportThemeMode) {
+  setTimeout(() => {
+    import('../src/services/exportHtml.js').then(async ({ default: ExportHtml }) => {
+      const exporter = new (ExportHtml as any)('# Hello\n\nText', {});
+      const html = await exporter.generate({
+        title: 'Export test',
+        includeCss: true,
+        wrapInWrite: true,
+        extraCss: '#write { color: rgb(1, 2, 3); }',
+      });
+      (window as any).__exportHtml = html;
+    }).catch((err: any) => { (window as any).__exportHtmlError = String(err); });
+  }, 1200);
 }
 
 if (mediaMode) {

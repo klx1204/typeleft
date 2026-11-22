@@ -32,7 +32,7 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **选中文本网页搜索**、错误日志面板，以及 **CLI**（`typeleft <文件>`、`--new`、`--folder`）
 - **图片**：剪贴板粘贴、本地复制、相对路径、HTTP 图床上传
 - **排版选项**：文字方向（RTL）、标题自动编号、两端对齐、列表符号/编号、正文字体/代码字体、编辑区背景色
-- **主题**：明亮 / 暗色 / 跟随系统，Mermaid / Sequence / Vega 图表主题
+- **主题**：明亮 / 暗色 / 跟随系统，Mermaid / Sequence / Vega 图表主题；兼容 Typora CSS，附[主题开发指南](docs/theme-authoring.zh-CN.md)
 - **双语界面**：English 与简体中文，运行时切换
 - 原生菜单、快捷键、自动保存与备份
 

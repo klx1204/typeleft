@@ -542,7 +542,7 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   useEffect(() => {
     document.body.style.setProperty('--editorAreaWidth', props.options?.editorAreaWidth ?? '860px');
     document.body.style.setProperty('--editorFontSize', props.options?.fontSize ?? '16px');
-    document.body.style.setProperty('--editorLineHeight', String(props.options?.lineHeight ?? 1.6));
+    document.body.style.setProperty('--editorLineHeight', String(props.options?.lineHeight || 1.6));
     const write = document.getElementById('write');
     if (write) write.classList.toggle('focus-mode', !!props.options?.focusMode);
     (window as any).typeleftEditorOptions = props.options;

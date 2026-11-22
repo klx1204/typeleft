@@ -186,34 +186,37 @@ export const clearCustomTheme = () => {
     document.getElementById(STYLE_ID)?.remove()
 }
 
+const loadThemeCss = async (name: string): Promise<{ css: string; bridge: string; blocked: number }> => {
+    const themeDir = await remote.getThemeDir()
+    const themeCss = await remote.readThemeFile({ name })
+    const themeBase = name.replace(/\.css$/i, '')
+
+    let baseUser = ''
+    if (await remote.themeFileExists({ name: 'base.user.css' })) {
+        baseUser = await remote.readThemeFile({ name: 'base.user.css' })
+    }
+    let themeUser = ''
+    if (await remote.themeFileExists({ name: `${themeBase}.user.css` })) {
+        themeUser = await remote.readThemeFile({ name: `${themeBase}.user.css` })
+    }
+
+    const combined = `${themeCss}\n${baseUser}\n${themeUser}`
+    const base = normalizePath(themeDir)
+    const imported = await inlineImports(combined, base)
+    const { css, blocked } = await inlineThemeAssets(imported, themeDir)
+    const bridge = buildBridge(combined)
+    return { css: rewriteWriteChildren(css), bridge, blocked }
+}
+
 export const applyCustomTheme = async (name: string): Promise<string | null> => {
     if (!name) {
         clearCustomTheme()
         return null
     }
     try {
-        const themeDir = await remote.getThemeDir()
-        const themeCss = await remote.readThemeFile({ name })
-        const themeBase = name.replace(/\.css$/i, '')
-
-        let baseUser = ''
-        if (await remote.themeFileExists({ name: 'base.user.css' })) {
-            baseUser = await remote.readThemeFile({ name: 'base.user.css' })
-        }
-        let themeUser = ''
-        if (await remote.themeFileExists({ name: `${themeBase}.user.css` })) {
-            themeUser = await remote.readThemeFile({ name: `${themeBase}.user.css` })
-        }
-
-        const combined = `${themeCss}\n${baseUser}\n${themeUser}`
-        const base = normalizePath(themeDir)
-        const imported = await inlineImports(combined, base)
-        const { css, blocked } = await inlineThemeAssets(imported, themeDir)
-        const bridge = buildBridge(combined)
-        const rewritten = rewriteWriteChildren(css)
-
+        const { css, bridge, blocked } = await loadThemeCss(name)
         const el = getStyleEl()
-        el.textContent = `${rewritten}\n${bridge}`
+        el.textContent = `${css}\n${bridge}`
         if (blocked > 0) {
             console.warn(`[Typeleft] theme "${name}": ${blocked} external resource reference(s) blocked`)
         }
@@ -221,6 +224,38 @@ export const applyCustomTheme = async (name: string): Promise<string | null> => 
     } catch (e) {
         clearCustomTheme()
         return String(e)
+    }
+}
+
+export interface ThemeDebugInfo {
+    name: string
+    blocked: number
+    size: number
+}
+
+/** Small summary for the Theme debug panel. */
+export const getThemeDebugInfo = async (): Promise<ThemeDebugInfo> => {
+    try {
+        const settings: any = await remote.getSettings()
+        const theme = settings?.customTheme ?? ''
+        if (!theme) return { name: '', blocked: 0, size: 0 }
+        const { css, blocked } = await loadThemeCss(theme)
+        return { name: theme, blocked, size: css.length }
+    } catch {
+        return { name: '', blocked: 0, size: 0 }
+    }
+}
+
+/** Transformed CSS of the active theme, for HTML/print export. */
+export const getThemeCssForExport = async (name?: string): Promise<string> => {
+    try {
+        const settings: any = await remote.getSettings()
+        const theme = name ?? settings?.customTheme ?? ''
+        if (!theme) return ''
+        const { css, bridge } = await loadThemeCss(theme)
+        return `${css}\n${bridge}`
+    } catch {
+        return ''
     }
 }
 

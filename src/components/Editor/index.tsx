@@ -13,6 +13,8 @@ import { DEFAULT_TURNDOWN_CONFIG } from "services/markdown/config";
 import { getHtmlToc, getTOC } from "services/common";
 import { parseDocumentExport } from "services/docExport";
 import { parseFrontmatter } from "services/frontmatter";
+import { getThemeCssForExport } from "services/customTheme";
+import { buildExportLayoutCss } from "services/layoutCss";
 import { mediaKindForPath } from "services/media";
 import { useI18n } from "services/i18n";
 import { LARGE_DOC_LIMIT, resolveView } from "./engine";
@@ -139,8 +141,13 @@ const Editor: React.FC = () => {
         const fallbackTitle = filePath
             ? (filePath.split('/').pop() || 'Typeleft').replace(/\.[^.]+$/, '')
             : 'Typeleft'
+        const exportCss = type === 'html' || type === 'print'
+            ? [(await getThemeCssForExport()), buildExportLayoutCss(optionsRef.current)].filter(Boolean).join('\n')
+            : ''
         const generateOption = {
             printOptimization: type === 'print',
+            wrapInWrite: type === 'html' || type === 'print',
+            extraCss: exportCss,
             typoraRootUrl: docMeta['typora-root-url'],
             title: docExport.title || title || fallbackTitle,
             toc: merged.includeToc === false ? '' : getHtmlToc(getTOC(source).toc),
@@ -192,6 +199,10 @@ const Editor: React.FC = () => {
                     basePath,
                     title: generateOption.title,
                     customPath: optionsRef.current?.pandocPath || undefined,
+                    bodyFont: optionsRef.current?.bodyFont || undefined,
+                    codeFont: optionsRef.current?.codeFont || undefined,
+                    fontSize: optionsRef.current?.fontSize ? String(optionsRef.current.fontSize) : undefined,
+                    direction: optionsRef.current?.textDirection || undefined,
                 })
             }
             transport.postMessage('ExportDone', { path: finalTarget })

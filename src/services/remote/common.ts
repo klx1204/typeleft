@@ -71,6 +71,10 @@ const remote = {
       title?: string,
       pdfEngine?: string,
       customPath?: string,
+      bodyFont?: string,
+      codeFont?: string,
+      fontSize?: string,
+      direction?: string,
     }, void>('pandoc_export'),
     pandocImport: remoteFunction<{ path: string, customPath?: string }, string>('pandoc_import'),
     runExportCommand: remoteFunction<{

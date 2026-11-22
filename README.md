@@ -32,7 +32,7 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
 - **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
 - **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background
-- **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes
+- **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes; Typora-compatible CSS and a [theme authoring guide](docs/theme-authoring.md)
 - **Bilingual UI**: English and 简体中文, switchable at runtime
 - Native menus, keyboard shortcuts, auto-save and backups
 

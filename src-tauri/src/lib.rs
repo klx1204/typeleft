@@ -1345,6 +1345,34 @@ fn pandoc_format_args(format: &str, target: &str, pdf_engine: Option<&str>) -> R
     Ok(args)
 }
 
+/// Map the settings tokens that Pandoc can understand (LaTeX/HTML outputs).
+fn pandoc_style_args(
+    body_font: Option<&str>,
+    code_font: Option<&str>,
+    font_size: Option<&str>,
+    direction: Option<&str>,
+) -> Vec<String> {
+    let mut args = Vec::new();
+    if let Some(font) = body_font.filter(|f| !f.trim().is_empty()) {
+        args.extend(["--variable".into(), format!("mainfont={}", font.trim())]);
+        args.extend(["--variable".into(), format!("sansfont={}", font.trim())]);
+    }
+    if let Some(font) = code_font.filter(|f| !f.trim().is_empty()) {
+        args.extend(["--variable".into(), format!("monofont={}", font.trim())]);
+    }
+    if let Some(size) = font_size.filter(|s| !s.trim().is_empty()) {
+        let value = size.trim();
+        let numeric = value.trim_end_matches(|c: char| c.is_ascii_alphabetic());
+        if numeric.parse::<f32>().is_ok() && ["pt", "mm", "cm", "in"].iter().any(|u| value.ends_with(u)) {
+            args.extend(["--variable".into(), format!("fontsize={}", value)]);
+        }
+    }
+    if direction == Some("rtl") {
+        args.extend(["--variable".into(), "dir=rtl".into()]);
+    }
+    args
+}
+
 #[tauri::command]
 fn pandoc_export(
     markdown: String,
@@ -1354,6 +1382,10 @@ fn pandoc_export(
     title: Option<String>,
     pdf_engine: Option<String>,
     custom_path: Option<String>,
+    body_font: Option<String>,
+    code_font: Option<String>,
+    font_size: Option<String>,
+    direction: Option<String>,
 ) -> Result<(), String> {
     let (pandoc, _) = find_pandoc(custom_path.as_deref()).ok_or("pandoc-not-found")?;
     let engine = pdf_engine
@@ -1372,6 +1404,12 @@ fn pandoc_export(
 
     let mut command = std::process::Command::new(pandoc);
     command.arg(&temp).args(["-f", "gfm"]).args(&args);
+    command.args(pandoc_style_args(
+        body_font.as_deref(),
+        code_font.as_deref(),
+        font_size.as_deref(),
+        direction.as_deref(),
+    ));
     if let Some(title) = title.filter(|t| !t.trim().is_empty()) {
         command.args(["--metadata", &format!("title={}", title)]);
     }
@@ -2199,6 +2237,10 @@ fn export_runs_pandoc_and_creates_the_file() {
         None,
         None,
         Some(script.to_string_lossy().into()),
+        None,
+        None,
+        None,
+        None,
     ).unwrap();
     let data = std::fs::read_to_string(&target).unwrap();
     assert!(data.contains("args:"));

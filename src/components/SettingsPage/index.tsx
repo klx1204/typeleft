@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import remote from 'services/remote/common';
 import transport from 'services/transport';
-import { applyCustomTheme } from 'services/customTheme';
+import { applyCustomTheme, getThemeDebugInfo } from 'services/customTheme';
 
 interface ISettingsPageProps {
   open: boolean;
@@ -11,7 +11,7 @@ interface ISettingsPageProps {
 
 const defaultSettings = {
   fontSize: 16,
-  lineHeight: 1.6,
+  lineHeight: '',
   focusMode: false,
   typewriter: false,
   editorAreaWidth: '',
@@ -70,6 +70,15 @@ const defaultSettings = {
   dotSlashImagePaths: true,
   pandocPath: '',
   customExportCommand: '',
+  textDirection: '',
+  headingNumbering: 'inherit',
+  justifyText: 'inherit',
+  listMarker: '',
+  orderedMarker: '',
+  bodyFont: '',
+  codeFont: '',
+  editorBackground: '',
+  paragraphGap: '',
 };
 
 type Settings = Record<string, any>;
@@ -83,6 +92,7 @@ interface FieldDef {
   step?: number;
   placeholder?: string;
   options?: (string | number)[];
+  optional?: boolean;
 }
 
 const zhSections: Record<string, string> = {
@@ -169,6 +179,7 @@ const zhLabels: Record<string, string> = {
     bodyFont: '正文字体',
     codeFont: '代码字体',
     editorBackground: '编辑区背景色',
+    paragraphGap: '段落间距',
 };
 
 const sections: { title: string; key: string; fields: FieldDef[] }[] = [
@@ -177,7 +188,6 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
     key: 'editor',
     fields: [
       { key: 'fontSize', label: 'Font Size', type: 'number', min: 10, max: 40 },
-      { key: 'lineHeight', label: 'Line Height', type: 'number', min: 1.0, max: 3.0, step: 0.1 },
       { key: 'tabSize', label: 'Tab Size', type: 'number', min: 1, max: 8 },
       { key: 'editorAreaWidth', label: 'Editor Area Width', type: 'text', placeholder: 'e.g. 800px or 60%' },
       { key: 'codeBlockLineNumbers', label: 'Code Block Line Numbers', type: 'checkbox' },
@@ -193,14 +203,16 @@ const sections: { title: string; key: string; fields: FieldDef[] }[] = [
     title: 'Typography',
     key: 'typography',
     fields: [
-      { key: 'textDirection', label: 'Text Direction', type: 'select', options: ['ltr', 'rtl'] },
-      { key: 'headingNumbering', label: 'Heading Auto Numbering', type: 'checkbox' },
-      { key: 'justifyText', label: 'Justify Text', type: 'checkbox' },
-      { key: 'listMarker', label: 'Bullet Marker', type: 'select', options: ['default', 'disc', 'circle', 'square'] },
-      { key: 'orderedMarker', label: 'Ordered Marker', type: 'select', options: ['decimal', 'lower-alpha', 'lower-roman', 'upper-alpha', 'upper-roman'] },
-      { key: 'bodyFont', label: 'Body Font', type: 'text', placeholder: 'e.g. "LXGW WenKai", serif' },
-      { key: 'codeFont', label: 'Code Font', type: 'text', placeholder: 'e.g. "JetBrains Mono", monospace' },
-      { key: 'editorBackground', label: 'Editor Background', type: 'text', placeholder: '#fdf6e3 or rgb(250, 246, 227)' },
+      { key: 'textDirection', label: 'Text Direction', type: 'select', options: ['', 'ltr', 'rtl'] },
+      { key: 'headingNumbering', label: 'Heading Auto Numbering', type: 'tri' },
+      { key: 'justifyText', label: 'Justify Text', type: 'tri' },
+      { key: 'listMarker', label: 'Bullet Marker', type: 'select', options: ['', 'disc', 'circle', 'square'] },
+      { key: 'orderedMarker', label: 'Ordered Marker', type: 'select', options: ['', 'decimal', 'lower-alpha', 'lower-roman', 'upper-alpha', 'upper-roman'] },
+      { key: 'bodyFont', label: 'Body Font', type: 'text', placeholder: 'e.g. "LXGW WenKai", serif', optional: true },
+      { key: 'codeFont', label: 'Code Font', type: 'text', placeholder: 'e.g. "JetBrains Mono", monospace', optional: true },
+      { key: 'editorBackground', label: 'Editor Background', type: 'text', placeholder: '#fdf6e3 or rgb(250, 246, 227)', optional: true },
+      { key: 'lineHeight', label: 'Line Height', type: 'number', min: 1.0, max: 3.0, step: 0.1, optional: true },
+      { key: 'paragraphGap', label: 'Paragraph Gap', type: 'text', placeholder: 'e.g. 1em or 16px', optional: true },
     ],
   },
   {
@@ -318,6 +330,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
   const [settingsPath, setSettingsPath] = useState('');
   const [logText, setLogText] = useState<string | null>(null);
   const [pandocStatus, setPandocStatus] = useState<string>('');
+  const [themeInfo, setThemeInfo] = useState<{ name: string; blocked: number; size: number } | null>(null);
 
   const loadCustomThemes = async () => {
     try {
@@ -345,6 +358,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
         setSettings(merged);
       });
       loadCustomThemes();
+      getThemeDebugInfo().then(setThemeInfo).catch(() => setThemeInfo(null));
       remote.getSettingsPath().then((p: string) => setSettingsPath(p)).catch(() => {});
     }
   }, [open]);
@@ -408,13 +422,33 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
               color: 'var(--editorColor40)', padding: '0 4px',
             }}>×</button>
           </div>
+          {activeSection === 'typography' && (
+            <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginBottom: 14 }}>
+              {isZh
+                ? '默认“跟随主题”。只有显式修改的项才会覆盖主题 CSS；点击 ↺ 可恢复跟随主题。'
+                : 'Defaults follow the theme. Only explicitly changed values override the theme CSS; press ↺ to follow the theme again.'}
+            </div>
+          )}
           {sections.find(s => s.key === activeSection)?.fields.map(f => {
             const field = f as any;
             const val = settings[field.key];
             return (
               <div key={field.key} style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
                 <label style={{ flex: 1, fontSize: 13, color: 'var(--editorColor60)' }}>{t(field)}</label>
-                {field.type === 'checkbox' ? (
+                {field.type === 'tri' ? (
+                  <select
+                    value={val === true || val === 'on' ? 'on' : (val === false || val === 'off' ? 'off' : 'inherit')}
+                    onChange={e => update(field.key, e.target.value)}
+                    style={{ padding: '4px 8px', fontSize: 13,
+                      border: '1px solid var(--editorColor10)', borderRadius: 4,
+                      backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)',
+                    }}
+                  >
+                    <option value="inherit">{isZh ? '跟随主题' : 'Follow theme'}</option>
+                    <option value="on">{isZh ? '开启' : 'On'}</option>
+                    <option value="off">{isZh ? '关闭' : 'Off'}</option>
+                  </select>
+                ) : field.type === 'checkbox' ? (
                   <input type="checkbox" checked={!!val}
                     onChange={e => update(field.key, e.target.checked)}
                     style={{ width: 16, height: 16, cursor: 'pointer' }}
@@ -422,7 +456,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                 ) : field.type === 'number' ? (
                   <input type="number" value={val ?? ''}
                     min={field.min} max={field.max} step={field.step ?? 1}
-                    onChange={e => update(field.key, parseFloat(e.target.value) || 0)}
+                    onChange={e => update(field.key, e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                     style={{ width: 80, padding: '4px 8px', fontSize: 13,
                       border: '1px solid var(--editorColor10)', borderRadius: 4,
                       backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)',
@@ -443,7 +477,9 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                   >
                     {field.options?.map((o: any) => (
                       <option key={String(o)} value={String(o)}>
-                        {field.key === 'lang'
+                        {o === '' && ['textDirection', 'listMarker', 'orderedMarker'].includes(field.key)
+                          ? (isZh ? '跟随主题' : 'Follow theme')
+                          : field.key === 'lang'
                           ? (o === 'zh' ? '中文' : 'English')
                           : field.key === 'spellcheckEngine'
                             ? (o === 'system' ? (isZh ? '系统（支持多语言与语法）' : 'System (multilingual + grammar)') : (isZh ? '内置英文词典（可自定义词表）' : 'Built-in English (custom words)'))
@@ -468,6 +504,13 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                       backgroundColor: 'var(--editorColor00)', color: 'var(--editorColor50)',
                     }}
                   />
+                )}
+                {field.optional && val !== undefined && val !== null && val !== '' && (
+                  <button
+                    title={isZh ? '跟随主题' : 'Follow theme'}
+                    onClick={() => update(field.key, '')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--editorColor40)', fontSize: 14, padding: 0 }}
+                  >↺</button>
                 )}
               </div>
             );
@@ -616,6 +659,7 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
                     const err = await applyCustomTheme(name);
                     if (!err) {
                       update('customTheme', name);
+                      getThemeDebugInfo().then(setThemeInfo).catch(() => {});
                     }
                   }}
                   style={{
@@ -643,8 +687,50 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
               <div style={{ fontSize: 11, color: 'var(--editorColor40)', wordBreak: 'break-all' }}>{themeDir}</div>
               <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.7, marginTop: 8 }}>
                 {isZh
-                  ? '把 Typora 主题的 .css 文件（以及字体/图片）复制到主题文件夹，刷新后选择即可。'
-                  : 'Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one.'}
+                  ? '把 Typora 主题的 .css 文件（以及字体/图片）复制到主题文件夹，刷新后选择即可。主题开发文档见仓库 docs/theme-authoring.zh-CN.md。'
+                  : 'Copy Typora theme .css files (and their fonts/images) into the theme folder, then refresh and select one. Theme authoring: docs/theme-authoring.md in the repository.'}
+              </div>
+
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--editorColor10)' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--editorColor60)' }}>
+                  {isZh ? '主题调试' : 'Theme Debug'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--editorColor40)', lineHeight: 1.8 }}>
+                  <div>{isZh ? '当前主题' : 'Active theme'}: {themeInfo?.name || (isZh ? '内置' : 'Built-in')}</div>
+                  <div>{isZh ? '转换后大小' : 'Transformed size'}: {themeInfo ? `${(themeInfo.size / 1024).toFixed(1)} KB` : '—'}</div>
+                  <div>{isZh ? '被拦截的外部资源' : 'Blocked external resources'}: {themeInfo?.blocked ?? 0}</div>
+                  {[
+                    ['textDirection', isZh ? '文字方向' : 'Direction'],
+                    ['headingNumbering', isZh ? '标题编号' : 'Heading numbering'],
+                    ['bodyFont', isZh ? '正文字体' : 'Body font'],
+                    ['codeFont', isZh ? '代码字体' : 'Code font'],
+                    ['editorBackground', isZh ? '背景色' : 'Background'],
+                    ['lineHeight', isZh ? '行高' : 'Line height'],
+                    ['paragraphGap', isZh ? '段距' : 'Paragraph gap'],
+                    ['listMarker', isZh ? '列表符号' : 'List marker'],
+                  ].map(([key, label]) => {
+                    const value = settings[key];
+                    const inherited = value === undefined || value === null || value === '' || value === 'inherit';
+                    return (
+                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <span>{label}</span>
+                        <span style={{ color: inherited ? 'var(--editorColor30)' : 'var(--editorColor60)', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {inherited ? (isZh ? '跟随主题' : 'Follows theme') : String(value)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button
+                    onClick={() => applyCustomTheme(settings.customTheme || '').then(() => getThemeDebugInfo().then(setThemeInfo)).catch(() => {})}
+                    style={{
+                      padding: '5px 12px', fontSize: 13, cursor: 'pointer', borderRadius: 4,
+                      border: '1px solid var(--editorColor10)', color: 'var(--editorColor50)',
+                      backgroundColor: 'var(--editorColor04)',
+                    }}
+                  >{isZh ? '重新加载主题' : 'Reload Theme'}</button>
+                </div>
               </div>
             </div>
           )}

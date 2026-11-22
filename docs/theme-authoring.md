@@ -2,7 +2,7 @@
 
 For people writing **Typeleft themes** or porting a Typora theme.
 
-- Applies to Typeleft **0.8.0**.
+- Applies to Typeleft **0.9.0**.
 - Typeleft is a Tauri app: the editor is a web page, so a theme is still one
   CSS file plus optional fonts/images.
 - The design goal is Typora compatibility: the content area keeps `#write`,
@@ -193,13 +193,14 @@ So a theme that only sets these five still gets a coherent shell:
 
 ---
 
-## 5. Settings tokens (planned, not in 0.8.0)
+## 5. Settings tokens (0.9+)
 
-The next step is to let **Settings → Typography** and theme CSS cooperate. The
-draft contract is below; **do not rely on it in a released theme yet**, it is
-listed so themes can prepare.
+**Settings → Typography** and theme CSS cooperate through design tokens. Each
+setting has three states: follow the theme (default), the built-in default, or
+an explicit value. Only explicit values emit CSS, so a theme keeps control
+until the user changes something.
 
-Planned variables:
+Variables:
 
 ```css
 --tl-body-font
@@ -208,7 +209,8 @@ Planned variables:
 --tl-line-height
 --tl-paragraph-gap
 --tl-list-marker
---tl-focus-dim
+--tl-ordered-marker
+--tl-focus-dim        /* reserved for focus intensity */
 ```
 
 Planned attributes on `#write`:
@@ -218,7 +220,7 @@ data-direction="ltr|rtl"
 data-heading-numbering="true|false"
 ```
 
-The intended precedence:
+Precedence:
 
 1. If the user has not changed a setting, **the theme wins** (no override is
    emitted).
@@ -241,7 +243,14 @@ The intended precedence:
 }
 ```
 
-Until that ships, keep writing literal values as you do today.
+The editor applies explicit settings through `#write[data-*]` selectors; HTML
+and print exports receive the same tokens as direct CSS. Pandoc formats only
+map the values that the target format understands (font/size), not the whole
+CSS theme.
+
+For a theme that wants to respect settings, use `var()` with a fallback; a
+theme that ignores the tokens still wins when the user has not overridden a
+setting.
 
 ---
 

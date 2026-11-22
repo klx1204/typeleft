@@ -26,6 +26,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'math', label: 'Math Block', hint: '$$', keywords: 'math latex formula 公式 数学' },
   { id: 'hr', label: 'Horizontal Rule', hint: '---', keywords: 'hr divider 分割线' },
   { id: 'pagebreak', label: 'Page Break', hint: '⌦', keywords: 'page break pagination 分页 换页' },
+  { id: 'toc', label: 'Table of Contents', hint: '[TOC]', keywords: 'toc outline 目录 大纲' },
   { id: 'image', label: 'Image', hint: '🖼', keywords: 'image picture 图片' },
 ];
 

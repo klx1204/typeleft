@@ -15,6 +15,8 @@ tags: [a, b]
 typora-root-url: assets
 ---
 
+[TOC]
+
 # 一级标题
 
 中文段落，**粗体**、*斜体*、\`行内代码\`、~~删除~~、[链接](https://example.com)。
@@ -24,7 +26,7 @@ typora-root-url: assets
 软换行第一行
 软换行第二行
 
-化学式 $\\ce{H2O}$。
+化学式 $\\ce{H2O}$，行内 LaTeX \\(a+b\\)，Emoji :smile:。
 
 拼写检测：teh quikc Typeleft Devtest。
 
@@ -43,6 +45,9 @@ typora-root-url: assets
 ## 二级标题
 
 > 引用块
+
+> [!NOTE]
+> 这是一个提示块。
 
 - 列表一
 - 列表二
@@ -107,6 +112,8 @@ const spellMode = location.search.includes('spell');
 const mediaMode = location.search.includes('media');
 const exportThemeMode = location.search.includes('exporttheme');
 const settingsTypeMode = location.search.includes('settingstype');
+const strictMode = location.search.includes('strict');
+const fileLinkMode = location.search.includes('filelink');
 
 const options: any = {
   ...(noPairMode ? { autoPairBracket: false, autoPairQuote: false, autoPairMarkdownSyntax: false } : {}),
@@ -116,6 +123,7 @@ const options: any = {
   ...(noAutoLinkMode ? { autoLink: false } : {}),
   ...(noSmartMode ? { smartQuotes: false, smartDashes: false } : {}),
   ...(spellMode ? { spellcheckEnabled: true, spellcheckEngine: 'builtin', customDictionary: 'Typeleft, Devtest' } : {}),
+  ...(strictMode ? { strictMode: true } : {}),
   ...(layoutMode ? {
     textDirection: 'rtl',
     headingNumbering: true,
@@ -211,9 +219,18 @@ const finish = (extraCheck?: () => void) => {
   check('table column widths', cols.length === 2, `${cols.length} cols`);
   check('milkdown task items', ml.querySelectorAll('li[data-item-type="task"]').length >= 4, `${ml.querySelectorAll('li[data-item-type="task"]').length}`);
   check('milkdown task checked', !!ml.querySelector('li[data-item-type="task"][data-checked="true"]'));
-  check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
-  const chem = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('化学式'));
-  const chemNode = chem?.querySelector('.math-node') as HTMLElement | null;
+  if (!strictMode) check('milkdown katex', ml.querySelectorAll('.katex').length >= 2, `${ml.querySelectorAll('.katex').length}`);
+  if (!strictMode) {
+    const chem = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('化学式'));
+    const chemNode = chem?.querySelector('.math-node') as HTMLElement | null;
+    check('mhchem extension', !!chem && !!chem.querySelector('.katex') && !chem.querySelector('.math-error')
+      && (chemNode?.getAttribute('data-value') || '').includes('\\ce'),
+      chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
+    const emoji = ml.querySelector('.md-emoji') as HTMLElement | null;
+    check('emoji shortcode renders', !!emoji && (emoji.textContent || '').includes('😄'), emoji ? emoji.textContent || '' : 'missing');
+    const latexInline = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('a+b'));
+    check('latex delimiters render', !!latexInline && !!latexInline.querySelector('.katex'), latexInline ? latexInline.innerHTML.slice(0, 60) : 'missing');
+  }
   check('mhchem extension', !!chem && !!chem.querySelector('.katex') && !chem.querySelector('.math-error')
     && (chemNode?.getAttribute('data-value') || '').includes('\\ce'),
     chemNode ? chemNode.getAttribute('data-value') || '' : 'missing');
@@ -228,6 +245,21 @@ const finish = (extraCheck?: () => void) => {
     htmlInline ? getComputedStyle(htmlInline).color : 'missing');
   const underline = Array.from(ml.querySelectorAll('u')).find(el => (el.textContent || '').includes('下划线'));
   check('underline mark', !!underline, underline ? underline.textContent || '' : 'missing');
+  if (strictMode) {
+    const text = ml.textContent || '';
+    check('strict mode disables toc', !ml.querySelector('.md-toc') && text.includes('[TOC]'));
+    check('strict mode disables alerts', !ml.querySelector('.md-alert') && text.includes('[!NOTE]'));
+    check('strict mode disables emoji', !ml.querySelector('.md-emoji') && text.includes(':smile:'));
+    check('strict mode disables extensions', !ml.querySelector('.math-node') && !ml.querySelector('mark'));
+  } else {
+    const tocItems = ml.querySelectorAll('.md-toc .md-toc-item');
+    check('toc block renders headings', tocItems.length >= 2, `${tocItems.length} items`);
+    const alert = ml.querySelector('.md-alert.md-alert-note') as HTMLElement | null;
+    const alertMarker = ml.querySelector('.md-alert-marker') as HTMLElement | null;
+    check('github alert renders', !!alert && (alert.textContent || '').includes('这是一个提示块')
+      && !!alertMarker && getComputedStyle(alertMarker).display === 'none',
+      alert ? alert.className : 'missing');
+  }
   check('html video renders', !!ml.querySelector('video[controls]'));
   check('html iframe is sandboxed', !!ml.querySelector('iframe[sandbox]'));
   check('typora-root-url read from frontmatter', (window as any).typoraRootUrl === 'assets', String((window as any).typoraRootUrl));
@@ -258,13 +290,20 @@ const finish = (extraCheck?: () => void) => {
       footnotePreview ? (footnotePreview.textContent || '').slice(0, 20) : 'missing');
   }
   check('milkdown Prism tokens', ml.querySelectorAll('.token.keyword, .token.function').length > 0);
-  check('milkdown highlight mark', Array.from(ml.querySelectorAll('mark')).some(m => (m.textContent || '').includes('重点')));
-  check('milkdown superscript', !!ml.querySelector('sup'));
-  check('milkdown subscript', !!ml.querySelector('sub'));
+  if (!strictMode) {
+    check('milkdown highlight mark', Array.from(ml.querySelectorAll('mark')).some(m => (m.textContent || '').includes('重点')));
+    check('milkdown superscript', !!ml.querySelector('sup'));
+    check('milkdown subscript', !!ml.querySelector('sub'));
+  }
   if (softBreakMode) {
     const para = Array.from(ml.querySelectorAll('#milkdown-test .ProseMirror p')).find(p => (p.textContent || '').includes('软换行第一行'));
     check('soft breaks preserved', !!para && para.querySelectorAll('br').length === 1,
       para ? `${para.querySelectorAll('br').length} br` : 'missing');
+  }
+
+  if (fileLinkMode) {
+    const opened = (window as any).__openedPath;
+    check('file link opens with Cmd/Ctrl', typeof opened === 'string' && opened.endsWith('/notes.md'), String(opened));
   }
 
   if (settingsTypeMode) {
@@ -545,6 +584,15 @@ if (sidebarMode) {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     setter.call(input, '二级');
     input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, 2200);
+}
+
+if (fileLinkMode) {
+  setTimeout(() => {
+    (window as any).basePath = '/example/docs';
+    const link = Array.from(document.querySelectorAll('#milkdown-test .ProseMirror a'))
+      .find(a => (a.textContent || '').includes('本地文件')) as HTMLElement | undefined;
+    link?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, metaKey: true }));
   }, 2200);
 }
 

@@ -97,6 +97,8 @@ run_mode "spell" "static=1&spell=1" 20000
 run_mode "media" "static=1&media=1" 12000
 run_mode "exporttheme" "static=1&exporttheme=1" 15000
 run_mode "settingstype" "static=1&settingstype=1" 15000
+run_mode "strict" "static=1&strict=1" 15000
+run_mode "filelink" "static=1&filelink=1" 15000
 run_mode "pickers" "pickers=1" 30000
 
 if [ $FAILED -ne 0 ]; then

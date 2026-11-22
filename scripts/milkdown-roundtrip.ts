@@ -77,6 +77,7 @@ const { frontmatterNode, frontmatterRemark, frontmatterView } = await import('..
 const { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } = await import('../src/components/MilkdownEditor/nodes/math');
 const { createImageView, imageLayoutSchema, imageHtmlRemark } = await import('../src/components/MilkdownEditor/nodes/image');
 const { marksRemark, highlightMark, superscriptMark, subscriptMark, underlineMark } = await import('../src/components/MilkdownEditor/nodes/marks');
+const { emojiRemark, emojiNode } = await import('../src/components/MilkdownEditor/nodes/emoji');
 const { pageBreakRemark, pageBreakNode } = await import('../src/components/MilkdownEditor/nodes/pagebreak');
 const { htmlRemark, htmlBlockNode, htmlInlineNode } = await import('../src/components/MilkdownEditor/nodes/html');
 const { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } = await import('../src/components/MilkdownEditor/nodes/table');
@@ -89,11 +90,12 @@ if (!files.length) {
 }
 
 const normalize = (text: string) => text.replace(/\r\n/g, '\n');
+const { normalizeLatexDelimiters } = await import('../src/services/markdown/latex');
 
 let failures = 0;
 
 for (const file of files) {
-  const source = normalize(await Bun.file(file).text());
+  const source = normalizeLatexDelimiters(normalize(await Bun.file(file).text()));
   const root = win.document.getElementById('root');
   root.innerHTML = '';
 

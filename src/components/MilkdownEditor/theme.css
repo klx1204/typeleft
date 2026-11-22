@@ -570,6 +570,54 @@
   text-underline-offset: 2px;
 }
 
+/* Table of contents block (#52) */
+#write.milkdown-write .md-toc {
+  margin: 1em 0;
+  padding: 10px 12px;
+  border: 1px solid var(--tl-border);
+  border-radius: 4px;
+  background: var(--tl-surface);
+  font-size: 0.92em;
+}
+#write.milkdown-write .md-toc-item { display: block; padding: 2px 0; color: inherit; text-decoration: none; }
+#write.milkdown-write .md-toc-item:hover { color: var(--themeColor); }
+#write.milkdown-write .md-toc-empty { opacity: 0.5; padding: 2px 0; }
+
+/* GitHub Alerts (#53) */
+#write.milkdown-write .md-alert {
+  position: relative;
+  margin: 1em 0;
+  padding: 0.6em 1em 0.6em 1.2em;
+  border-left: 4px solid var(--themeColor);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--themeColor) 8%, transparent);
+}
+
+#write.milkdown-write .md-alert-marker {
+  display: none;
+}
+
+#write.milkdown-write .md-alert::before {
+  display: block;
+  margin-bottom: 0.35em;
+  font-weight: 600;
+  font-size: 0.9em;
+  letter-spacing: 0.02em;
+}
+
+#write.milkdown-write .md-alert-note::before { content: "Note"; color: #3b82f6; }
+#write.milkdown-write .md-alert-tip::before { content: "Tip"; color: #10b981; }
+#write.milkdown-write .md-alert-important::before { content: "Important"; color: #8b5cf6; }
+#write.milkdown-write .md-alert-warning::before { content: "Warning"; color: #f59e0b; }
+#write.milkdown-write .md-alert-caution::before { content: "Caution"; color: #ef4444; }
+
+/* Emoji shortcodes (#70) */
+#write.milkdown-write .md-emoji {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
 /* Page break (#62) */
 #write.milkdown-write .page-break {
   border-top: 1px dashed var(--tl-border);

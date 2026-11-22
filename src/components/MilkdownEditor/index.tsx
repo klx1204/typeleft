@@ -53,10 +53,15 @@ import { processImage } from 'services/imageAction';
 import { LARGE_DOC_LIMIT } from 'components/Editor/engine';
 import { applyListIndentation } from 'services/markdown/listFormat';
 import { parseFrontmatter } from 'services/frontmatter';
+import { normalizeLatexDelimiters } from 'services/markdown/latex';
+import { setStrictMode } from 'services/strictMode';
 import { createApplicationMenuState } from 'services/menuState';
 import { useI18n, t as translate } from 'services/i18n';
 import { frontmatterNode, frontmatterRemark, frontmatterView } from './nodes/frontmatter';
-import { mathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
+import { mathRemark, strictMathRemark, inlineMathNode, blockMathNode, inlineMathView, blockMathView } from './nodes/math';
+import { emojiRemark, emojiNode, emojiInputRule, setEmojiEnabled } from './nodes/emoji';
+import { alertsPlugin, setAlertsEnabled } from './nodes/alerts';
+import { tocRemark, tocNode, tocView, setTocEnabled } from './nodes/toc';
 import { marksRemark, highlightMark, superscriptMark, subscriptMark, underlineMark, highlightInputRule, superscriptInputRule, subscriptInputRule, strikethroughInputRule, setSuperSubEnabled } from './nodes/marks';
 import { tableWidthRemark, tableWithWidth, tableCellWithWidth, tableHeaderWithWidth } from './nodes/table';
 import { createImageView, imageLayoutSchema, imageHtmlRemark } from './nodes/image';
@@ -368,7 +373,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, el);
-        ctx.set(defaultValueCtx, propsRef.current.markdown ?? '');
+        const initialMarkdown = propsRef.current.markdown ?? '';
+        ctx.set(defaultValueCtx, propsRef.current.options?.strictMode ? initialMarkdown : normalizeLatexDelimiters(initialMarkdown));
         // Keep source output close to what Typora/Muya write.
         ctx.update(remarkStringifyOptionsCtx, (prev: any) => ({
           ...prev,
@@ -409,6 +415,14 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
       .use(subscriptInputRule)
       .use(strikethroughInputRule)
       .use(mathRemark)
+      .use(strictMathRemark)
+      .use(emojiRemark)
+      .use(emojiNode)
+      .use(emojiInputRule)
+      .use(alertsPlugin)
+      .use(tocRemark)
+      .use(tocNode)
+      .use(tocView)
       .use(inlineMathNode)
       .use(blockMathNode)
       .use(inlineMathView)
@@ -554,6 +568,10 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setSoftBreakEnabled(props.options?.preserveSoftLineBreaks);
     setSuperSubEnabled(props.options?.superSubScript !== false);
     setCustomDictionary(props.options?.customDictionary);
+    setStrictMode(props.options?.strictMode === true);
+    setEmojiEnabled(props.options?.strictMode !== true);
+    setAlertsEnabled(props.options?.strictMode !== true);
+    setTocEnabled(props.options?.strictMode !== true);
     const view = getView();
     if (view) {
       // The built-in checker drives the decorations; native underlines would
@@ -752,6 +770,24 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
     setLinkPopover(null);
   }, [withView]);
 
+  const insertToc = useCallback(() => {
+    withView((view) => {
+      const { state } = view;
+      const type = state.schema.nodes.toc_block;
+      const paragraph = state.schema.nodes.paragraph;
+      if (!type || !paragraph) return;
+      const { $from } = state.selection;
+      const pos = $from.depth > 0 ? $from.after($from.depth) : state.selection.to;
+      const node = type.create();
+      let tr = state.tr.insert(pos, node);
+      const after = pos + node.nodeSize;
+      if (!tr.doc.nodeAt(after)) tr = tr.insert(after, paragraph.create());
+      tr = tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1)));
+      view.dispatch(tr.scrollIntoView());
+      view.focus();
+    });
+  }, [withView]);
+
   const insertPageBreak = useCallback(() => {
     withView((view) => {
       const { state } = view;
@@ -870,7 +906,8 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
   useEffect(() => transport.addListener<string>('InsertParagraph', (pos) => {
     if (pos === 'hr') run(insertHrCommand);
     if (pos === 'pagebreak') insertPageBreak();
-  }), [run, insertPageBreak]);
+    if (pos === 'toc') insertToc();
+  }), [run, insertPageBreak, insertToc]);
 
   useEffect(() => transport.addListener('InsertImage', (arg: any) => {
     if (arg && typeof arg === 'string') {
@@ -1275,16 +1312,17 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
         case 'quote': run(wrapInBlockquoteCommand); break;
         case 'code': run(createCodeBlockCommand); break;
         case 'table': openTablePicker(); break;
-        case 'emoji': openEmojiPicker(); break;
+        case 'emoji': if (!propsRef.current.options?.strictMode) openEmojiPicker(); break;
         case 'footnote': insertFootnote(); break;
-        case 'math': insertBlockMath(); break;
+        case 'math': if (!propsRef.current.options?.strictMode) insertBlockMath(); break;
         case 'hr': run(insertHrCommand); break;
         case 'pagebreak': insertPageBreak(); break;
+        case 'toc': if (!propsRef.current.options?.strictMode) insertToc(); break;
         case 'image': insertImageFromFile(); break;
         default: break;
       }
     });
-  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile, openTablePicker, openEmojiPicker, insertFootnote, insertPageBreak]);
+  }, [run, toggleTaskList, insertBlockMath, insertImageFromFile, openTablePicker, openEmojiPicker, insertFootnote, insertPageBreak, insertToc]);
 
   // ------------------------------------------------------------------ render
   const searchBarStyle: React.CSSProperties = {
@@ -1481,11 +1519,29 @@ const MilkdownEditor: React.FC<IMilkdownEditor> = (props) => {
             target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
           }
-          // External links open only with Cmd/Ctrl so a plain click still edits.
-          if ((e.metaKey || e.ctrlKey) && /^(https?:|mailto:)/i.test(href)) {
+          // Links open only with Cmd/Ctrl so a plain click still edits.
+          if (!(e.metaKey || e.ctrlKey)) return;
+          if (/^(https?:|mailto:)/i.test(href)) {
             e.preventDefault();
             remote.openUrl({ url: href }).catch(() => {});
+            return;
           }
+          if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return;
+          const base = String((window as any).basePath || '').replace(/\\/g, '/').replace(/\/+$/, '');
+          let path = decodeURI(href.replace(/^file:\/\//i, ''));
+          if (path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path)) {
+            // already absolute
+          } else if (base) {
+            path = `${base}/${path.replace(/^\.\//, '')}`;
+          } else {
+            return;
+          }
+          e.preventDefault();
+          remote.checkFileExists({ path })
+            .then((exists: boolean) => exists
+              ? remote.openPath({ path })
+              : window.alert(`${t('File not found')}: ${path}`))
+            .catch(() => window.alert(`${t('File not found')}: ${path}`));
         }}
         onMouseOver={(e) => {
           const ref = (e.target as HTMLElement).closest('sup[data-type="footnote_reference"]') as HTMLElement | null;

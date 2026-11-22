@@ -902,5 +902,13 @@
   "PDF engine not found — opening the print dialog; choose \"Save as PDF\".": {
     "en": "PDF engine not found — opening the print dialog; choose \"Save as PDF\".",
     "zh": "未找到 PDF 引擎，已打开打印对话框；请选择“另存为 PDF”。"
+  },
+  "Table of Contents": {
+    "en": "Table of Contents",
+    "zh": "目录"
+  },
+  "File not found": {
+    "en": "File not found",
+    "zh": "文件不存在"
   }
 }

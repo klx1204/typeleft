@@ -18,7 +18,7 @@ const KEYS = [
 
     'Heading 1', 'Heading 2', 'Heading 3', 'Heading 4', 'Heading 5', 'Heading 6',
     'Quote Block', 'Code Block', 'Ordered List', 'Bullet List', 'Task List', 'Table', 'Insert Table',
-    'Math Block', 'Horizontal Rule', 'Horizontal Line', 'Page Break',
+    'Math Block', 'Horizontal Rule', 'Horizontal Line', 'Page Break', 'Table of Contents',
 
     'Source Code', 'Toggle Source Code', 'Toggle Sidebar', 'Show Outline',
     'Compact Mode', 'Toggle Compact Mode', 'Always on Top', 'Toggle Always on Top',
@@ -26,7 +26,7 @@ const KEYS = [
     'words', 'chars', 'Files', 'Outline', 'Open Folder', 'No headings',
     'Filter outline...', 'Pinned Folders', 'Recent Folders', 'Pin Folder', 'Unpin Folder',
     'Include Outline', 'After Export', 'Do Nothing', 'Open File', 'Move Up', 'Move Down',
-    'Search the Web for', 'Move row up', 'Move row down', 'Move column left', 'Move column right',
+    'Search the Web for', 'File not found', 'Move row up', 'Move row down', 'Move column left', 'Move column right',
     'Drag to reorder rows', 'Drag to reorder columns',
     'Format', 'Pandoc is required for this format. Configure it in Settings → Import & Export.',
     'Choose an output folder or file first', 'Set a custom export command in Settings → Import & Export',

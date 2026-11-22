@@ -4,9 +4,35 @@ import katex from 'katex';
 // mhchem adds \ce{} / \pu{} for chemistry and physics units (#41).
 import 'katex/dist/contrib/mhchem.min.js';
 import remarkMath from 'remark-math';
+import { isStrictMode } from 'services/strictMode';
 
 /** Parse `$...$` / `$$...$$` into mdast math nodes. */
 export const mathRemark = $remark('math', () => remarkMath);
+
+/** Strict mode keeps the source text instead of turning it into KaTeX nodes. */
+export const strictMathRemark = $remark('typeleftStrictMath', () => function typeleftStrictMath() {
+  return (tree: any) => {
+    if (!isStrictMode()) return;
+    const walk = (node: any) => {
+      if (!Array.isArray(node.children)) return;
+      const next: any[] = [];
+      for (const child of node.children) {
+        if (child.type === 'inlineMath') {
+          next.push({ type: 'text', value: `$${child.value ?? ''}$` });
+          continue;
+        }
+        if (child.type === 'math') {
+          next.push({ type: 'paragraph', children: [{ type: 'text', value: `$$${child.value ?? ''}$$` }] });
+          continue;
+        }
+        walk(child);
+        next.push(child);
+      }
+      node.children = next;
+    };
+    walk(tree);
+  };
+});
 
 const renderKatex = (value: string, displayMode: boolean): string => {
   try {

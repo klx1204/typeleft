@@ -63,3 +63,23 @@
   margin: 0 10px;
   border-bottom: 2px dotted black;
 }
+
+
+/* GitHub Alerts (#53) */
+.md-alert {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px;
+  background: #eff6ff;
+}
+.md-alert-title {
+  margin: 0 0 0.35em;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+.md-alert-note { border-color: #3b82f6; background: #eff6ff; }
+.md-alert-tip { border-color: #10b981; background: #ecfdf5; }
+.md-alert-important { border-color: #8b5cf6; background: #f5f3ff; }
+.md-alert-warning { border-color: #f59e0b; background: #fffbeb; }
+.md-alert-caution { border-color: #ef4444; background: #fef2f2; }

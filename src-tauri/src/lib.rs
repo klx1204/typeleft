@@ -1608,6 +1608,7 @@ fn tr(lang: &str, en: &'static str) -> &'static str {
         "Math Block" => "数学块",
         "Horizontal Rule" => "分隔线",
         "Page Break" => "分页",
+        "Table of Contents" => "目录",
         "View" => "视图",
         "Source Code" => "源码模式",
         "Toggle Sidebar" => "切换侧边栏",
@@ -1728,11 +1729,12 @@ fn setup_menu(app: &tauri::AppHandle) -> Result<(), tauri::Error> {
     let math = MenuItem::with_id(app, "math_block", tr("Math Block"), true, None::<&str>)?;
     let hr = MenuItem::with_id(app, "horizontal_rule", tr("Horizontal Rule"), true, None::<&str>)?;
     let page_break = MenuItem::with_id(app, "insert_pagebreak", tr("Page Break"), true, None::<&str>)?;
+    let toc_item = MenuItem::with_id(app, "insert_toc", tr("Table of Contents"), true, None::<&str>)?;
 
     let paragraph_menu = Submenu::with_items(app, tr("Paragraph"), true, &[
         &h1, &h2, &h3, &h4, &h5, &h6, &sep4,
         &quote, &code_block, &ordered_list, &bullet_list, &task_list,
-        &table, &math, &hr, &page_break,
+        &table, &math, &hr, &page_break, &toc_item,
     ])?;
 
     let view_source = MenuItem::with_id(app, "view_source", tr("Source Code"), true, None::<&str>)?;
@@ -1992,6 +1994,7 @@ pub fn run() {
                 "math_block" => { let _ = app.emit("UpdateParagraph", "mathblock"); }
                 "horizontal_rule" => { let _ = app.emit("InsertParagraph", "hr"); }
                 "insert_pagebreak" => { let _ = app.emit("InsertParagraph", "pagebreak"); }
+                "insert_toc" => { let _ = app.emit("InsertParagraph", "toc"); }
                 "view_source" => { let _ = app.emit("ToggleSourceCode", ()); }
                 "view_sidebar" => { let _ = app.emit("SidebarToggle", ()); }
                 "view_outline" => { let _ = app.emit("SidebarSection", serde_json::json!({"section": "toc"})); }
@@ -2213,6 +2216,21 @@ mod pandoc_tests {
     #[test]
     fn unknown_formats_are_rejected() {
         assert!(pandoc_format_args("nope", "/example/x", None).is_err());
+    }
+
+    #[test]
+    fn maps_typography_tokens_for_pandoc() {
+        let args = pandoc_style_args(
+            Some("Georgia"),
+            Some("JetBrains Mono"),
+            Some("11pt"),
+            Some("rtl"),
+        );
+        assert!(args.contains(&"mainfont=Georgia".to_string()));
+        assert!(args.contains(&"monofont=JetBrains Mono".to_string()));
+        assert!(args.contains(&"fontsize=11pt".to_string()));
+        assert!(args.contains(&"dir=rtl".to_string()));
+        assert!(pandoc_style_args(None, None, Some("16"), None).is_empty());
     }
 }
 

@@ -3,6 +3,7 @@ import { markRule } from '@milkdown/kit/prose';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { strikethroughSchema } from '@milkdown/kit/preset/gfm';
 import { findAndReplace } from 'mdast-util-find-and-replace';
+import { isStrictMode } from 'services/strictMode';
 
 /**
  * `==highlight==`, `^superscript^` and `~subscript~`.
@@ -35,13 +36,14 @@ export const marksRemark = $remark('typeleftMarks', () => function typeleftMarks
   });
 
   return (tree: any) => {
-    const rules: any[] = [
-      [/==([^=\n]+)==/g, (_: string, text: string) => ({
+    const rules: any[] = [];
+    if (!isStrictMode()) {
+      rules.push([/==([^=\n]+)==/g, (_: string, text: string) => ({
         type: 'highlight',
         children: [{ type: 'text', value: text }],
-      }) as any],
-    ];
-    if (superSubEnabled) {
+      }) as any]);
+    }
+    if (superSubEnabled && !isStrictMode()) {
       rules.push(
         [/\^([^\s^\n]+)\^/g, (_: string, text: string) => ({
           type: 'superscript',
@@ -143,6 +145,7 @@ export const underlineMark = $markSchema('underline', () => ({
 const gatedMarkRule = (regexp: RegExp, markName: string, gate = false) => (ctx: any) => new InputRule(
   regexp,
   (state, match, start, end) => {
+    if (isStrictMode()) return null;
     if (gate && !superSubEnabled) return null;
     const group = match[match.length - 1];
     if (!group || !group.trim()) return null;

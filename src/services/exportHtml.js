@@ -12,6 +12,7 @@ import { EXPORT_DOMPURIFY_CONFIG } from './markdown/config'
 import { sanitize, unescapeHTML } from './markdown/sanitize'
 import { validEmoji } from './markdown/emojis'
 import { alias } from './markdown/prismAlias'
+import { normalizeLatexDelimiters } from './markdown/latex'
 
 const DIAGRAM_TYPE = [
   'mermaid',
@@ -23,7 +24,7 @@ const DIAGRAM_TYPE = [
 
 class ExportHtml {
   constructor(markdown, options) {
-    this.markdown = markdown
+    this.markdown = normalizeLatexDelimiters(markdown)
     this.options = options
     this.exportContainer = null
     this.mathRendererCalled = false
@@ -31,28 +32,28 @@ class ExportHtml {
 
   async renderMermaid() {
     const codes = this.exportContainer.querySelectorAll('code.language-mermaid')
-    for (const code of codes) {
-      const preEle = code.parentNode
-      const mermaidContainer = document.createElement('div')
-      mermaidContainer.innerHTML = sanitize(unescapeHTML(code.innerHTML), EXPORT_DOMPURIFY_CONFIG, true)
-      mermaidContainer.classList.add('mermaid')
-      preEle.replaceWith(mermaidContainer)
-    }
+    if (!codes.length) return
     const mermaid = await loadRenderer('mermaid')
-    // We only export light theme, so set mermaid theme to `default`, in the future, we can choose whick theme to export.
     mermaid.initialize({
+      startOnLoad: false,
       securityLevel: 'strict',
-      theme: 'default'
+      theme: this.options?.mermaidTheme || 'default'
     })
-    mermaid.init(undefined, this.exportContainer.querySelectorAll('div.mermaid'))
-    if (this.options) {
-      mermaid.initialize({
-        securityLevel: 'strict',
-        theme: this.options.mermaidTheme
-      })
+    let index = 0
+    for (const code of codes) {
+      const pre = code.parentNode
+      const raw = unescapeHTML(code.innerHTML)
+      try {
+        const { svg } = await mermaid.render(`tl-export-mermaid-${Date.now()}-${index++}`, raw)
+        const container = document.createElement('div')
+        container.className = 'mermaid'
+        container.innerHTML = svg
+        pre.replaceWith(container)
+      } catch (err) {
+        pre.textContent = raw
+      }
     }
   }
-
   async renderDiagram() {
     const selector = 'code.language-vega-lite, code.language-flowchart, code.language-sequence, code.language-plantuml'
     const RENDER_MAP = {
@@ -130,7 +131,9 @@ class ExportHtml {
     this.mathRendererCalled = false
     let html = marked(this.markdown, {
       breaks: this.options?.preserveSoftLineBreaks === true,
-      superSubScript: this.options?.superSubScript ?? false,
+      emoji: this.options?.strictMode !== true,
+      math: this.options?.strictMode !== true,
+      superSubScript: this.options?.strictMode === true ? false : (this.options?.superSubScript ?? false),
       footnote: this.options?.footnote ?? false,
       isGitlabCompatibilityEnabled: this.options?.isGitlabCompatibilityEnabled ?? false,
       baseUrl: this.options?.baseUrl,
@@ -174,6 +177,29 @@ class ExportHtml {
     exportContainer.classList.add('ag-render-container')
     exportContainer.innerHTML = html
     document.body.appendChild(exportContainer)
+
+    // GitHub Alerts (#53): keep the source blockquote, add the callout shell.
+    exportContainer.querySelectorAll('blockquote').forEach(bq => {
+      const first = bq.querySelector('p')
+      if (!first) return
+      const match = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i.exec(first.textContent || '')
+      if (!match) return
+      const type = match[1].toLowerCase()
+      bq.classList.add('md-alert', `md-alert-${type}`)
+      let remaining = match[0].length
+      const walker = document.createTreeWalker(first, NodeFilter.SHOW_TEXT)
+      while (remaining > 0 && walker.nextNode()) {
+        const node = walker.currentNode
+        const value = node.nodeValue || ''
+        const take = Math.min(remaining, value.length)
+        node.nodeValue = value.slice(take)
+        remaining -= take
+      }
+      const title = document.createElement('p')
+      title.className = 'md-alert-title'
+      title.textContent = match[1].toUpperCase()
+      bq.insertBefore(title, bq.firstChild)
+    })
 
     // `typora-root-url` prefixes relative media paths (#114).
     const rootUrl = this.options?.typoraRootUrl

@@ -34,15 +34,14 @@ export const renderDiagram = async (
     if (lang === 'mermaid') {
       const mermaid = await loadRenderer('mermaid');
       mermaid.initialize({
+        startOnLoad: false,
         securityLevel: 'strict',
         theme: options.mermaidTheme || (dark ? 'dark' : 'default'),
       });
-      mermaid.parse(code);
-      target.textContent = code;
-      // mermaid 8 marks rendered nodes with data-processed and would skip them
-      // when the preview is toggled off and on again.
-      target.removeAttribute('data-processed');
-      mermaid.init(undefined, target);
+      await mermaid.parse(code);
+      const id = `tl-mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const { svg } = await mermaid.render(id, code);
+      target.innerHTML = svg;
       return;
     }
     if (lang === 'vega' || lang === 'vega-lite') {

@@ -94,6 +94,8 @@
       if (cmd === 'get_log_path') return Promise.resolve('/example/typeleft/typeleft_errors.log');
       if (cmd === 'read_log') return Promise.resolve('[Typeleft] test log line\n');
       if (cmd === 'open_url') { window.__openedUrl = args.url; return Promise.resolve(null); }
+      if (cmd === 'check_file_exists') return Promise.resolve(true);
+      if (cmd === 'open_path') { window.__openedPath = args.path; return Promise.resolve(null); }
       if (cmd === 'list_directory') return Promise.resolve([]);
       if (cmd === 'get_file_mtime') return Promise.resolve(1700000000000);
       if (cmd === 'latest_backup') return Promise.resolve(null);

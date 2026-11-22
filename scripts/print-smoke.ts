@@ -38,8 +38,9 @@ if (renderer === 'chrome' && !chrome) {
   console.error('print smoke: Chrome/Chromium not found (set CHROME or PDF_RENDERER=weasyprint)');
   process.exit(1);
 }
-if (renderer === 'weasyprint' && !spawnSync('weasyprint', ['--version']).status) {
-  console.error('print smoke: weasyprint not found');
+const weasyprint = ['python3', '-m', 'weasyprint'];
+if (renderer === 'weasyprint' && spawnSync(weasyprint[0], [...weasyprint.slice(1), '--version']).status !== 0) {
+  console.error('print smoke: python3 -m weasyprint not available');
   process.exit(1);
 }
 
@@ -97,7 +98,7 @@ const pdfPath = join(dir, 'print-sample.pdf');
 writeFileSync(htmlPath, document);
 
 const result = renderer === 'weasyprint'
-  ? spawnSync('weasyprint', [htmlPath, pdfPath], { encoding: 'utf8' })
+  ? spawnSync(weasyprint[0], [...weasyprint.slice(1), htmlPath, pdfPath], { encoding: 'utf8' })
   : spawnSync(chrome as string, [
     '--headless=new',
     '--disable-gpu',

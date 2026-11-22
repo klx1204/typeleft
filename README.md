@@ -23,6 +23,7 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Recent files** menu and a configurable recent-files limit
 - **Code fences**: line numbers, soft wrap, default language, KaTeX preview for ```` ```math ````, copy block, Tab / Shift+Tab indent
 - **Rich HTML**: raw HTML blocks and inline markup, `<u>`, `<video>`/`<audio>` and sandboxed `<iframe>` embeds, with round-trip preservation
+- **Document structure**: live `[TOC]` blocks, GitHub Alerts (`> [!NOTE]`), Mermaid 11, `\(...\)` / `\[...\]` math delimiters, file links, emoji shortcodes and strict GFM mode
 - **Tables**: insert/delete rows and columns, resize, align, and drag rows/columns to reorder
 - **Export** presets (reorder, CSS / outline / front-matter switches, post-export actions, per-document front-matter overrides) and **direct printing**
 - **Pandoc export**: PDF, Word, ODT, ePub, LaTeX, RST, RTF, OPML, Reveal.js, Markdown conversion and custom commands
@@ -31,7 +32,7 @@ Typeleft is a cross-platform rewrite of [Typedown](https://github.com/byxiaozhi/
 - **Window**: zoom (menu or Cmd/Ctrl + wheel), full screen
 - **Selected-text web search**, error-log panel, and a **CLI** (`typeleft <file>`, `--new`, `--folder`)
 - **Image support**: clipboard paste, local copy, relative paths, and HTTP image hosting upload
-- **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background
+- **Typography options**: RTL, heading auto-numbering, justified text, list markers, body/code fonts, editor background; each setting follows the theme until overridden
 - **Themes**: light / dark / system, Mermaid / Sequence / Vega diagram themes; Typora-compatible CSS and a [theme authoring guide](docs/theme-authoring.md)
 - **Bilingual UI**: English and 简体中文, switchable at runtime
 - Native menus, keyboard shortcuts, auto-save and backups
@@ -105,9 +106,10 @@ CI runs these suites on every push and pull request (`.github/workflows/test.yml
 `CodeMirror6` components with a stubbed Tauri IPC layer, checks the rendered
 DOM (front matter, tables, task lists, KaTeX, code blocks, diagrams, images,
 Prism tokens, outline, word count), drives the search panel and real typing, and
-fails on any `console.error`. `?theme=1`, `?layout=1`, `?codeblock=1`,
-`?sidebar=1`, `?folders=1`, `?exportdialog=1`, `?settings=1`, `?searchmenu=1`
-and `?pickers=1` switch the page into the other checks.
+fails on any `console.error`. `?theme=1`, `?layout=1`, `?codeblock=1`, `?sidebar=1`, `?folders=1`,
+`?exportdialog=1`, `?settings=1`, `?settingstype=1`, `?searchmenu=1`,
+`?softbreak=1`, `?spell=1`, `?media=1`, `?exporttheme=1`, `?strict=1`,
+`?filelink=1` and `?pickers=1` switch the page into the other checks.
 
 Every preference lives in one JSON file; see [`docs/settings.md`](docs/settings.md)
 for the full key reference (also reachable from Settings → Advanced).

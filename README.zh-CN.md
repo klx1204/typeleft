@@ -23,6 +23,7 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **最近文件**菜单，数量可配置
 - **代码块**：行号、自动换行、默认语言、```` ```math ```` KaTeX 预览、复制代码块、Tab / Shift+Tab 缩进
 - **富 HTML**：HTML 块与行内标记、`<u>`、`<video>`/`<audio>`、沙箱 `<iframe>`，源码往返保真
+- **文档结构**：实时 `[TOC]` 目录、GitHub Alerts（`> [!NOTE]`）、Mermaid 11、`\(...\)` / `\[...\]` 公式分隔符、文件链接、Emoji 短代码与严格 GFM 模式
 - **表格**：增删行列、列宽、对齐，以及拖动行/列排序
 - **导出配置**（排序、CSS / 大纲 / Front Matter 开关、导出后动作、文档 Front Matter 覆盖）与**直接打印**
 - **Pandoc 导出**：PDF、Word、ODT、ePub、LaTeX、RST、RTF、OPML、Reveal.js、Markdown 转换与自定义命令
@@ -31,7 +32,7 @@ Typeleft 是 [Typedown](https://github.com/byxiaozhi/Typedown)（原 Windows 专
 - **窗口**：缩放（菜单或 Cmd/Ctrl + 滚轮）、全屏
 - **选中文本网页搜索**、错误日志面板，以及 **CLI**（`typeleft <文件>`、`--new`、`--folder`）
 - **图片**：剪贴板粘贴、本地复制、相对路径、HTTP 图床上传
-- **排版选项**：文字方向（RTL）、标题自动编号、两端对齐、列表符号/编号、正文字体/代码字体、编辑区背景色
+- **排版选项**：文字方向（RTL）、标题自动编号、两端对齐、列表符号/编号、正文字体/代码字体、编辑区背景色；默认跟随主题，显式修改才覆盖
 - **主题**：明亮 / 暗色 / 跟随系统，Mermaid / Sequence / Vega 图表主题；兼容 Typora CSS，附[主题开发指南](docs/theme-authoring.zh-CN.md)
 - **双语界面**：English 与简体中文，运行时切换
 - 原生菜单、快捷键、自动保存与备份
@@ -101,9 +102,10 @@ bun run test:rust      # CLI 参数解析（cargo test）
 每次 push 与 pull request 都会运行这些套件（`.github/workflows/test.yml`）。
 
 `test:web` 会启动 `devtest/`，用 Tauri IPC stub 挂载真实的
-`MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?theme=1`、`?layout=1`、`?codeblock=1`、
-`?sidebar=1`、`?folders=1`、`?exportdialog=1`、`?settings=1`、`?searchmenu=1`、
-`?pickers=1` 可切换到其他检查。
+`MilkdownEditor` 与 `CodeMirror6` 组件，断言渲染出的 DOM（Front Matter、表格、任务列表、KaTeX、代码块、图表、图片、Prism token、大纲、字数），并驱动搜索面板与真实输入；任何 `console.error` 都会导致失败。`?theme=1`、`?layout=1`、`?codeblock=1`、`?sidebar=1`、`?folders=1`、
+`?exportdialog=1`、`?settings=1`、`?settingstype=1`、`?searchmenu=1`、
+`?softbreak=1`、`?spell=1`、`?media=1`、`?exporttheme=1`、`?strict=1`、
+`?filelink=1`、`?pickers=1` 可切换到其他检查。
 
 所有偏好都保存在同一个 JSON 文件中，完整键名见 [`docs/settings.md`](docs/settings.md)（也可从“设置 → 高级”打开）。
 

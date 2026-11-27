@@ -25,6 +25,10 @@ function applyTheme(theme: string) {
   codemirrorStyle.href = `theme/codemirror/${t}.theme.css`;
 
   const isDark = t === 'dark';
+  // WebKitGTK paints the unfocused part of native <select> with the light UA
+  // style unless the document advertises a dark color scheme. GTK theme does
+  // not affect it, so keep the page color-scheme in sync with the app theme.
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   const r = 68, g = 138, b = 255, a = 1;
   const bgR = isDark ? 30 : 255, bgG = isDark ? 30 : 255, bgB = isDark ? 30 : 255, bgA = 255;
 

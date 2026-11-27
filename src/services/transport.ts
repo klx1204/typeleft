@@ -23,6 +23,16 @@ const remoteFunction = <T, TResult>(name: string) =>
   (args?: T): Promise<TResult> =>
     invoke<TResult>(name, args ?? undefined)
 
+/**
+ * For commands whose single Rust argument is itself a map/struct (for example
+ * `fn save_settings(settings: HashMap<...>)`), Tauri still expects the payload
+ * to be keyed by the argument name. Passing the object directly makes Tauri
+ * reject the call with `missing required key <name>`.
+ */
+const remoteFunctionWithArgKey = <T, TResult>(name: string, argKey: string) =>
+  (arg: T): Promise<TResult> =>
+    invoke<TResult>(name, { [argKey]: arg })
+
 const postMessage = (name: string, args: unknown) => {
   // `emit` throws or rejects outside Tauri (unit tests, plain browser).
   try {
@@ -51,4 +61,4 @@ export default {
   postMessage,
 }
 
-export { remoteFunction }
+export { remoteFunction, remoteFunctionWithArgKey }

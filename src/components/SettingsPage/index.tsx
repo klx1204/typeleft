@@ -408,7 +408,9 @@ const SettingsPage: React.FC<ISettingsPageProps> = ({ open, onClose, initialSect
     setSettings(next);
     try {
       await remote.saveSettings(next);
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.error('[Typeleft] failed to save settings:', e);
+    }
     transport.postMessage('SettingsChanged', { [key]: value });
     if (key === 'lang') {
       transport.postMessage('LanguageChanged', value);

@@ -1,4 +1,4 @@
-import { remoteFunction } from '../transport'
+import { remoteFunction, remoteFunctionWithArgKey } from '../transport'
 
 const remote = {
     getCurrentTheme: remoteFunction<undefined, string>('get_current_theme'),
@@ -8,7 +8,7 @@ const remote = {
     openNewWindow: remoteFunction<{ url: string }, void>('open_new_window'),
     resizeTable: remoteFunction<{ rows: number, columns: number }, { row: number, column: number }>('resize_table'),
     getSettings: remoteFunction<undefined, unknown>('get_settings'),
-    saveSettings: remoteFunction<Record<string, unknown>, void>('save_settings'),
+    saveSettings: remoteFunctionWithArgKey<Record<string, unknown>, void>('save_settings', 'settings'),
     getStringResources: remoteFunction<{ names: string[] }, { [name: string]: string }>('get_string_resources'),
     setClipboard: remoteFunction<{ type: string, data: unknown }, boolean>('set_clipboard'),
     setClipboardRich: remoteFunction<{ text: string, html: string }, boolean>('set_clipboard_rich'),
@@ -46,7 +46,7 @@ const remote = {
     getRecentFiles: remoteFunction<undefined, string[]>('get_recent_files'),
     clearRecentFiles: remoteFunction<undefined, void>('clear_recent_files'),
     checkFileExists: remoteFunction<{ path: string }, boolean>('check_file_exists'),
-    saveWindowState: remoteFunction<Record<string, unknown>, void>('save_window_state'),
+    saveWindowState: remoteFunctionWithArgKey<Record<string, unknown>, void>('save_window_state', 'state'),
     setAlwaysOnTop: remoteFunction<{ onTop: boolean }, void>('set_always_on_top'),
     setCompactMode: remoteFunction<{ compact: boolean }, void>('set_compact_mode'),
     listDirectory: remoteFunction<{ path: string }, Array<{ name: string, path: string, is_dir: boolean }>>('list_directory'),
